@@ -27,7 +27,8 @@ node tools/simulate.js         # balance report
 State goes to `./data` (`DATA_DIR`): `rooms.json`, `profiles.json`, `games.jsonl`, `secret`. It is not in git.
 
 Environment: `TELEGRAM_BOT_TOKEN`, `PUBLIC_URL` (https, needed for the Telegram buttons),
-`ALLOW_GUESTS` (default on), `PORT` (8420), `DATA_DIR`. See `.env.example`.
+`ALLOW_GUESTS` (default on), `PORT` (8420), `DATA_DIR`, `TELEGRAM_POLL=0` (check Telegram sign-in without
+listening to the bot, for local testing with the real token). See `.env.example`.
 
 ## Players
 

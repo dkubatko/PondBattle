@@ -71,6 +71,9 @@ async function start() {
     await api('setChatMenuButton', { menu_button: { type: 'web_app', text: 'Play', web_app: { url: `${PUBLIC_URL}/` } } });
     await api('setMyCommands', { commands: [{ command: 'play', description: 'Open the pond' }] });
   } else console.log('telegram: PUBLIC_URL is not https, so the Play buttons are off (Telegram requires https)');
+  // TELEGRAM_POLL=0: check launch data but don't listen to the bot (lets a local test copy use the real
+  // token without stealing the live game's messages - Telegram allows only one listener per bot)
+  if (process.env.TELEGRAM_POLL === '0') return console.log(`telegram: bot @${username}, not listening (TELEGRAM_POLL=0)`);
   console.log(`telegram: bot @${username} running`);
   poll();
 }

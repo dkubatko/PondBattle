@@ -53,7 +53,7 @@ let saveTimer = null;
 const save = () => { clearTimeout(saveTimer); saveTimer = setTimeout(() => fs.writeFile(SAVE, JSON.stringify(rooms), () => {}), 500); };
 
 const cleanName = (n) => String(n || '').replace(/\s+/g, ' ').trim().slice(0, 14) || 'Frog';
-// Avatar: a frog body shape in one of 10 colours, plus eyes, pattern and accessory (the page draws them)
+// Avatar: a frog body shape in one of 10 colors, plus eyes, pattern and accessory (the page draws them)
 const AV_COLORS = 10, AV_BODIES = ['classic', 'slim', 'tall', 'round', 'toad', 'bull', 'tadpole'];
 // Eyes, pattern and accessory are short option ids; the page owns the art and falls back to the default for unknown ids
 const optId = (v, dflt) => (/^[a-z]{1,12}$/.test(String(v || '')) ? v : dflt);
@@ -248,7 +248,14 @@ http.createServer(async (req, res) => {
       let uid = '';
       if (tg) {
         uid = `tg${tg.user.id}`;
-        if (!profiles[uid]) profiles[uid] = { name: cleanName([tg.user.first_name, tg.user.last_name].filter(Boolean).join(' ')), avatar: cleanAvatar({ b: 'classic', c: tg.user.id % 10 }) };
+        // New players are called by their first name. Names that were auto-filled with the full name earlier
+        // become the first name too; names someone chose themselves are left alone.
+        const first = cleanName(tg.user.first_name), full = cleanName([tg.user.first_name, tg.user.last_name].filter(Boolean).join(' '));
+        if (!profiles[uid]) profiles[uid] = { name: first, avatar: cleanAvatar({ b: 'classic', c: tg.user.id % 10 }) };
+        else if (tg.user.last_name && profiles[uid].name === full && full !== first) {
+          profiles[uid].name = first;
+          for (const r of Object.values(rooms)) for (const p of r.players) if (p.uid === uid) { p.name = first; changed(r); }
+        }
       } else if (who(b) && cleanUid(b.uid).startsWith('g')) uid = cleanUid(b.uid);
       else if (GUESTS) uid = `g${crypto.randomBytes(10).toString('hex')}`;
       else return json(res, 401, { error: 'Open the game from Telegram' });
