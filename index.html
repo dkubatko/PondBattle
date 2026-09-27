@@ -404,7 +404,7 @@ const DESC = {
   rain:     (L) => ['Hurt', `give the friend behind ${statText(L, L)} this battle`],
   lucky:    (L) => ['Start of round', `gain ${L} extra gold`],
   mama:     (L) => ['Faint', `summon two ${L}/${L} Tadpoles`],
-  wizard:   (L) => ['Start of battle', L === 1 ? 'turn the strongest enemy into a 1/1 Froglet' : `turn the ${L} strongest enemies into 1/1 Froglets`],
+  wizard:   (L) => ['Start of battle', L === 1 ? 'shrink the strongest enemy to 1/1 (it keeps its ability)' : `shrink the ${L} strongest enemies to 1/1 (they keep their abilities)`],
   bouncy:   (L) => ['Faint', `come back once on the last lily pad with ${2 * L} health`],
   surinam:  (L) => ['Hurt', `a ${L}/${L} Froglet hatches behind it`],
   hypno:    (L) => ['Before attack', `send the enemy ahead to the back, ${L === 1 ? 'once' : L === 2 ? 'twice' : `${L} times`} per battle`],
@@ -2199,8 +2199,11 @@ async function playBattle(lb) {
       const r = byId(fr.actor); ring(r, 'fx-ring magic');
       if (r) anim(r.move, [{ transform: 'translateY(0)' }, { transform: `translateY(${-18 * s}px) scale(1.12)` }, { transform: 'translateY(0)' }], { duration: dur(420), easing: 'ease-out' });
       await wait(260);
-      (fr.targets || []).forEach((id) => { const t = byId(id); ring(t, 'fx-ring magic'); if (t) anim(t.move, [{ filter: 'brightness(1) hue-rotate(0deg)' }, { filter: 'brightness(1.8) hue-rotate(200deg)' }], { duration: dur(380), fill: 'forwards' }); });
-      await wait(420); Snd.summon(); apply(fr, true, true); await wait(700);
+      // The spell flashes over each target, then it shrinks to 1/1 (same frog, same ability)
+      (fr.targets || []).forEach((id) => { const t = byId(id); ring(t, 'fx-ring magic'); if (t) anim(t.move, [{ filter: 'brightness(1) hue-rotate(0deg)' }, { filter: 'brightness(1.8) hue-rotate(200deg)', offset: .5 }, { filter: 'brightness(1) hue-rotate(0deg)' }], { duration: dur(700) }); });
+      await wait(420); Snd.summon(); apply(fr, true);
+      (fr.targets || []).forEach((id) => { const t = byId(id); if (t && !skipping) anim(t.move, [{ transform: 'scale(1.2)' }, { transform: 'scale(.8)', offset: .5 }, { transform: 'scale(1)' }], { duration: dur(420), easing: 'ease-out' }); });
+      await wait(700);
     } else if (fr.kind === 'charm') {
       // Princess: hearts drift over the charmed enemies, then they hit themselves
       caption(fr.text); Snd.magic();

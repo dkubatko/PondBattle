@@ -141,10 +141,11 @@ function runBattle(teamA, teamB, opts = {}) {
     for (const u of [...T[s]]) {
       if (u.hp <= 0 || !T[s].includes(u)) continue;
       if (u.type === 'wizard') {
-        const foes = alive(1 - s).filter((e) => e.type !== 'froglet').sort((x, y) => y.atk + y.hp - (x.atk + x.hp)).slice(0, u.lvl);
+        // Shrinks the strongest enemies to 1/1; they keep their abilities
+        const foes = alive(1 - s).filter((e) => e.atk + e.hp > 2).sort((x, y) => y.atk + y.hp - (x.atk + x.hp)).slice(0, u.lvl);
         if (foes.length) {
-          for (const e of foes) T[1 - s][T[1 - s].indexOf(e)] = unit('froglet', 1, 1, 1, null, ++bid);
-          snap?.('spell', { actor: u.bid, targets: foes.map((e) => e.bid), text: `${nm(u)} casts a froggy spell` });
+          for (const e of foes) { e.atk = 1; e.hp = 1; }
+          snap?.('spell', { actor: u.bid, targets: foes.map((e) => e.bid), text: `${nm(u)} shrinks the enemy` });
         }
       }
       if (u.type === 'princess') {
@@ -340,5 +341,5 @@ function fight(room) {
 
 module.exports = {
   TEAM_SIZE, ROLL_COST, FROGS, FOODS, hooks,
-  rand, bumpId, frogCost, newPlayerState, resetGame, botShop, act,
+  rand, bumpId, frogCost, runBattle, newPlayerState, resetGame, botShop, act,
 };
