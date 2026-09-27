@@ -1475,8 +1475,8 @@ function showWaiting() {
   </div>`);
   mount('waiting', node);
   $('#share').onclick = async () => {
-    // In Telegram: the share sheet with an invite card (picture, "Let's play Pond Battle!", a Join button that
-    // opens the game in this pond). Telegram apps too old for cards get the same invite as a link message.
+    // In Telegram: the share sheet with an invite ("Let's play Pond Battle!" and a Join button that opens the
+    // game in this pond). Telegram apps too old for cards get the same invite as a link message.
     if (TG && ME.bot) {
       if (TG.isVersionAtLeast && TG.isVersionAtLeast('8.0')) {
         try {

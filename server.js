@@ -166,7 +166,7 @@ E.hooks.gameOver = recordGame;
 
 // ---------- HTTP ----------
 const STATIC = path.join(__dirname, 'static');
-const MIME = { '.html': 'text/html; charset=utf-8', '.woff2': 'font/woff2', '.png': 'image/png', '.jpg': 'image/jpeg', '.webmanifest': 'application/manifest+json', '.svg': 'image/svg+xml' };
+const MIME = { '.html': 'text/html; charset=utf-8', '.woff2': 'font/woff2', '.png': 'image/png', '.webmanifest': 'application/manifest+json', '.svg': 'image/svg+xml' };
 function sendFile(res, file, cache) {
   fs.stat(file, (err, st) => {
     if (err || !st.isFile()) return json(res, 404, { error: 'not found' });
