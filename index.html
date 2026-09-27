@@ -1006,6 +1006,11 @@ const Snd = (() => {
     needsFresh = false; askedAt = 0; lastCt = -1; repairTried = false;
     build();
   }
+  // The page is going away: close the context (the next tap, if the page comes back, builds a fresh one)
+  function shut() {
+    try { ctx.close().catch(() => {}); } catch {}
+    clearInterval(timer); timer = null; ctx = null; needsFresh = true;
+  }
   function kick() {
     ctx.resume().then(() => { askedAt = 0; }, () => { needsFresh = true; });
     try { const b = ctx.createBufferSource(); b.buffer = ctx.createBuffer(1, 1, 22050); b.connect(ctx.destination); b.start(0); } catch {}
@@ -1196,12 +1201,20 @@ const Snd = (() => {
   api.setMusic = (on) => { musicOn = on; localStorage.frogMusic = on ? '1' : '0'; init(); on ? startMusic() : stopMusic(); };
   api.setSfx = (on) => { sfxOn = on; localStorage.frogSfx = on ? '1' : '0'; init(); if (sfx) sfx.gain.value = on ? .8 : 0; };
   api.duck = (on) => { ducked = on; if (ctx && musicOn) mus.gain.setTargetAtTime(MUS_VOL * (on ? .55 : 1), ctx.currentTime, .4); };
-  api.suspend = () => {
+  // Leaving (app hidden, minimised or closed): fade everything out over a few hundredths of a second before
+  // stopping. Stopping audio mid-note makes iPhones repeat the last few milliseconds as a short buzz.
+  let hush = null;
+  api.suspend = (closing) => {
     if (media) media.pause();
-    if (ctx && ctx.state === 'running') ctx.suspend().catch(() => {});
+    if (!ctx || ctx.state !== 'running') return;
+    clearTimeout(hush);
+    try { out.gain.cancelScheduledValues(ctx.currentTime); out.gain.setTargetAtTime(0, ctx.currentTime, .012); } catch {}
+    hush = setTimeout(() => { if (!ctx) return; closing ? shut() : ctx.suspend().catch(() => {}); }, 90);
   };
   api.resume = () => {
+    clearTimeout(hush);
     if (media) media.play().catch(() => {});
+    if (ctx) { try { out.gain.cancelScheduledValues(ctx.currentTime); out.gain.setTargetAtTime(.9, ctx.currentTime, .05); } catch {} }
     // May not take outside a tap; the watchdog and the next tap handle it if it doesn't
     if (ctx && ctx.state !== 'running') ctx.resume().catch(() => { needsFresh = true; });
     lastCt = -1;
@@ -1213,6 +1226,7 @@ const Snd = (() => {
 // Non-passive listeners: iPhone WebKit may not count passive ones as the gesture that unlocks audio
 for (const ev of ['pointerdown', 'pointerup', 'touchend', 'click', 'keydown']) document.addEventListener(ev, () => Snd.init(), { capture: true });
 document.addEventListener('visibilitychange', () => (document.hidden ? Snd.suspend() : Snd.resume()));
+window.addEventListener('pagehide', () => Snd.suspend(true)); // the page is going away: fade, then shut the audio down
 // Restored from the back/forward cache: the old audio context can't be trusted
 window.addEventListener('pageshow', (e) => { if (e.persisted) Snd.reset(); });
 
@@ -1321,6 +1335,7 @@ function haptic([kind, style]) {
 if (TG) {
   TG.ready(); TG.expand();
   try { TG.disableVerticalSwipes(); } catch {} // dragging frogs must not pull the app closed
+  try { TG.onEvent('deactivated', () => Snd.suspend()); TG.onEvent('activated', () => Snd.resume()); } catch {}
   // The game is portrait only: lock it (Telegram 8.0+). Opened sideways, it locks once the phone is upright.
   if (TG.isVersionAtLeast && TG.isVersionAtLeast('8.0')) {
     const lock = () => { if (innerHeight < innerWidth) return false; try { TG.lockOrientation(); } catch {} return true; };
