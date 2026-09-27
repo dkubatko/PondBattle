@@ -36,13 +36,12 @@ function rollShop(p, round) {
   p.shop = { frogs: Array.from({ length: n }, () => newFrog(r(pool))), food, foodCost: foodCost(food) };
 }
 // A locked shop carries over to the next round: what's left stays, empty slots (and a newly opened
-// 4th slot) get fresh frogs, and it stays locked until you roll
+// 4th slot) get fresh frogs. The lock is used up: the new shop is unlocked (rolling before that also unlocks)
 function refillShop(p, round) {
   const old = p.shop;
   rollShop(p, round);
   p.shop.frogs = p.shop.frogs.map((f, i) => old.frogs[i] || f);
   if (old.food) Object.assign(p.shop, { food: old.food, foodCost: old.foodCost });
-  p.shop.locked = true;
 }
 
 // ---------- Battle engine ----------

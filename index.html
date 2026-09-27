@@ -720,23 +720,22 @@ Object.assign(ART, {
   // Bouncy Frog: always bounces back, band-aid and all
   bouncy: () => { const p = pal('#ff9f4a'), b = BODY.slim(p); return compose(b, p, { over: at([58, 32], 1, BANDAID) }); },
   // Surinam toad: flat and brown, carrying its eggs in its back
-  // Surinam Toad: a flat olive pancake with a pointed head, beady eyes and a honeycomb of eggs on its back,
-  // two of them with a baby peeking out (real Surinam toads carry their young in their backs)
+  // Surinam Toad: a wide, flat, sage-green mum with one smooth head (no eye bumps, unlike the Grumpy Toad)
+  // and a crown of pearly eggs peeking up behind her back, two with babies (Surinam toads carry their young)
   surinam: () => {
-    const p = pal('#8e9468');
+    const p = pal('#98ab72');
     const b = {
-      back: E(13, 80, 14, 5, p.dark, ' transform="rotate(-18 13 80)"') + E(87, 80, 14, 5, p.dark, ' transform="rotate(18 87 80)"'),
-      torso: `<path d="M7 76C7 61 29 56 50 56S93 61 93 76C93 86 73 90 50 90S7 86 7 76Z" fill="${p.c}"/>` + E(50, 81, 21, 7, p.belly),
-      head: `<path d="M29 63C33 47 43 39 50 39S67 47 71 63Z" fill="${p.c}"/>`,
-      front: E(34, 90, 8, 3.4, p.foot) + E(66, 90, 8, 3.4, p.foot)
-        + [27, 31, 35, 65, 69, 73].map((x) => C(x + (x < 50 ? 0 : 0), 92.5, 1.3, p.foot)).join(''),
-      eyes: [[42, 49, 4.4], [58, 49, 4.4]], cheeks: [[35, 61], [65, 61]], mouth: [50, 59, 16], top: [50, 36], crown: [50, 44], neck: [50, 70, 30], heart: [50, 78],
+      back: E(15, 85, 15, 6, p.dark, ' transform="rotate(-12 15 85)"') + E(85, 85, 15, 6, p.dark, ' transform="rotate(12 85 85)"'),
+      torso: E(50, 69, 42, 21, p.c) + E(50, 76, 25, 11, p.belly),
+      head: E(50, 53, 32, 17, p.c),
+      front: E(35, 89, 8.5, 4.2, p.foot) + E(65, 89, 8.5, 4.2, p.foot),
+      eyes: [[37, 49, 8.5], [63, 49, 8.5]], cheeks: [[26, 62], [74, 62]], mouth: [50, 60, 16], top: [50, 34], crown: [50, 40], neck: [50, 72, 28], heart: [50, 76],
     };
-    const baby = (x, y) => C(x, y, 3.6, p.deep) + C(x, y + .6, 3, '#9fd183') + C(x - 1.2, y - .4, .8, '#2a211c') + C(x + 1.2, y - .4, .8, '#2a211c');
-    const egg = (x, y) => C(x, y, 3.6, p.deep) + C(x, y + .4, 2.9, '#f1e4b3') + C(x - .9, y - .6, .9, '#fff');
-    const eggs = [[17, 65], [26, 63], [74, 63], [83, 65], [12, 73], [21, 72], [79, 72], [88, 73], [17, 80], [83, 80]]
-      .map(([x, y], i) => (i === 1 || i === 7 ? baby(x, y) : egg(x, y))).join('');
-    return compose(b, p, { under: eggs, mouth: 'flat' });
+    const egg = (x, y, r) => C(x, y + 1.2, r, p.dark, ' opacity=".35"') + C(x, y, r, '#f6eecd') + C(x - r * .35, y - r * .35, r * .28, '#fff');
+    const baby = (x, y, r) => egg(x, y, r) + C(x - r * .32, y + r * .1, r * .16, '#2a211c') + C(x + r * .32, y + r * .1, r * .16, '#2a211c')
+      + `<path d="M${x - r * .25} ${y + r * .45}q${r * .25} ${r * .2} ${r * .5} 0" stroke="#2a211c" stroke-width="${(r * .12).toFixed(2)}" fill="none" stroke-linecap="round"/>`;
+    const eggs = [[23, 42, 6], [32, 34, 6.5], [68, 34, 6.5], [77, 42, 6]].map(([x, y, r]) => egg(x, y, r)).join('') + baby(43, 28, 7) + baby(57, 28, 7);
+    return compose(b, p, { behind: eggs });
   },
   hypno: () => { const p = pal('#a97fdc'), b = BODY.classic(p); return compose(b, p, { eyes: 'spiral' }); },
   princess: () => { const p = pal('#8fcbf2'), b = BODY.classic(p); return compose(b, p, { lashes: true, under: at(b.crown, .95, TIARA) }); },
@@ -756,7 +755,7 @@ Object.assign(ART, {
     });
   },
 });
-const ART_SIZE = { tadpole: .9, peeper: .92, froglet: .7, bullfrog: 1.06, goliath: 1.14, mama: 1.02, rain: .94, surinam: 1.14 };
+const ART_SIZE = { tadpole: .9, peeper: .92, froglet: .7, bullfrog: 1.06, goliath: 1.14, mama: 1.02, rain: .94, surinam: 1.06 };
 
 const artCache = new Map();
 function frogArt(type) {
@@ -2070,7 +2069,7 @@ function openGuide() {
       <li>You get <b>10 gold</b> each round. Prices are on each frog and item.</li>
       <li>The frog on the <b>right</b> fights first.</li>
       <li>Drop a frog on a matching one to <b>level it up</b>.</li>
-      <li><b>Lock</b> the shop (1 gold) to keep it for next round. Rolling unlocks it.</li>
+      <li><b>Lock</b> the shop (1 gold) to keep it for the next round.</li>
       <li>Lose a round and you lose a <b>heart</b>. Whoever still has hearts at the end wins.</li>
     </ul>
     ${tiers.map(([n, lbl]) => `<div class="guide-sec">${lbl}</div>` + Object.keys(TIER).filter((t) => TIER[t] === n).map(row).join('')).join('')}
