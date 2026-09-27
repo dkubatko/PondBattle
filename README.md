@@ -40,5 +40,5 @@ anyone else.
 
 Pushing to `main` builds `ghcr.io/dkubatko/pondbattle:latest` (GitHub Actions). On Tower,
 `/mnt/cache/appdata/pondbattle` holds `compose.yaml` (from `deploy/`), `.env` and `data/`.
-Watchtower pulls new images every 5 minutes. Nginx Proxy Manager forwards the public hostname to
+Watchtower pulls new images within a minute. Nginx Proxy Manager forwards the public hostname to
 port 18420.
