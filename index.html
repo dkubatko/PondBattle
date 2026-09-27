@@ -148,12 +148,19 @@ input:focus { border-color: var(--firefly); outline: none; }
 
 .profile { display: flex; flex-direction: column; gap: 14px; align-items: stretch; }
 .profile .pv { height: 104px; display: grid; place-items: end center; }
-.swatches { display: grid; grid-template-columns: repeat(10, 1fr); gap: 6px; }
-.sw { aspect-ratio: 1; border: 0; border-radius: 50%; background: var(--c); box-shadow: inset 0 -3px 0 rgba(0, 0, 0, .15); padding: 0; }
-.sw.on { box-shadow: 0 0 0 3px #1b363c, 0 0 0 5px var(--firefly); }
-.bodies { display: grid; grid-template-columns: repeat(7, 1fr); gap: 6px; }
-.bodyb { aspect-ratio: 1; border: 0; border-radius: 14px; background: rgba(245, 237, 214, .07); display: grid; place-items: end center; padding: 0 0 4px; }
-.bodyb.on { box-shadow: 0 0 0 2px var(--firefly); background: rgba(255, 205, 102, .12); }
+.av-tabs { display: flex; gap: 4px; padding: 4px; border-radius: 14px; background: rgba(5, 15, 18, .28); }
+.av-tab { flex: 1; min-width: 0; height: 34px; border: 0; border-radius: 10px; background: none; color: var(--moon-dim); font-size: 14px; font-weight: 800; }
+.av-tab.on { background: rgba(245, 237, 214, .12); color: var(--moon); }
+/* Option wheel: scrolls sideways and snaps to the centre, where the picked option is highlighted */
+.wheel { margin: -4px -18px 0; }
+.wheel-track { position: relative; display: flex; gap: 10px; overflow-x: auto; scroll-snap-type: x mandatory; overscroll-behavior-x: contain; scrollbar-width: none; padding: 8px calc(50% - 36px);
+  mask-image: linear-gradient(90deg, transparent, #000 16%, #000 84%, transparent); -webkit-mask-image: linear-gradient(90deg, transparent, #000 16%, #000 84%, transparent); }
+.wheel-track::-webkit-scrollbar { display: none; }
+.wheel-item { flex: none; width: 72px; height: 76px; border: 0; border-radius: 20px; background: rgba(245, 237, 214, .05); display: grid; place-items: end center; padding: 0 0 6px; overflow: hidden; scroll-snap-align: center;
+  opacity: .5; transform: scale(.84); transition: opacity .18s, transform .18s, background-color .18s, box-shadow .18s; }
+.wheel-item.on { opacity: 1; transform: none; background: rgba(255, 205, 102, .12); box-shadow: inset 0 0 0 2px var(--firefly); }
+.wheel-item.face .fbody { transform: scale(1.75) translateY(20%); } /* eyes tab: zoom in on the face */
+.wheel-name { margin-top: -6px; min-height: 20px; text-align: center; font-size: 15px; font-weight: 800; color: var(--moon); }
 .me-chip { display: flex; align-items: center; justify-content: center; gap: 6px; margin: 0 auto; border: 0; background: none; color: var(--moon-dim); font-size: 16px; font-weight: 700; padding: 4px 8px; }
 .me-chip b { color: var(--moon); }
 .lists { display: flex; flex-direction: column; gap: 8px; }
@@ -565,6 +572,8 @@ const eyesSVG = (list, kind) => `<g class="eyes">${list.map(([x, y, r]) => (kind
   ? C(x, y, r, '#fffdf6') + `<path d="${spiral(x, y, r)}" stroke="#6b3fa0" stroke-width="${(r * .16).toFixed(1)}" fill="none" stroke-linecap="round"/>`
   : kind === 'red'
   ? C(x, y, r, '#e2483c', ` stroke="#a52f28" stroke-width="1"`) + E(x + r * .12, y + r * .05, r * .2, r * .58, '#22120f') + C(x + r * .38, y - r * .32, r * .2, '#fff')
+  : kind && kind.startsWith('iris:')
+  ? C(x, y, r, '#fffdf6') + C(x + r * .22, y + r * .1, r * .64, kind.slice(5)) + C(x + r * .27, y + r * .12, r * .34, '#2a211c') + C(x + r * .45, y - r * .16, r * .2, '#fff')
   : C(x, y, r, '#fffdf6') + C(x + r * .25, y + r * .1, r * .6, '#2a211c') + C(x + r * .45, y - r * .16, r * .2, '#fff'))).join('')}</g>`;
 const cheeksSVG = (list) => list.map(([x, y]) => E(x, y, 6, 3.5, '#ff8da1', ' opacity=".5"')).join('');
 function mouthSVG(kind, [x, y, w], line) {
@@ -765,18 +774,82 @@ function frogArt(type) {
 
 // Player avatars: a plain body shape in one of 10 colours (the crown only appears for the winner)
 const AV_COLORS = ['#6cc46a', '#86cfa6', '#45b6a8', '#4ea5ee', '#9aa7d8', '#f2a4c1', '#dc5a49', '#f1b13b', '#f2cf5b', '#b88a5c'];
+// Avatar options: body, colour, eyes, pattern and accessory. Each option has an id (what gets saved)
+// and adds to the layers compose() draws. Many borrow the game frogs' signature looks.
+// unlocked() is the hook for making options earnable later; for now everything is open.
+const unlocked = () => true;
+const AV_EYES = [
+  { id: 'dark', name: 'Classic eyes' },
+  { id: 'blue', name: 'Blue eyes', x: { eyes: 'iris:#3f86d6' } },
+  { id: 'green', name: 'Green eyes', x: { eyes: 'iris:#3f9a4c' } },
+  { id: 'amber', name: 'Amber eyes', x: { eyes: 'iris:#d9892b' } },
+  { id: 'violet', name: 'Violet eyes', x: { eyes: 'iris:#8a5cc8' } },
+  { id: 'red', name: 'Tree Frog eyes', x: { eyes: 'red' } },
+  { id: 'spiral', name: 'Hypno eyes', x: { eyes: 'spiral' } },
+  { id: 'lashes', name: 'Lashes', x: { lashes: true } },
+  { id: 'brows', name: 'Grumpy brows', x: { brows: true } },
+];
+// Patterns are clipped to the body's outline (see avatarArt), so they never spill over the edges
+const AV_PATTERNS = [
+  { id: 'none', name: 'Plain' },
+  { id: 'spots', name: 'Dart spots', art: () => dotsSVG([[36, 56, 4.2], [63, 53, 3.6], [57, 72, 3], [42, 74, 2.8], [70, 65, 2.8], [47, 49, 2.3], [28, 68, 2.4], [22, 58, 2.2], [78, 56, 2.2]], '#1d2a44') },
+  { id: 'warts', name: 'Toad warts', art: (p) => dotsSVG([[24, 64, 2.4], [31, 74, 2.2], [70, 62, 2.6], [78, 72, 2.2], [60, 57, 2], [41, 57, 2], [66, 79, 1.8], [36, 66, 1.8], [50, 54, 1.6]], p.deep) },
+  { id: 'leopard', name: 'Leopard', art: (p) => dotsSVG([[26, 60, 4.2], [74, 58, 3.6], [36, 72, 3], [66, 73, 3.4], [50, 52, 2.6], [20, 70, 2.6], [80, 69, 2.8]], p.deep) },
+  { id: 'gold', name: 'Lucky gold', art: () => dotsSVG([[24, 64, 2.6], [31, 74, 2.4], [70, 62, 2.8], [78, 72, 2.4], [60, 57, 2.2], [41, 57, 2.2], [66, 79, 2], [50, 54, 1.8]], '#f4c653') },
+  { id: 'stripes', name: 'Tree Frog stripes', art: () => [[22, 1], [78, -1]].map(([x, dir]) => E(x, 67, 5.5, 12, '#3f86d6') + `<path d="M${x - 4 * dir} 61h${7 * dir}M${x - 4 * dir} 66.5h${7.5 * dir}M${x - 3.5 * dir} 72h${6.5 * dir}" stroke="#eef5ff" stroke-width="1.7" stroke-linecap="round"/>`).join('') },
+  { id: 'freckles', name: 'Freckles', x: (b) => ({ face: b.cheeks.map(([x, y]) => dotsSVG([[x - 3.5, y - 1, 1.3], [x, y - 3, 1.3], [x + 3.5, y - 1, 1.3], [x + .5, y + 2, 1.1]], '#8a5a3a')).join('') }) },
+  { id: 'glass', name: 'See-through', x: (b) => ({ glass: true, inside: heartSVG(b.heart, .8) }) },
+];
+// Accessories hang off the body's anchor points, so they fit every body. head: true = hidden
+// while the winner's crown is on (it takes the same spot)
+const umbrella = (b, p) => `<g transform="translate(${b.cheeks[0][0] - 21} ${b.top[1] - 23})">`
+  + `<g transform="translate(24 12) rotate(-12) scale(1.18)">${UMBRELLA_CANOPY}</g><path d="M11.5 75L22 13" stroke="#6b5a4c" stroke-width="2.4" stroke-linecap="round"/>`
+  + `<path d="M11.5 75c-.6 3.6 3.6 4.8 4.8 1.6" stroke="#6b5a4c" stroke-width="2.4" fill="none" stroke-linecap="round"/>`
+  + `<path d="M20 62C14 62 10 64 9.5 68" stroke="${p.c}" stroke-width="7" stroke-linecap="round" fill="none"/>${C(11, 68.5, 4.6, p.c)}</g>`;
+const LEAF_HAT = '<ellipse cy="-3" rx="17" ry="6.5" fill="#3f8a47"/><ellipse cy="-4.5" rx="16" ry="5.5" fill="#5cae5d"/><path d="M0-4.5L7-9.5L9.5-4.5z" fill="#3f8a47"/><path d="M-2-9c1-4 4-6 7-6" stroke="#4a9a50" stroke-width="2" fill="none" stroke-linecap="round"/>';
+const AV_ACCS = [
+  { id: 'none', name: 'Nothing' },
+  { id: 'crown', name: 'Prince’s crown', head: true, x: (b) => ({ under: at(b.crown, 1, CROWN) }) },
+  { id: 'tiara', name: 'Princess’s tiara', head: true, x: (b) => ({ under: at(b.crown, .95, TIARA) }) },
+  { id: 'helmet', name: 'Knight’s helmet', head: true, x: (b) => ({ over: at(b.top, 1.05, HELMET) }) },
+  { id: 'wizard', name: 'Wizard’s hat', head: true, x: (b) => ({ over: at(b.top, 1, WIZARD_HAT) }) },
+  { id: 'leaf', name: 'Leaf hat', head: true, x: (b) => ({ over: at(b.top, 1.2, LEAF_HAT) }) },
+  { id: 'lily', name: 'Water lily', x: (b) => ({ over: at([b.eyes[1][0] - 7, b.eyes[1][1] - 16], .95, WATER_LILY) }) },
+  { id: 'bandaid', name: 'Band-aid', x: (b) => ({ over: at([(b.eyes[0][0] + b.eyes[1][0]) / 2 + 5, b.eyes[1][1] - b.eyes[1][2] - 1], 1, BANDAID) }) },
+  { id: 'glasses', name: 'Round glasses', x: (b) => { const [[x1, y1, r1], [x2, y2, r2]] = b.eyes; return { face: `<g fill="rgba(255,255,255,.14)" stroke="#2a211c" stroke-width="2.2">${C(x1, y1, r1 + 2.6)}${C(x2, y2, r2 + 2.6)}</g><path d="M${x1 + r1 + 2.6} ${y1}Q${(x1 + x2) / 2} ${y1 - 4} ${x2 - r2 - 2.6} ${y2}" stroke="#2a211c" stroke-width="2.2" fill="none"/>` }; } },
+  { id: 'horns', name: 'Horns', x: () => ({ horns: true }) },
+  { id: 'coin', name: 'Lucky coin', x: (b) => ({ face: COIN(b.mouth[0], b.mouth[1] + 3) }) },
+  { id: 'pearls', name: 'Mama’s pearls', x: (b) => ({ face: PEARLS([b.neck[0], neckY(b), b.neck[2]]) }) },
+  { id: 'bowtie', name: 'Bow tie', x: (b) => ({ face: `<g transform="translate(${b.neck[0]} ${neckY(b) + 1})"><path d="M0 0L-9-5.5V5.5zM0 0L9-5.5V5.5z" fill="#e5533d"/><circle r="2.6" fill="#b83e2d"/></g>` }) },
+  { id: 'umbrella', name: 'Rain umbrella', x: (b, p) => ({ over: umbrella(b, p) }) },
+];
+const byId = (list, id) => list.find((o) => o.id === id) || list[0];
+// Necklaces and bow ties sit a clear gap below the mouth, so they never read as teeth
+const neckY = (b) => Math.max(b.neck[1], b.mouth[1] + 10);
 function cleanAv(a) {
   a = a || {};
-  return { b: BODIES.includes(a.b) ? a.b : 'classic', c: Math.max(0, Math.min(AV_COLORS.length - 1, a.c | 0)) };
+  return {
+    b: BODIES.includes(a.b) ? a.b : 'classic', c: Math.max(0, Math.min(AV_COLORS.length - 1, a.c | 0)),
+    e: byId(AV_EYES, a.e).id, t: byId(AV_PATTERNS, a.t).id, a: byId(AV_ACCS, a.a).id,
+  };
 }
 // Your name and frog live on the server (ME, loaded at start) so they follow you to any phone
 const myAvatar = () => cleanAv(ME.avatar);
 function avatarArt(av, crown) {
   av = cleanAv(av);
-  const key = `av:${av.b}:${av.c}:${crown ? 1 : 0}`;
+  const key = `av:${av.b}:${av.c}:${av.e}:${av.t}:${av.a}:${crown ? 1 : 0}`;
   if (!artCache.has(key)) {
-    const p = pal(AV_COLORS[av.c]), b = BODY[av.b](p);
-    artCache.set(key, `<svg class="fsvg" viewBox="0 0 100 100" aria-hidden="true">${compose(b, p, { under: crown ? at(b.crown, 1, CROWN) : '' })}</svg>`);
+    const p = pal(AV_COLORS[av.c]), b = BODY[av.b](p), x = {};
+    const add = (more) => { for (const [k, v] of Object.entries(more || {})) x[k] = typeof v === 'string' ? (x[k] || '') + v : v; };
+    add(byId(AV_EYES, av.e).x);
+    const pat = byId(AV_PATTERNS, av.t);
+    // a pattern is clipped to the body outline (one clip per body shape, shared by every avatar with that body)
+    if (pat.art) add({ under: `<defs><clipPath id="avclip-${av.b}">${b.torso}${b.head}</clipPath></defs><g clip-path="url(#avclip-${av.b})">${pat.art(p)}</g>` });
+    if (pat.x) add(pat.x(b, p));
+    const acc = byId(AV_ACCS, av.a);
+    if (acc.x && !(crown && acc.head)) add(acc.x(b, p));
+    if (crown) add({ under: at(b.crown, 1, CROWN) });
+    artCache.set(key, `<svg class="fsvg" viewBox="0 0 100 100" aria-hidden="true">${compose(b, p, x)}</svg>`);
   }
   return artCache.get(key);
 }
@@ -2040,28 +2113,68 @@ async function flyGhost(from, to, html, dur = 360) {
   await anim(g, hopFrames(from.left - to.left, from.top - to.top, lift, 1, sc, `translate(${to.left}px,${to.top}px) `, .05), { duration: dur, easing: 'linear' });
   g.remove();
 }
+// Your frog: name, then one option wheel per tab. The option in the middle of the wheel is the picked one;
+// scroll or tap to change it and the big preview follows.
+const BODY_NAMES = { classic: 'Classic', slim: 'Slim', tall: 'Big eyes', round: 'Round', toad: 'Toad', bull: 'Bullfrog', tadpole: 'Tadpole' };
+const COLOR_NAMES = ['Leaf green', 'Mint', 'Teal', 'Sky blue', 'Lavender', 'Pink', 'Red', 'Orange', 'Sunny yellow', 'Brown'];
+const AV_TABS = [
+  { key: 'b', label: 'Body', opts: BODIES.map((id) => ({ id, name: BODY_NAMES[id] || id })) },
+  { key: 'c', label: 'Colour', opts: AV_COLORS.map((_, i) => ({ id: i, name: COLOR_NAMES[i] })) },
+  { key: 'e', label: 'Eyes', opts: AV_EYES, face: true },
+  { key: 't', label: 'Pattern', opts: AV_PATTERNS },
+  { key: 'a', label: 'Extras', opts: AV_ACCS },
+];
 function openProfile(done) {
-  let av = { ...myAvatar() };
+  let av = { ...myAvatar() }, tab = AV_TABS[0], current = -1, settle = 0;
   const s = sheet(`<div class="profile">
       <div class="pv" id="pv"></div>
       <input id="pname" maxlength="14" autocomplete="off" placeholder="Your name" value="${esc(ME.name || '')}">
-      <div class="swatches">${AV_COLORS.map((c, i) => `<button class="sw" data-c="${i}" style="--c:${c}" aria-label="Colour ${i + 1}"></button>`).join('')}</div>
-      <div class="bodies">${BODIES.map((bd) => `<button class="bodyb" data-b="${bd}" aria-label="${bd}"></button>`).join('')}</div>
+      <div class="av-tabs">${AV_TABS.map((t, i) => `<button class="av-tab${i ? '' : ' on'}" data-t="${i}">${t.label}</button>`).join('')}</div>
+      <div class="wheel"><div class="wheel-track" id="wt"></div></div>
+      <div class="wheel-name" id="wn"></div>
       <div class="btns"><button class="btn" id="psave">Save</button></div>
     </div>`);
-  const pv = $('#pv', s.el), inp = $('#pname', s.el), save = $('#psave', s.el);
-  const draw = () => {
+  const pv = $('#pv', s.el), inp = $('#pname', s.el), save = $('#psave', s.el), track = $('#wt', s.el), label = $('#wn', s.el);
+  const preview = (hop) => {
     pv.innerHTML = avatarHTML(av, 92, { idle: true, id: 7 });
-    $$('.sw', s.el).forEach((b) => b.classList.toggle('on', +b.dataset.c === av.c));
-    $$('.bodyb', s.el).forEach((b) => { b.classList.toggle('on', b.dataset.b === av.b); b.innerHTML = avatarHTML({ b: b.dataset.b, c: av.c }, 34); });
+    if (hop) anim($('.frog', pv), [{ transform: 'none' }, { transform: 'translateY(-8px)', offset: .4 }, { transform: 'none' }], { duration: 260 });
   };
-  draw();
-  s.el.addEventListener('click', (e) => {
-    const sw = e.target.closest('.sw'), bb = e.target.closest('.bodyb');
-    if (sw) av.c = +sw.dataset.c;
-    if (bb) av.b = bb.dataset.b;
-    if (sw || bb) { Snd.tap(); draw(); anim($('.frog', pv), [{ transform: 'none' }, { transform: 'translateY(-8px)', offset: .4 }, { transform: 'none' }], { duration: 260 }); }
+  const pick = (i) => {
+    if (i === current) return;
+    current = i;
+    [...track.children].forEach((n, k) => n.classList.toggle('on', k === i));
+    const o = tab.opts[i];
+    label.textContent = o.name;
+    if (av[tab.key] !== o.id && unlocked(tab.key, o.id)) { av = { ...av, [tab.key]: o.id }; preview(true); haptic(['selection']); }
+  };
+  const center = (i, smooth) => {
+    const it = track.children[i]; if (!it) return;
+    track.scrollTo({ left: it.offsetLeft - (track.clientWidth - it.offsetWidth) / 2, behavior: smooth ? 'smooth' : 'auto' });
+    pick(i);
+  };
+  const fill = () => {
+    track.innerHTML = tab.opts.map((o, i) => `<button class="wheel-item${tab.face ? ' face' : ''}" data-i="${i}" aria-label="${esc(o.name)}">${avatarHTML({ ...av, [tab.key]: o.id }, 52, { id: 300 + i })}</button>`).join('');
+    current = -1;
+    center(Math.max(0, tab.opts.findIndex((o) => o.id === av[tab.key])), false);
+  };
+  // whichever option is nearest the middle once scrolling moves is the picked one
+  track.addEventListener('scroll', () => {
+    cancelAnimationFrame(settle);
+    settle = requestAnimationFrame(() => {
+      const mid = track.scrollLeft + track.clientWidth / 2;
+      let best = 0, dist = Infinity;
+      [...track.children].forEach((n, k) => { const d = Math.abs(n.offsetLeft + n.offsetWidth / 2 - mid); if (d < dist) { dist = d; best = k; } });
+      pick(best);
+    });
   });
+  track.addEventListener('click', (e) => { const it = e.target.closest('.wheel-item'); if (it) { Snd.tap(); center(+it.dataset.i, true); } });
+  $('.av-tabs', s.el).addEventListener('click', (e) => {
+    const b = e.target.closest('.av-tab'); if (!b || tab === AV_TABS[+b.dataset.t]) return;
+    Snd.tap(); tab = AV_TABS[+b.dataset.t];
+    $$('.av-tab', s.el).forEach((x) => x.classList.toggle('on', x === b));
+    fill();
+  });
+  preview(false); fill();
   inp.addEventListener('input', () => { save.disabled = !inp.value.trim(); });
   save.onclick = async () => {
     const name = inp.value.trim(); if (!name) return;

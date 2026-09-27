@@ -53,9 +53,14 @@ let saveTimer = null;
 const save = () => { clearTimeout(saveTimer); saveTimer = setTimeout(() => fs.writeFile(SAVE, JSON.stringify(rooms), () => {}), 500); };
 
 const cleanName = (n) => String(n || '').replace(/\s+/g, ' ').trim().slice(0, 14) || 'Frog';
-// Avatar: one of the frog body shapes in one of 10 colours (the page draws them)
+// Avatar: a frog body shape in one of 10 colours, plus eyes, pattern and accessory (the page draws them)
 const AV_COLORS = 10, AV_BODIES = ['classic', 'slim', 'tall', 'round', 'toad', 'bull', 'tadpole'];
-const cleanAvatar = (a) => ({ b: AV_BODIES.includes(a && a.b) ? a.b : 'classic', c: Math.max(0, Math.min(AV_COLORS - 1, (a && a.c) | 0)) });
+// Eyes, pattern and accessory are short option ids; the page owns the art and falls back to the default for unknown ids
+const optId = (v, dflt) => (/^[a-z]{1,12}$/.test(String(v || '')) ? v : dflt);
+const cleanAvatar = (a) => ({
+  b: AV_BODIES.includes(a && a.b) ? a.b : 'classic', c: Math.max(0, Math.min(AV_COLORS - 1, (a && a.c) | 0)),
+  e: optId(a && a.e, 'dark'), t: optId(a && a.t, 'none'), a: optId(a && a.a, 'none'),
+});
 function newPlayer(uid) {
   const pr = profile(uid);
   return { name: cleanName(pr.name), uid, avatar: cleanAvatar(pr.avatar), token: crypto.randomBytes(12).toString('hex'), ...E.newPlayerState() };
