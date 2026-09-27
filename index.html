@@ -141,8 +141,7 @@ input:focus { border-color: var(--firefly); outline: none; }
 .swipe .pond-btn { position: relative; z-index: 1; width: 100%; touch-action: pan-y; background-color: #24473f; will-change: transform; }
 .swipe-act { position: absolute; top: 0; right: 0; bottom: 0; width: 110px; padding-left: 18px; border: 0; border-radius: 0 16px 16px 0; background: #e8839d; color: #3a1320; font-weight: 900; font-size: 16px; }
 .pond-btn .avs { display: flex; flex: none; }
-.mini { position: relative; width: 38px; height: 38px; border-radius: 50%; background: #2e5550; box-shadow: 0 0 0 2.5px #24473f; display: grid; place-items: end center; }
-.mini .avatar { margin-bottom: 4px; }
+.mini { position: relative; width: 38px; height: 38px; border-radius: 50%; background: #2e5550; box-shadow: 0 0 0 2.5px #24473f; display: grid; place-items: center; }
 .mini + .mini { margin-left: -9px; }
 .mini:first-child { z-index: 1; }
 
@@ -191,7 +190,7 @@ h1 { margin: 0; text-align: center; font-size: 40px; font-weight: 900; line-heig
 .pl.opp { flex-direction: row-reverse; text-align: right; }
 .pl.is-ready { background: rgba(155, 224, 122, .09); box-shadow: inset 0 0 0 2px rgba(155, 224, 122, .38); }
 .portrait { position: relative; flex: none; width: 50px; height: 50px; border-radius: 50%; background: rgba(245, 237, 214, .07); display: grid; place-items: center; }
-.portrait .avatar { margin-top: 3px; transition: opacity .25s, filter .25s; }
+.portrait .avatar { transition: opacity .25s, filter .25s; }
 .pav, .pbadge, .phearts { display: contents; }
 .pl.is-away .portrait .avatar { opacity: .45; filter: grayscale(.6); }
 .badge { position: absolute; bottom: -3px; right: -4px; width: 21px; height: 21px; border-radius: 50%; display: grid; place-items: center; box-shadow: 0 0 0 2.5px #15292f; animation: badgeIn .3s cubic-bezier(.3, 1.6, .5, 1); }
@@ -841,9 +840,23 @@ function cleanAv(a) {
 }
 // Your name and frog live on the server (ME, loaded at start) so they follow you to any phone
 const myAvatar = () => cleanAv(ME.avatar);
-function avatarArt(av, crown) {
+// The middle of a body shape (legs, body, head and eyes; not extras), measured once per shape. Avatars in
+// circles are centred on it rather than on their square canvas, where the frog sits low to leave room for hats.
+const bodyCenters = {};
+function bodyCenter(bd) {
+  if (!bodyCenters[bd]) {
+    const b = BODY[bd](pal(AV_COLORS[0])), svg = document.createElementNS('http://www.w3.org/2000/svg', 'svg');
+    svg.setAttribute('viewBox', '0 0 100 100'); svg.style.cssText = 'position:absolute;width:100px;height:100px;visibility:hidden';
+    svg.innerHTML = b.back + b.torso + b.head + b.front + b.eyes.map(([x, y, r]) => C(x, y, r, '#000')).join('');
+    document.body.appendChild(svg);
+    const bb = svg.getBBox(); svg.remove();
+    bodyCenters[bd] = [bb.x + bb.width / 2, bb.y + bb.height / 2];
+  }
+  return bodyCenters[bd];
+}
+function avatarArt(av, crown, centered) {
   av = cleanAv(av);
-  const key = `av:${av.b}:${av.c}:${av.e}:${av.t}:${av.a}:${crown ? 1 : 0}`;
+  const key = `av:${av.b}:${av.c}:${av.e}:${av.t}:${av.a}:${crown ? 1 : 0}:${centered ? 1 : 0}`;
   if (!artCache.has(key)) {
     const p = pal(AV_COLORS[av.c]), b = BODY[av.b](p), x = {};
     const add = (more) => { for (const [k, v] of Object.entries(more || {})) x[k] = typeof v === 'string' ? (x[k] || '') + v : v; };
@@ -855,12 +868,13 @@ function avatarArt(av, crown) {
     const acc = byId(AV_ACCS, av.a);
     if (acc.x && !(crown && acc.head)) add(acc.x(b, p));
     if (crown) add(hat(b, CROWN, 1, 0));
-    artCache.set(key, `<svg class="fsvg" viewBox="0 0 100 100" aria-hidden="true">${compose(b, p, x)}</svg>`);
+    const [cx, cy] = centered ? bodyCenter(av.b) : [50, 50];
+    artCache.set(key, `<svg class="fsvg" viewBox="${(cx - 50).toFixed(1)} ${(cy - 50).toFixed(1)} 100 100" aria-hidden="true">${compose(b, p, x)}</svg>`);
   }
   return artCache.get(key);
 }
 function avatarHTML(av, size = 40, o = {}) {
-  return `<div class="frog avatar ${o.idle ? 'idle' : ''}" data-fid="${o.id || 0}" style="--fs:${size}px;${idleVars(o.id || 0)}"><div class="fbody">${avatarArt(av, o.crown)}</div></div>`;
+  return `<div class="frog avatar ${o.idle ? 'idle' : ''}" data-fid="${o.id || 0}" style="--fs:${size}px;${idleVars(o.id || 0)}"><div class="fbody">${avatarArt(av, o.crown, o.centered)}</div></div>`;
 }
 
 function xpHTML(f) {
@@ -1367,7 +1381,7 @@ function showHome(msg) {
   // Lists: tap a row to resume/join; swipe a row left to end that game.
   let lobby = null, last = '';
   const row = (seats, text, cta, onOpen, onEnd, endLabel) => {
-    const b = el(`<button class="pond-btn"><span class="avs">${seats.map((x, k) => `<span class="mini">${avatarHTML(x.avatar, 28, { id: 20 + k })}</span>`).join('')}</span><span class="pt">${text}</span><em>${cta}</em></button>`);
+    const b = el(`<button class="pond-btn"><span class="avs">${seats.map((x, k) => `<span class="mini">${avatarHTML(x.avatar, 30, { id: 20 + k, centered: true })}</span>`).join('')}</span><span class="pt">${text}</span><em>${cta}</em></button>`);
     b.onclick = onOpen;
     return onEnd ? swipeRow(b, onEnd, endLabel) : b;
   };
@@ -1631,7 +1645,7 @@ function updateHeader() {
     node.classList.toggle('is-ready', state === 'ready');
     node.classList.toggle('is-away', state === 'away');
     const avKey = JSON.stringify(p.avatar || null);
-    if (node._av !== avKey) { node._av = avKey; $('.pav', node).innerHTML = avatarHTML(p.avatar, 42, { idle: true, id }); }
+    if (node._av !== avKey) { node._av = avKey; $('.pav', node).innerHTML = avatarHTML(p.avatar, 42, { idle: true, id, centered: true }); }
     const nm = $('.nm span', node); if (nm.textContent !== p.name) nm.textContent = p.name;
     setHTML($('.phearts', node), pips(5, p.hearts, ICON.heart));
     setHTML($('.pbadge', node), state === 'ready' ? `<span class="badge ready" title="Ready">${ICON.check}</span>` : state === 'away' ? `<span class="badge away" title="Away">${ICON.moon}</span>` : '');
