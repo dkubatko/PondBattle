@@ -1,0 +1,27 @@
+# Pond Battle on Tower. Lives in /mnt/cache/appdata/pondbattle with a .env next to it (see .env.example).
+#   docker compose up -d        start / apply changes to this file
+# New images come from GitHub Actions; Watchtower pulls them automatically.
+name: pondbattle
+services:
+  pondbattle:
+    image: ghcr.io/dkubatko/pondbattle:latest
+    env_file: .env
+    user: "99:100"           # Unraid's nobody:users, so appdata stays editable
+    volumes:
+      - ./data:/data         # rooms, profiles, game history
+    ports:
+      - "18420:8420"         # Nginx Proxy Manager forwards the public hostname here
+    labels:
+      - com.centurylinklabs.watchtower.enable=true
+    restart: unless-stopped
+
+  # Checks GitHub's registry every 5 minutes and restarts Pond Battle on a new image.
+  # --label-enable: it only ever touches containers labelled like the one above.
+  # (nickfedor's fork: the original containrrr/watchtower no longer works with Docker 29.)
+  watchtower:
+    image: nickfedor/watchtower:latest
+    command: --label-enable --interval 300 --cleanup
+    volumes:
+      - /var/run/docker.sock:/var/run/docker.sock
+      - /root/.docker/config.json:/config.json:ro   # registry login (docker login ghcr.io) for the private image
+    restart: unless-stopped

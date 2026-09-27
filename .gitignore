@@ -1,0 +1,5 @@
+# Secrets and live game state never go into git
+.env
+data/
+*.log
+node_modules/
