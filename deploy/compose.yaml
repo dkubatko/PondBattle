@@ -1,6 +1,6 @@
 # Pond Battle on Tower. Lives in /mnt/cache/appdata/pondbattle with a .env next to it (see .env.example).
 #   docker compose up -d        start / apply changes to this file
-# New images come from GitHub Actions; Watchtower pulls them automatically.
+# New images come from GitHub Actions (public package on ghcr.io); Watchtower pulls them automatically.
 name: pondbattle
 services:
   pondbattle:
@@ -23,8 +23,4 @@ services:
     command: --label-enable --interval 300 --cleanup
     volumes:
       - /var/run/docker.sock:/var/run/docker.sock
-      # Login for the private image, kept in appdata because Unraid's /root is wiped on reboot. Create it with:
-      #   DOCKER_CONFIG=/mnt/cache/appdata/pondbattle/registry docker login ghcr.io -u dkubatko
-      # (remove this line if the package is public)
-      - ./registry/config.json:/config.json:ro
     restart: unless-stopped
