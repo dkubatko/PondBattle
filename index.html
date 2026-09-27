@@ -2270,8 +2270,11 @@ function toggleReady() {
     if (!S.me.team.some(Boolean) && !(await ask('Your pond is empty', 'Ready anyway?', 'Ready', 'Keep shopping'))) return;
     sel = null; Snd.ready();
     updateBubble();
-    $$('.pad .frog').forEach((f, k) => { f.style.transformOrigin = '50% 100%'; anim(f, [{ transform: 'none' }, { transform: 'translateY(-12px)', offset: .4 }, { transform: 'none' }], { duration: 380, delay: k * 50, easing: 'ease-out' }); });
+    // The whole team hops together; the battle (if your partner is already ready, it starts right away)
+    // waits for them to land, since run() holds the next screen until this finishes
+    const hops = $$('.pad .frog').map((f) => { f.style.transformOrigin = '50% 100%'; return anim(f, [{ transform: 'none' }, { transform: 'translateY(-12px)', offset: .4 }, { transform: 'none' }], { duration: 380, easing: 'ease-out' }); });
     await act({ type: 'ready' });
+    await Promise.all(hops);
   });
 }
 // One continuous hop: position eases in-out over the whole trip while the height follows a
