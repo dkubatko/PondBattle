@@ -1,6 +1,6 @@
 # Pond Battle 🐸
 
-**Frog Pond Brawl**: a cozy two-player frog auto-battler, played as a Telegram Mini App
+**Pond Battle**: a cozy two-player frog auto-battler, played as a Telegram Mini App
 (bot: [@pond_battle_bot](https://t.me/pond_battle_bot)) or in any browser.
 
 ## What's where

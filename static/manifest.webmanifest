@@ -1,6 +1,6 @@
 {
-  "name": "Frog Pond Brawl",
-  "short_name": "Frog Pond",
+  "name": "Pond Battle",
+  "short_name": "Pond Battle",
   "start_url": "/",
   "display": "standalone",
   "orientation": "portrait",

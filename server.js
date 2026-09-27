@@ -1,4 +1,4 @@
-// Frog Pond Brawl — web server: players, lobbies, rooms, live updates and the page.
+// Pond Battle — web server: players, lobbies, rooms, live updates and the page.
 // Game rules are in engine.js, Telegram (launch data + bot) in telegram.js. No dependencies.
 'use strict';
 const http = require('http');
@@ -311,7 +311,7 @@ http.createServer(async (req, res) => {
     console.error(e);
     json(res, 500, { error: 'server error' });
   }
-}).listen(PORT, () => console.log(`🐸 Frog Pond Brawl on :${PORT}`));
+}).listen(PORT, () => console.log(`🐸 Pond Battle on :${PORT}`));
 TG.start().catch((e) => console.error('telegram:', e.message));
 
 setTimeout(() => Object.values(rooms).forEach(scheduleBot), 1000);

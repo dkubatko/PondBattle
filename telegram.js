@@ -41,7 +41,7 @@ async function onMessage(m) {
   const code = (text.match(/^\/start\s+join_([A-Z]{4})$/i) || [])[1];
   await api('sendMessage', code
     ? { chat_id: m.chat.id, text: `You're invited to pond ${code.toUpperCase()} 🐸`, reply_markup: playButton('Join the pond', `?join=${code.toUpperCase()}`) }
-    : { chat_id: m.chat.id, text: 'Frog Pond Brawl: a cozy frog battler for two. 🐸', reply_markup: playButton('Play') });
+    : { chat_id: m.chat.id, text: 'Pond Battle: a cozy frog battler for two. 🐸', reply_markup: playButton('Play') });
 }
 
 async function poll() {
