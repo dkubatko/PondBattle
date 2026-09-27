@@ -120,8 +120,14 @@ input:focus { border-color: var(--firefly); outline: none; }
 .st.hp { width: 26px; padding: 0 0 3px; background: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 22'%3E%3Cpath d='M12 21.5C5 16.5 1 12.5 1 7.2a5.6 5.6 0 0 1 11-2.4 5.6 5.6 0 0 1 11 2.4c0 5.3-4 9.3-11 14.3z' fill='%23f0869f'/%3E%3C/svg%3E") center / 100% 100% no-repeat; }
 /* Level tag: above the head's corner, clear of the eyes (big-eyed frogs have them right at the top) */
 .lvl { position: absolute; top: -15px; left: -8px; z-index: 3; font-size: 11px; font-weight: 900; background: var(--firefly); color: #4a3505; border-radius: 8px; padding: 1px 5px; }
-/* In battle your line runs down to the left, so on the left the tag would sit on the next frog's health */
-.bu.s0 .lvl { left: auto; right: -8px; }
+/* Frogs in your pond and in battle grow with their level: --k is the drawing's size (level 1 small, level 2 as
+   drawn, level 3 big). It grows from its feet, so it stays standing on its pad; stats and the tag follow it. */
+.frog.sz1 { --k: .72; } .frog.sz2 { --k: .95; } .frog.sz3 { --k: 1.15; }
+.frog[class*="sz"] .fbody { transform-origin: 50% 100%; transform: scale(var(--k)); transition: transform .35s cubic-bezier(.3, 1.4, .5, 1); }
+.frog[class*="sz"].flip .fbody { transform: scaleX(-1) scale(var(--k)); }
+.frog[class*="sz"] .lvl { top: calc((1 - var(--k)) * 100% - 15px); left: calc((1 - var(--k)) * 50% - 8px); }
+/* no level tag on the battlefield: the size says it (the log sheet's lineup still shows it) */
+.bu .lvl { display: none; }
 /* Protective bubble around a frog: see-through, with a shine and a soft wobble */
 .gear.frog-bubble { position: absolute; left: calc(50% - var(--fs) * .6); top: calc(var(--fs) * -.1); width: calc(var(--fs) * 1.2); height: calc(var(--fs) * 1.2); box-sizing: border-box; border-radius: 50%; z-index: 1; pointer-events: none;
   border: 2px solid rgba(232, 246, 255, .75);
@@ -249,15 +255,20 @@ h1 { margin: 0; text-align: center; font-size: 40px; font-weight: 900; line-heig
 .pond { position: relative; flex: 1; min-height: 150px; display: flex; flex-direction: column; justify-content: center; }
 .pond::before { content: ''; position: absolute; left: -14px; right: -14px; top: 50%; height: 220px; transform: translateY(-55%); background: radial-gradient(closest-side, rgba(125, 195, 205, .13), transparent); pointer-events: none; }
 .pads { display: grid; grid-template-columns: repeat(5, 1fr); gap: 2px; }
-.pad { position: relative; height: 124px; display: flex; align-items: flex-end; justify-content: center; touch-action: none; }
-.pad .leaf { position: absolute; bottom: 14px; left: 50%; width: 70px; height: 38px; transform: translateX(-50%); background: var(--leaf) center / contain no-repeat; transition: filter .2s; }
+.pad { position: relative; height: 142px; display: flex; align-items: flex-end; justify-content: center; touch-action: none; }
+.pad .leaf { position: absolute; bottom: 34px; left: 50%; width: 70px; height: 38px; transform: translateX(-50%); background: var(--leaf) center / contain no-repeat; transition: filter .2s; }
 /* Drop/selection rings are an outline plus a glow drawn inside the oval, not a box-shadow: some iPhones
    (WebKit) paint a fading or pulsing box-shadow as a filled rectangle */
-.pad .ring, .item .ring { position: absolute; left: 50%; bottom: 7px; width: 72px; height: 42px; transform: translateX(-50%); border-radius: 50%; border: 3px solid transparent; opacity: 0; transition: opacity .2s; pointer-events: none; }
+.pad .ring, .item .ring { position: absolute; left: 50%; bottom: 27px; width: 72px; height: 42px; transform: translateX(-50%); border-radius: 50%; border: 3px solid transparent; opacity: 0; transition: opacity .2s; pointer-events: none; }
 .pad.ok .ring { opacity: 1; border-color: rgba(255, 205, 102, .6); animation: pulse 1.2s ease-in-out infinite; }
 .pad.hover .ring, .pad.sel .ring, .item.sel .ring { opacity: 1; border-color: var(--firefly); background: radial-gradient(closest-side, transparent 55%, rgba(255, 205, 102, .45)); animation: none; }
 @keyframes pulse { 50% { opacity: .35; } }
 .occ { position: relative; z-index: 1; margin-bottom: 6px; }
+/* Your pond: each frog stands with its feet at the middle of its lily pad, as in battle, with its stats on the
+   pad's lower half and its merge dots just under the pad, whatever its size */
+.pad .occ { margin-bottom: 48px; }
+.pad .frog .stats { position: absolute; top: 100%; left: 50%; transform: translateX(-50%); margin-top: 3px; }
+.pad .frog .xp { position: absolute; top: calc(100% + 30px); left: 50%; transform: translateX(-50%); margin: 0; }
 .dir { display: flex; justify-content: flex-end; padding: 2px 10px 0; font-size: 13px; color: rgba(245, 237, 214, .35); }
 .dir span { display: flex; align-items: center; gap: 3px; }
 .banner { position: absolute; left: 0; right: 0; top: 0; height: calc(50% - 90px); min-height: 70px; display: grid; place-content: center; text-align: center; pointer-events: none; z-index: 5; opacity: 0; }
@@ -373,6 +384,9 @@ h1 { margin: 0; text-align: center; font-size: 40px; font-weight: 900; line-heig
 .guide-row { display: flex; align-items: center; gap: 12px; padding: 6px 0; }
 .guide-row .gfrog { flex: none; width: 60px; display: flex; justify-content: center; }
 .guide-row .gname .coinb { margin-left: 4px; vertical-align: 1px; }
+/* the lineup names a frog's level beside its name (the tag above its picture would reach into the row above) */
+.guide-row .gfrog .lvl { display: none; }
+.lvl-in { display: inline-block; margin-left: 4px; vertical-align: 2px; font-size: 11px; font-weight: 900; background: var(--firefly); color: #4a3505; border-radius: 8px; padding: 1px 6px; }
 .guide-row .gname { display: block; color: var(--moon); font-size: 16px; font-weight: 900; margin-bottom: 1px; }
 .guide-row div.txt { font-size: 14px; color: var(--moon-dim); line-height: 1.35; }
 .guide-row div.txt b { color: var(--moon); font-weight: 800; }
@@ -395,9 +409,9 @@ h1 { margin: 0; text-align: center; font-size: 40px; font-weight: 900; line-heig
 @keyframes ripple { 0% { transform: scale(.75); opacity: 0; } 15% { opacity: .9; } 100% { transform: scale(1.3); opacity: 0; } }
 .bpad { position: absolute; background: var(--leaf) center / contain no-repeat; opacity: .9; pointer-events: none; }
 .bu { position: absolute; left: 0; top: 0; will-change: transform; }
-.bu .stats { position: absolute; top: 50%; margin: 0; flex-direction: column; gap: 3px; transform: translateY(-38%); }
-.bu.s0 .stats { right: 100%; margin-right: 1px; }
-.bu.s1 .stats { left: 100%; margin-left: 1px; }
+/* Battle stats: at one spot on each frog's outer side, whatever its size, layered with their own frog (over it,
+   under any frog standing in front of it) */
+.bst { position: absolute; left: 0; top: 0; display: flex; flex-direction: column; gap: 1px; transform-origin: 0 0; pointer-events: none; will-change: transform; }
 .bscale { transform-origin: 50% 50%; }
 .bmove { transform-origin: 50% 90%; }
 .fx-ball { position: absolute; left: 0; top: 0; width: 14px; height: 14px; border-radius: 50%; background: #6fc0ff; box-shadow: 0 0 10px #6fc0ff; z-index: 30; }
@@ -439,7 +453,7 @@ h1 { margin: 0; text-align: center; font-size: 40px; font-weight: 900; line-heig
   .idle .fsvg, .eyes, .ff, .pad.ok .ring, .bug-art .wing, .bug-art .glow, .upchip.on, .bwater i { animation: none !important; }
 }
 @media (max-height: 640px) {
-  .pad { height: 104px; } .item .slot { height: 80px; } .info { height: 30px; } .btn { height: 52px; } .hero { height: 110px; }
+  .pad { height: 122px; } .item .slot { height: 80px; } .info { height: 30px; } .btn { height: 52px; } .hero { height: 110px; }
 }
 </style>
 </head>
@@ -480,7 +494,7 @@ const DESC = {
   hungry:   (L) => ['Knocks out an enemy', `gain ${statText(L, L)} this battle`],
   rain:     (L) => ['Hurt', `give the friend behind ${statText(L, L)} this battle`],
   lucky:    (L) => ['Start of round', `gain ${L} extra gold`],
-  mama:     (L) => ['Faint', `summon two ${L}/${L} Tadpoles`],
+  mama:     (L) => ['Faint', `lay as many ${L}/${L} Froglets as there’s room for`],
   wizard:   (L) => ['Start of battle', L === 1 ? 'shrink the strongest enemy to 1/1 (it keeps its ability)' : `shrink the ${L} strongest enemies to 1/1 (they keep their abilities)`],
   bouncy:   (L) => ['Faint', `come back once on the last lily pad with ${2 * L} health`],
   surinam:  (L) => ['Hurt', `a ${L}/${L} Froglet hatches behind it`],
@@ -687,7 +701,22 @@ const neckY = (b) => Math.max(b.neck[1], b.mouth[1] + 10);
 
 // One drawing per frog type
 const ART = {
-  tadpole: () => { const p = pal('#86cfa6'), b = BODY.tadpole(p); return compose(b, p); },
+  // Frogspawn (id 'tadpole' from before it was renamed): a wobbly jelly clump of eggs, each with a little dark
+  // embryo, and a friendly face. No legs yet.
+  tadpole: () => {
+    const p = pal('#a9dcc0');
+    const b = {
+      back: C(27, 52, 14, p.c) + C(73, 52, 14, p.c) + C(50, 40, 16, p.c),
+      torso: E(50, 67, 39, 25, p.c) + E(50, 75, 24, 12, p.belly),
+      head: C(36, 49, 13, p.c) + C(64, 49, 13, p.c),
+      front: E(34, 91, 11, 3.2, p.dark, ' opacity=".45"') + E(66, 91, 11, 3.2, p.dark, ' opacity=".45"'),
+      eyes: [[39, 58, 8.5], [61, 58, 8.5]], cheeks: [[27, 71], [73, 71]], mouth: [50, 71, 13], top: [50, 24], crown: [50, 30], neck: [50, 78, 24], heart: [50, 80], hat: [50, 30],
+    };
+    const egg = (x, y, r) => C(x, y, r, '#d4efdd', ' opacity=".8"') + C(x, y, r, 'none', ' stroke="#8fc3a6" stroke-width=".8"') + C(x + r * .1, y + r * .15, r * .3, '#51645a');
+    const eggs = [[20, 58, 5], [80, 58, 5], [27, 42, 4.6], [73, 42, 4.6], [50, 30, 5], [38, 34, 4.2], [62, 34, 4.2], [16, 72, 4.4], [84, 72, 4.4], [30, 84, 4.6], [70, 84, 4.6], [50, 88, 4.2]]
+      .map(([x, y, r]) => egg(x, y, r)).join('');
+    return compose(b, p, { glass: true, inside: eggs });
+  },
   // Spring peeper: little yellow singer, mid-song, with a big puffed-out throat bubble and a music note
   peeper: () => {
     const p = pal('#f2cf5b'), b = BODY.slim(p);
@@ -827,7 +856,9 @@ Object.assign(ART, {
     });
   },
 });
-const ART_SIZE = { bouncy: .82, tadpole: .9, peeper: .92, froglet: .7, bullfrog: 1.06, goliath: 1.14, mama: 1.02, rain: .94, surinam: 1.06 };
+// Every frog is drawn at the same on-screen size (measured by how much of the pad its drawing covers), so
+// size only ever says level; the Froglet, a hatched baby, stays a little smaller
+const ART_SIZE = { bouncy: .98, bullfrog: .94, chameleon: .98, froglet: .86, glass: .98, goliath: .94, hungry: .98, knight: .95, leapfrog: 1.12, lucky: 1.05, mama: .98, peeper: 1.11, rain: .94, spitter: 1.13, tadpole: 1.10, toad: 1.04, tree: .97, wizard: .97 };
 
 const artCache = new Map();
 function frogArt(type) {
@@ -953,7 +984,7 @@ function idleVars(id) {
 function syncIdle(fr) { for (const kv of idleVars(fr.dataset.fid).split(';')) { const [k, v] = kv.split(':'); fr.style.setProperty(k, v); } }
 function frogHTML(f, o = {}) {
   const sz = Math.round((o.size || 54) * (ART_SIZE[f.type] || 1));
-  return `<div class="frog ${o.idle === false ? '' : 'idle'} ${o.flip ? 'flip' : ''}" data-fid="${f.id}" style="--fs:${sz}px;${idleVars(f.id)}">
+  return `<div class="frog ${o.idle === false ? '' : 'idle'} ${o.flip ? 'flip' : ''} ${o.grow ? 'sz' + Math.min(3, f.lvl || 1) : ''}" data-fid="${f.id}" style="--fs:${sz}px;${idleVars(f.id)}">
     <div class="fbody">${frogArt(f.type)}</div>
     ${f.lvl > 1 ? `<span class="lvl">Lv${f.lvl}</span>` : ''}
     ${gearHTML(f.gear)}
@@ -1829,6 +1860,7 @@ function patchFrog(fr, f) {
   const a = $('.st.atk', fr), h = $('.st.hp', fr);
   if (a) a.textContent = f.atk;
   if (h) h.textContent = f.hp;
+  if (/\bsz\d\b/.test(fr.className)) for (const k of [1, 2, 3]) fr.classList.toggle('sz' + k, Math.min(3, f.lvl || 1) === k); // grows on level-up
   let lv = $('.lvl', fr);
   if (f.lvl > 1) { if (!lv) { lv = el('<span class="lvl"></span>'); fr.insertBefore(lv, $('.stats', fr)); } lv.textContent = `Lv${f.lvl}`; }
   else if (lv) lv.remove();
@@ -1848,7 +1880,7 @@ function updatePads() {
     if (!f) { occ.innerHTML = ''; continue; }
     const same = p && p.id === f.id;
     const was = !same ? prevTeam.find((x) => x && x.id === f.id) : p;
-    if (!same || !occ.firstElementChild) occ.innerHTML = frogHTML(f, { xp: true, size: 58 });
+    if (!same || !occ.firstElementChild) occ.innerHTML = frogHTML(f, { xp: true, size: 58, grow: true });
     else patchFrog(occ.firstElementChild, f); // same frog, new numbers: keep the element (and its idle loop)
     const fr = $('.frog', occ);
     if (flights.has(f.id)) {
@@ -2006,7 +2038,10 @@ function placeBubble(b) {
   const ar = b._anchor.getBoundingClientRect();
   // Shop bubbles float above the shop; your own frogs get theirs below, clear of the top bar
   const bank = b._kind !== 'team' && $('.bank');
-  const r = bank ? { left: ar.left, width: ar.width, top: bank.getBoundingClientRect().top + 2, bottom: ar.bottom } : ar;
+  // (a pond frog's stats and merge dots hang below its drawing: open under those, not over them)
+  const dots = b._kind === 'team' && $('.xp', b._anchor);
+  const r = bank ? { left: ar.left, width: ar.width, top: bank.getBoundingClientRect().top + 2, bottom: ar.bottom }
+    : dots ? { left: ar.left, width: ar.width, top: ar.top, bottom: Math.max(ar.bottom, dots.getBoundingClientRect().bottom) } : ar;
   const pos = `${vw}:${vh}:${Math.round(r.left)}:${Math.round(r.top)}:${Math.round(r.width)}:${Math.round(r.bottom)}:${b._h.length}`;
   if (pos === b._pos) return; // nothing moved
   b._pos = pos;
@@ -2466,7 +2501,7 @@ function battleLog(frames, upto = frames.length - 1) {
 // keeps following the newest line unless you've scrolled up to read.
 function openBattleSheet(lb, upto) {
   const frames = viewFrames(lb, S.seat), oppName = S.opp ? S.opp.name : 'Your partner';
-  const lineup = frames[0].theirs.map((u, i) => `<div class="guide-row"><div class="gfrog">${frogHTML({ ...u, id: 900 + i }, { size: 46, idle: false })}</div><div class="txt"><span class="gname">${NAMES[u.type] || 'Frog'}</span>${descHTML(u.type, u.lvl)}</div></div>`).join('');
+  const lineup = frames[0].theirs.map((u, i) => `<div class="guide-row"><div class="gfrog">${frogHTML({ ...u, id: 900 + i }, { size: 46, idle: false })}</div><div class="txt"><span class="gname">${NAMES[u.type] || 'Frog'}${u.lvl > 1 ? ` <span class="lvl-in">Lv${u.lvl}</span>` : ''}</span>${descHTML(u.type, u.lvl)}</div></div>`).join('');
   const s = sheet(`<h2>Round ${lb.round}</h2>
     <div class="guide-sec">${esc(oppName)}’s pond <span class="sub">front first</span></div>${lineup}
     <div class="guide-sec">What happened</div>
@@ -2547,30 +2582,42 @@ async function playBattle(lb) {
     arena.appendChild(p);
   }
   const units = new Map(); // id -> { el, move, side, x, y, u }
+  // (a touch smaller than elsewhere, so each frog's pair fits in its step of the diagonal without touching the next)
+  const SS = s * .9;
+  // Every frog stands with its feet at the same point of its pad (a full-size frog's bottom), and its stats sit
+  // at one spot on the outer side (left of your frogs, right of your partner's), whatever its size or level
+  const statsAt = (rec, x, y) => {
+    const w = rec.st.offsetWidth * SS, h = rec.st.offsetHeight * SS;
+    const tx = rec.side ? x + U / 2 + 1 : x - U / 2 - 1 - w;
+    return `translate(${tx.toFixed(1)}px, ${(y - h * .42).toFixed(1)}px) scale(${SS.toFixed(3)})`;
+  };
   const place = (rec, x, y) => {
     rec.x = x; rec.y = y;
-    rec.el.style.transform = `translate(${x - rec.w / 2}px, ${y - rec.h / 2}px)`;
-    rec.el.style.zIndex = Math.round(y);
+    rec.el.style.transform = `translate(${x - rec.w / 2}px, ${y + U / 2 - s * rec.h / 2 - rec.h / 2}px)`;
+    rec.el.style.zIndex = rec.st.style.zIndex = Math.round(y); // stats come after their frog, so they sit on it
+    rec.st.style.transform = statsAt(rec, x, y);
   };
   const makeUnit = (u, side) => {
-    const node = el(`<div class="bu s${side}"><div class="bscale" style="transform:scale(${s.toFixed(3)})"><div class="bmove">${frogHTML({ ...u, xp: 0 }, { size: 56, flip: side === 1 })}</div></div></div>`);
-    arena.appendChild(node);
-    const rec = { el: node, move: $('.bmove', node), side, u: { ...u }, w: node.offsetWidth, h: node.offsetHeight };
+    const node = el(`<div class="bu s${side}"><div class="bscale" style="transform:scale(${s.toFixed(3)})"><div class="bmove">${frogHTML({ ...u, xp: 0 }, { size: 56, flip: side === 1, grow: true, stats: false })}</div></div></div>`);
+    const st = el(`<div class="bst s${side}"><span class="st atk">${u.atk}</span><span class="st hp">${Math.max(0, u.hp)}</span></div>`);
+    arena.appendChild(node); arena.appendChild(st);
+    const rec = { el: node, st, move: $('.bmove', node), side, u: { ...u }, w: node.offsetWidth, h: node.offsetHeight };
     units.set(u.id, rec);
     return rec;
   };
   const hopTo = (rec, x, y) => {
-    const fromT = rec.el.style.transform;
+    const fromT = rec.el.style.transform, fromS = rec.st.style.transform;
     place(rec, x, y);
     if (skipping || !fromT) return;
     const toT = rec.el.style.transform;
     anim(rec.el, [{ transform: fromT }, { transform: toT }], { duration: dur(320), easing: 'cubic-bezier(.3,.7,.4,1)' });
+    anim(rec.st, [{ transform: fromS }, { transform: rec.st.style.transform }], { duration: dur(320), easing: 'cubic-bezier(.3,.7,.4,1)' });
     anim(rec.move, [{ transform: 'translateY(0)' }, { transform: `translateY(${-18 * s}px)`, offset: .45 }, { transform: 'translateY(0)' }], { duration: dur(320), easing: 'ease-out' });
   };
   const setStats = (rec, u, animate) => {
     const old = rec.u; rec.u = { ...u };
-    const a = $('.st.atk', rec.el), h = $('.st.hp', rec.el);
-    a.textContent = u.atk; h.textContent = u.hp;
+    const a = $('.st.atk', rec.st), h = $('.st.hp', rec.st);
+    a.textContent = u.atk; h.textContent = Math.max(0, u.hp);
     if (!animate) return;
     const da = u.atk - old.atk, dh = u.hp - old.hp;
     if (dh < 0) {
@@ -2587,7 +2634,8 @@ async function playBattle(lb) {
   };
   const faint = (rec, poof) => {
     units.delete(rec.u.id);
-    if (skipping) return rec.el.remove();
+    if (skipping) { rec.st.remove(); return rec.el.remove(); }
+    anim(rec.st, [{ opacity: 1 }, { opacity: 0 }], { duration: dur(200), fill: 'forwards' }).then(() => rec.st.remove());
     if (poof) {
       sparkles($('.fbody', rec.el), 12, '#c6a8ff');
       return anim(rec.move, [{ transform: 'scale(1)', opacity: 1 }, { transform: 'scale(1.25)', opacity: 1, offset: .3 }, { transform: 'scale(0)', opacity: 0 }], { duration: dur(380), easing: 'ease-in', fill: 'forwards' }).then(() => rec.el.remove());
@@ -2600,6 +2648,7 @@ async function playBattle(lb) {
     const fr = $('.frog', rec.el), body = $('.fbody', rec.el);
     fr.style.setProperty('--fs', Math.round(56 * (ART_SIZE[u.type] || 1)) + 'px');
     body.innerHTML = frogArt(u.type);
+    rec.w = rec.el.offsetWidth; rec.h = rec.el.offsetHeight; place(rec, rec.x, rec.y); // new size: keep its feet on the pad
     if (animate) { sparkles(body, 12, '#b8f08a'); anim(rec.move, [{ transform: 'scale(.4)', opacity: .3 }, { transform: 'scale(1.15)', opacity: 1, offset: .6 }, { transform: 'scale(1)' }], { duration: dur(420), easing: 'ease-out' }); }
   };
   // A bubble taking a hit: it swells, pops into droplets, and the hit does nothing
@@ -2621,7 +2670,10 @@ async function playBattle(lb) {
       let rec = units.get(u.id);
       if (!rec) {
         rec = makeUnit(u, side); place(rec, x, y);
-        if (animate && !skipping) anim(rec.move, [{ transform: 'scale(0)' }, { transform: 'scale(1.2)', offset: .7 }, { transform: 'scale(1)' }], { duration: dur(360), easing: 'ease-out' });
+        if (animate && !skipping) {
+          anim(rec.move, [{ transform: 'scale(0)' }, { transform: 'scale(1.2)', offset: .7 }, { transform: 'scale(1)' }], { duration: dur(360), easing: 'ease-out' });
+          anim(rec.st, [{ opacity: 0 }, { opacity: 1 }], { duration: dur(240), delay: dur(200), fill: 'backwards' });
+        }
       } else {
         if (rec.u.type !== u.type) morph(rec, u, animate && !skipping);
         if (rec.u.gear === 'bubble' && u.gear === 'used') block(rec);
@@ -2651,7 +2703,10 @@ async function playBattle(lb) {
   [[0, first.mine], [1, first.theirs]].forEach(([side, arr]) => arr.forEach((u, i) => {
     const rec = makeUnit(u, side); const [x, y] = pos(side, i);
     place(rec, x, y);
-    if (!skipping) anim(rec.el, [{ transform: `translate(${side ? W + 40 : -100}px, ${y - rec.h / 2}px)`, opacity: 0 }, { transform: rec.el.style.transform, opacity: 1 }], { duration: dur(520), delay: dur(100 + (4 - i) * 70), easing: 'cubic-bezier(.3,.8,.4,1)', fill: 'backwards' });
+    if (!skipping) {
+      anim(rec.el, [{ transform: `translate(${side ? W + 40 : -100}px, ${y + U / 2 - s * rec.h / 2 - rec.h / 2}px)`, opacity: 0 }, { transform: rec.el.style.transform, opacity: 1 }], { duration: dur(520), delay: dur(100 + (4 - i) * 70), easing: 'cubic-bezier(.3,.8,.4,1)', fill: 'backwards' });
+      anim(rec.st, [{ opacity: 0 }, { opacity: 1 }], { duration: dur(220), delay: dur(480 + (4 - i) * 70), fill: 'backwards' }); // once its frog has landed
+    }
   }));
   caption('');
   if (first.mine.length || first.theirs.length) setTimeout(() => Snd.ribbit(), dur(300));

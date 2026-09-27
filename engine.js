@@ -88,15 +88,17 @@ function runBattle(teamA, teamB, opts = {}) {
       buff(behind, behind.lvl, behind.lvl);
       snap?.('ability', { actor: behind.bid, text: `${nm(behind)} is fired up` });
     }
+    // Frogspawn (id 'tadpole'): retired from the shop (tier 0); kept only so ponds saved before still play out
     if (u.type === 'tadpole' && T[s].length < TEAM_SIZE) {
       const f = unit('froglet', L, L, 1, null, ++bid);
       T[s].splice(i, 0, f);
-      snap?.('summon', { actor: f.bid, text: `${nm(u)} grew into a Froglet` });
+      snap?.('summon', { actor: f.bid, text: `${nm(u)} hatches into a Froglet` });
     }
     if (u.type === 'mama') {
+      // Lays as many L/L Froglets as there's room for in the pond
       let n = 0;
-      for (let k = 0; k < 2 && T[s].length < TEAM_SIZE; k++, n++) T[s].splice(i, 0, unit('tadpole', L, L, 1, null, ++bid));
-      if (n) snap?.('summon', { actor: T[s][i].bid, text: `${nm(u)}’s tadpoles hatch` });
+      while (T[s].length < TEAM_SIZE) { T[s].splice(i, 0, unit('froglet', L, L, 1, null, ++bid)); n++; }
+      if (n) snap?.('summon', { actor: T[s][i].bid, text: `${nm(u)}’s froglets hatch` });
     }
     if (u.type === 'tree') {
       const f = alive(s);
