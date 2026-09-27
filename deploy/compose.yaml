@@ -23,5 +23,8 @@ services:
     command: --label-enable --interval 300 --cleanup
     volumes:
       - /var/run/docker.sock:/var/run/docker.sock
-      - /root/.docker/config.json:/config.json:ro   # registry login (docker login ghcr.io) for the private image
+      # Login for the private image, kept in appdata because Unraid's /root is wiped on reboot. Create it with:
+      #   DOCKER_CONFIG=/mnt/cache/appdata/pondbattle/registry docker login ghcr.io -u dkubatko
+      # (remove this line if the package is public)
+      - ./registry/config.json:/config.json:ro
     restart: unless-stopped
