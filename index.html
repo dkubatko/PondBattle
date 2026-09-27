@@ -69,6 +69,11 @@ input:focus { border-color: var(--firefly); outline: none; }
   position: fixed; inset: 0; margin: 0 auto; max-width: 480px; display: flex; flex-direction: column;
   padding: calc(env(safe-area-inset-top) + 10px) 14px calc(env(safe-area-inset-bottom) + 14px);
 }
+/* A phone on its side (where it can't be locked, e.g. a browser) keeps the portrait layout and scrolls */
+@media (orientation: landscape) and (max-height: 520px) and (pointer: coarse) {
+  body { overflow-y: auto; }
+  .screen { position: absolute; bottom: auto; height: 740px; }
+}
 .fade-in { animation: fadeIn .3s ease-out; }
 @keyframes fadeIn { from { opacity: 0; } }
 
@@ -130,7 +135,18 @@ input:focus { border-color: var(--firefly); outline: none; }
 .home { justify-content: flex-start; gap: 14px; overflow-y: auto; padding-top: calc(env(safe-area-inset-top) + clamp(20px, 8dvh, 84px)); }
 /* anchored from the top (not centred), so games appearing in the lists below never shift the frog, title or buttons */
 .hero { position: relative; height: 128px; display: grid; place-items: end center; flex: none; }
-.hero .moon { position: absolute; top: 0; right: 22%; width: 54px; height: 54px; border-radius: 50%; background: #f8efd4; box-shadow: 0 0 40px 10px rgba(255, 236, 190, .18); }
+/* The moon: soft grey craters and seas on a cream disc, a little shade on its lower left so it reads as a
+   ball, and the same glow (static, so the box-shadow is safe on iPhones; see .ring) */
+.hero .moon { position: absolute; top: 0; right: 22%; width: 54px; height: 54px; border-radius: 50%;
+  background:
+    radial-gradient(circle 9px at 36% 36%, rgba(190, 178, 146, .55), rgba(190, 178, 146, .38) 65%, transparent 72%),
+    radial-gradient(circle 6px at 64% 27%, rgba(190, 178, 146, .5), rgba(190, 178, 146, .3) 60%, transparent 70%),
+    radial-gradient(circle 11px at 60% 63%, rgba(190, 178, 146, .45), rgba(190, 178, 146, .3) 65%, transparent 72%),
+    radial-gradient(circle 4px at 27% 66%, rgba(176, 163, 130, .55), transparent 75%),
+    radial-gradient(circle 3px at 80% 47%, rgba(176, 163, 130, .5), transparent 75%),
+    radial-gradient(circle 2.5px at 45% 83%, rgba(176, 163, 130, .5), transparent 75%),
+    radial-gradient(circle at 38% 32%, #fffaf0, #f6ecd0 55%, #e6d8b2);
+  box-shadow: inset -5px -6px 10px rgba(140, 120, 80, .28), 0 0 40px 10px rgba(255, 236, 190, .18); }
 .hero .leafbig { position: absolute; bottom: 0; left: 50%; width: 132px; height: 52px; transform: translateX(-50%); background: var(--leaf) center / contain no-repeat; }
 .hero .frog { margin-bottom: 13px; } /* feet near the middle of the pad */
 .h-sm { font-size: 30px; }
@@ -139,7 +155,11 @@ input:focus { border-color: var(--firefly); outline: none; }
 .hero-edit .pencil { width: 14px; height: 14px; opacity: .9; }
 .swipe { position: relative; border-radius: 16px; overflow: hidden; }
 .swipe .pond-btn { position: relative; z-index: 1; width: 100%; touch-action: pan-y; background-color: #24473f; will-change: transform; }
-.swipe-act { position: absolute; top: 0; right: 0; bottom: 0; width: 110px; padding-left: 18px; border: 0; border-radius: 0 16px 16px 0; background: #e8839d; color: #3a1320; font-weight: 900; font-size: 16px; }
+/* The red End layer fills the whole row behind it (so a long drag never runs past it); it's only shown while
+   the row is open or being dragged, so it can't peek out around the row's rounded corners */
+.swipe-act { position: absolute; inset: 0; display: flex; align-items: center; justify-content: flex-end; padding: 0 26px 0 0; border: 0; border-radius: 16px; background: #e8839d; color: #3a1320; font-weight: 900; font-size: 16px; opacity: 0; transition: opacity 0s .26s, background-color .15s; }
+.swipe.open .swipe-act, .swipe.dragging .swipe-act { opacity: 1; transition: background-color .15s; }
+.swipe.armed .swipe-act { background: #ef6f8f; }
 .pond-btn .avs { display: flex; flex: none; }
 .mini { position: relative; width: 38px; height: 38px; border-radius: 50%; background: #2e5550; box-shadow: 0 0 0 2.5px #24473f; display: grid; place-items: center; }
 .mini + .mini { margin-left: -9px; }
@@ -162,9 +182,16 @@ input:focus { border-color: var(--firefly); outline: none; }
 .wheel-name { margin-top: -6px; min-height: 20px; text-align: center; font-size: 15px; font-weight: 800; color: var(--moon); }
 .me-chip { display: flex; align-items: center; justify-content: center; gap: 6px; margin: 0 auto; border: 0; background: none; color: var(--moon-dim); font-size: 16px; font-weight: 700; padding: 4px 8px; }
 .me-chip b { color: var(--moon); }
+.help-btn { position: absolute; top: calc(env(safe-area-inset-top) + 10px); right: 14px; font-size: 20px; font-weight: 900; color: var(--moon-dim); }
 .lists { display: flex; flex-direction: column; gap: 8px; }
 .code-join { display: flex; justify-content: center; }
-.code-join .code-row { width: 100%; }
+.code-page { align-items: stretch; text-align: center; }
+.code-page .link { align-self: center; }
+/* equal room above and below the tiles; a wrong-code message floats in the room below, taking no space */
+.code-entry { position: relative; display: block; margin: 22px 0; }
+.code-entry input { position: absolute; inset: 0; opacity: 0; font-size: 16px; caret-color: transparent; }
+.code-err { position: absolute; left: 0; right: 0; top: calc(100% + 8px); font-size: 14px; line-height: 20px; font-weight: 800; color: #ff9e9e; pointer-events: none; }
+.code-tiles span.cur { box-shadow: inset 0 0 0 2px var(--firefly); }
 h1 { margin: 0; text-align: center; font-size: 40px; font-weight: 900; line-height: 1; letter-spacing: -.5px; }
 .lede { margin: 0 auto; max-width: 30ch; text-align: center; color: var(--moon-dim); font-size: 16px; line-height: 1.4; }
 .panel { display: flex; flex-direction: column; gap: 12px; margin-top: 6px; }
@@ -179,11 +206,16 @@ h1 { margin: 0; text-align: center; font-size: 40px; font-weight: 900; line-heig
 .code-row { display: grid; grid-template-columns: 1fr auto; gap: 10px; }
 .code-row input { text-transform: uppercase; letter-spacing: 6px; text-align: center; }
 .code-tiles { display: flex; justify-content: center; gap: 8px; margin: 6px 0 2px; }
+.code-entry .code-tiles { margin: 0; }
 .code-tiles span { width: 54px; height: 64px; border-radius: 14px; background: rgba(5, 15, 18, .35); display: grid; place-items: center; font-size: 34px; font-weight: 900; color: var(--firefly); }
 
 /* Game */
 .top { display: flex; align-items: center; justify-content: space-between; height: 42px; }
-.top .round { font-size: 19px; font-weight: 900; padding-left: 2px; }
+/* Log button + round number: the same in the shop and in battle, top left */
+.lead { display: flex; align-items: center; gap: 10px; height: 42px; }
+.lead .round { font-size: 17px; font-weight: 900; }
+.ib.ib-log { width: 38px; height: 38px; background: rgba(245, 237, 214, .07); }
+.ib.ib-log svg { width: 19px; height: 19px; }
 .top .icons { display: flex; gap: 8px; }
 .players { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; margin-top: 8px; }
 .pl { min-width: 0; border: 0; border-radius: 20px; background: rgba(5, 15, 18, .28); padding: 10px; text-align: left; display: flex; align-items: center; gap: 10px; color: inherit; transition: background-color .25s, box-shadow .25s; }
@@ -216,18 +248,21 @@ h1 { margin: 0; text-align: center; font-size: 40px; font-weight: 900; line-heig
 .pads { display: grid; grid-template-columns: repeat(5, 1fr); gap: 2px; }
 .pad { position: relative; height: 124px; display: flex; align-items: flex-end; justify-content: center; touch-action: none; }
 .pad .leaf { position: absolute; bottom: 14px; left: 50%; width: 70px; height: 38px; transform: translateX(-50%); background: var(--leaf) center / contain no-repeat; transition: filter .2s; }
-.pad .ring, .item .ring { position: absolute; left: 50%; bottom: 10px; width: 72px; height: 42px; transform: translateX(-50%); border-radius: 50%; opacity: 0; transition: opacity .2s; pointer-events: none; }
-.pad.ok .ring { opacity: 1; box-shadow: 0 0 0 2px rgba(255, 205, 102, .6); animation: pulse 1.2s ease-in-out infinite; }
-.pad.hover .ring, .pad.sel .ring, .item.sel .ring { opacity: 1; box-shadow: 0 0 0 3px var(--firefly), 0 0 18px rgba(255, 205, 102, .5); animation: none; }
+/* Drop/selection rings are an outline plus a glow drawn inside the oval, not a box-shadow: some iPhones
+   (WebKit) paint a fading or pulsing box-shadow as a filled rectangle */
+.pad .ring, .item .ring { position: absolute; left: 50%; bottom: 7px; width: 72px; height: 42px; transform: translateX(-50%); border-radius: 50%; border: 3px solid transparent; opacity: 0; transition: opacity .2s; pointer-events: none; }
+.pad.ok .ring { opacity: 1; border-color: rgba(255, 205, 102, .6); animation: pulse 1.2s ease-in-out infinite; }
+.pad.hover .ring, .pad.sel .ring, .item.sel .ring { opacity: 1; border-color: var(--firefly); background: radial-gradient(closest-side, transparent 55%, rgba(255, 205, 102, .45)); animation: none; }
 @keyframes pulse { 50% { opacity: .35; } }
 .occ { position: relative; z-index: 1; margin-bottom: 6px; }
 .dir { display: flex; justify-content: flex-end; padding: 2px 10px 0; font-size: 13px; color: rgba(245, 237, 214, .35); }
 .dir span { display: flex; align-items: center; gap: 3px; }
 .banner { position: absolute; left: 0; right: 0; top: 0; height: calc(50% - 90px); min-height: 70px; display: grid; place-content: center; text-align: center; pointer-events: none; z-index: 5; opacity: 0; }
 .banner b { display: block; font-size: 34px; font-weight: 900; text-shadow: 0 3px 16px rgba(0, 0, 0, .5); }
-.banner span { color: var(--firefly); font-size: 16px; text-shadow: 0 2px 10px rgba(0, 0, 0, .6); }
 
 .info { height: 40px; margin-top: 6px; display: flex; justify-content: center; align-items: center; text-align: center; font-size: 15px; color: var(--moon-dim); }
+.pond-msg { position: absolute; left: 0; right: 0; top: 0; height: calc(50% - 90px); min-height: 70px; display: grid; place-items: center; padding: 0 10px; z-index: 6; opacity: 0; }
+.pond-news { position: absolute; left: 0; right: 0; bottom: 4px; margin: 0 auto; width: max-content; max-width: 94%; z-index: 6; opacity: 0; }
 .info .t { font-size: 16px; font-weight: 900; display: flex; align-items: center; gap: 6px; }
 .info .d { font-size: 14px; color: var(--moon-dim); line-height: 1.3; max-width: 34ch; }
 .info .d b { color: var(--moon); font-weight: 800; }
@@ -241,7 +276,7 @@ h1 { margin: 0; text-align: center; font-size: 40px; font-weight: 900; line-heig
 .item { position: relative; display: flex; flex-direction: column; align-items: center; touch-action: none; }
 .item .slot { position: relative; width: 100%; height: 86px; display: flex; align-items: flex-end; justify-content: center; }
 .item .stone { position: absolute; bottom: 8px; left: 50%; width: 58px; height: 22px; transform: translateX(-50%); border-radius: 50%; background: radial-gradient(60% 70% at 45% 35%, #6d5a4a, #54443a); box-shadow: inset 0 -3px 0 rgba(0, 0, 0, .18); }
-.item .ring { bottom: 2px; width: 66px; height: 32px; }
+.item .ring { bottom: -1px; width: 66px; height: 32px; }
 .item.locked .stone { opacity: .35; }
 .item .occ { margin-bottom: 0; }
 .item.food::before { content: ''; position: absolute; left: -1px; top: 14px; bottom: 30px; width: 1px; background: rgba(245, 237, 214, .1); }
@@ -305,7 +340,10 @@ h1 { margin: 0; text-align: center; font-size: 40px; font-weight: 900; line-heig
 .flyer { position: fixed; left: 0; top: 0; z-index: 50; pointer-events: none; will-change: transform; margin: 0; }
 .float { position: fixed; z-index: 60; pointer-events: none; font-weight: 900; font-size: 19px; white-space: nowrap; text-shadow: 0 2px 0 rgba(0, 0, 0, .35); display: flex; gap: 6px; transform: translate(-50%, -50%); }
 .float .a { color: #ffab73; } .float .h { color: #ffadc0; } .float .g { color: var(--firefly); } .float .x { color: #ff8a8a; } .float .blk { color: #c4f2c8; font-size: .8em; }
-.toast { position: fixed; left: 50%; top: calc(env(safe-area-inset-top) + 58px); z-index: 90; transform: translate(-50%, -12px); opacity: 0; transition: opacity .25s, transform .25s; background: #fbf1d6; color: #243021; padding: 10px 16px; border-radius: 14px; font-weight: 800; font-size: 15px; box-shadow: 0 8px 24px rgba(0, 0, 0, .3); text-align: center; pointer-events: none;
+/* Notifications (shop messages and news, the battle's play-by-play) share one look: just text, lifted off the
+   background by a soft shadow */
+.note { color: var(--moon); font-weight: 800; font-size: 16px; line-height: 1.3; text-align: center; text-shadow: 0 1px 2px rgba(0, 0, 0, .55), 0 0 12px rgba(8, 22, 27, .9); pointer-events: none; }
+.toast { position: fixed; left: 50%; top: calc(env(safe-area-inset-top) + 58px); z-index: 90; transform: translate(-50%, -12px); opacity: 0; transition: opacity .25s, transform .25s;
   /* size to the text: with left: 50% the automatic width would otherwise stop at half the screen */
   width: max-content; max-width: min(92vw, 420px); }
 .toast.show { opacity: 1; transform: translate(-50%, 0); }
@@ -341,21 +379,17 @@ h1 { margin: 0; text-align: center; font-size: 40px; font-weight: 900; line-heig
 
 /* Battle */
 .battle { z-index: 40; background: linear-gradient(180deg, #11232b 0%, #163540 50%, #1a3d43 100%); }
-.b-top, .b-bot { display: flex; justify-content: space-between; align-items: flex-start; gap: 8px; min-height: 46px; }
-.b-side { display: flex; align-items: center; gap: 10px; min-width: 0; }
-.b-side.r { flex-direction: row-reverse; text-align: right; }
-.b-id { display: flex; flex-direction: column; gap: 4px; min-width: 0; }
-.b-side.r .b-id { align-items: flex-end; }
-.b-side .pips { gap: 3px; }
-.b-side .pips .ic { width: 15px; height: auto; }
-.b-side .nm { font-size: 17px; font-weight: 900; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; max-width: 100%; }
-.b-round { font-size: 14px; color: var(--moon-dim); }
-.b-lead { display: flex; align-items: center; gap: 10px; }
-/* the battle's Log button: a smaller, quieter version of the shop header's round icon buttons */
-.ib.ib-sm { width: 34px; height: 34px; background: rgba(245, 237, 214, .06); color: var(--moon-dim); }
-.ib.ib-sm svg { width: 17px; height: 17px; }
+.b-top, .b-bot { display: flex; justify-content: space-between; align-items: center; gap: 10px; }
+.b-top .lead { align-self: flex-start; }
+.b-top { margin-bottom: 4px; } .b-bot { margin-top: 4px; } /* equal, so the pads sit exactly between the plaques */
+.b-top .pl, .b-bot .pl { flex: none; width: calc(50% - 5px); } /* as wide as in the shop's two-column row */
 .arena { position: relative; flex: 1; min-height: 0; }
-.arena .water { position: absolute; left: -14px; right: -14px; top: 50%; height: 62%; transform: translateY(-50%); background: radial-gradient(50% 50% at 50% 50%, rgba(120, 190, 200, .12), transparent 70%); pointer-events: none; }
+.arena .water { position: absolute; left: -14px; right: -14px; top: 50%; height: 70%; transform: translateY(-50%); background: radial-gradient(50% 50% at 50% 50%, rgba(120, 190, 200, .12), transparent 70%); pointer-events: none; }
+/* Water around each pad: a lighter patch and two slow ripples (borders, not box-shadows: see .ring) */
+.bwater { position: absolute; border-radius: 50%; background: radial-gradient(closest-side, rgba(130, 200, 210, .15), rgba(130, 200, 210, .05) 70%, transparent); pointer-events: none; }
+.bwater i { position: absolute; inset: 16%; border-radius: 50%; border: 1.5px solid rgba(195, 232, 238, .3); opacity: 0; animation: ripple 6s ease-out infinite; animation-delay: var(--rd); }
+.bwater i + i { animation-delay: calc(var(--rd) + 3s); }
+@keyframes ripple { 0% { transform: scale(.75); opacity: 0; } 15% { opacity: .9; } 100% { transform: scale(1.3); opacity: 0; } }
 .bpad { position: absolute; background: var(--leaf) center / contain no-repeat; opacity: .9; pointer-events: none; }
 .bu { position: absolute; left: 0; top: 0; will-change: transform; }
 .bu .stats { position: absolute; top: 50%; margin: 0; flex-direction: column; gap: 3px; transform: translateY(-38%); }
@@ -369,8 +403,17 @@ h1 { margin: 0; text-align: center; font-size: 40px; font-weight: 900; line-heig
 .fx-ring.charm { border-color: rgba(255, 160, 196, .95); box-shadow: 0 0 14px rgba(255, 160, 196, .6); }
 .float .charm .ic { width: 22px; height: 20px; }
 .fx-wave { position: absolute; border-radius: 50%; border: 4px solid rgba(160, 220, 255, .8); pointer-events: none; z-index: 25; }
-.caption { height: 30px; display: grid; place-items: center; font-size: 16px; font-weight: 800; color: var(--moon); transition: opacity .25s; text-align: center; }
+/* The play-by-play: a note in the gap between your last pad and your plaque (always the same height: it
+   mirrors the room the top frog stands in). Its top is set when the battlefield is laid out */
+.caption:empty { visibility: hidden; }
+.caption { opacity: 0; position: absolute; left: 0; right: 0; margin: 0 auto; width: max-content; max-width: 94%; translate: 0 -50%; font-size: 18px; z-index: 950; text-wrap: balance; transition: opacity .25s; }
 .b-ctrl { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; margin-top: 8px; }
+/* The round's result: bigger and bolder than the play-by-play, popped in at the top middle of the battlefield */
+.b-result { position: absolute; left: 0; right: 0; top: 4px; margin: 0 auto; width: max-content; max-width: 94%; z-index: 960; pointer-events: none;
+  font-size: 26px; font-weight: 900; letter-spacing: .01em; text-align: center; color: var(--moon); text-shadow: 0 2px 0 rgba(0, 0, 0, .35), 0 0 18px rgba(8, 22, 27, .9); }
+.b-result.win { color: var(--firefly); }
+.b-result.lose { color: #ff9e9e; }
+.pl.won { background: rgba(255, 205, 102, .1); box-shadow: inset 0 0 0 2px rgba(255, 205, 102, .55); }
 .result {
   position: absolute; left: 24px; right: 24px; top: 50%; z-index: 1000; pointer-events: none;
   background: #fbf1d6; color: #243021; border-radius: 26px; padding: 20px 18px 18px; text-align: center;
@@ -390,7 +433,7 @@ h1 { margin: 0; text-align: center; font-size: 40px; font-weight: 900; line-heig
 .over .btns { display: grid; gap: 12px; width: 100%; }
 
 @media (prefers-reduced-motion: reduce) {
-  .idle .fsvg, .eyes, .ff, .pad.ok .ring, .bug-art .wing, .bug-art .glow, .upchip.on { animation: none !important; }
+  .idle .fsvg, .eyes, .ff, .pad.ok .ring, .bug-art .wing, .bug-art .glow, .upchip.on, .bwater i { animation: none !important; }
 }
 @media (max-height: 640px) {
   .pad { height: 104px; } .item .slot { height: 80px; } .info { height: 30px; } .btn { height: 52px; } .hero { height: 110px; }
@@ -403,7 +446,7 @@ h1 { margin: 0; text-align: center; font-size: 40px; font-weight: 900; line-heig
 <div class="ff" style="left:40%;top:86%;animation-delay:-11s"></div>
 <div class="ff" style="left:88%;top:30%;animation-delay:-4s"></div>
 <div id="root"></div>
-<div class="toast" id="toast"></div>
+<div class="toast note" id="toast"></div>
 <script id="catalog" type="application/json">__CATALOG__</script>
 <script id="items" type="application/json">__ITEMS__</script>
 <script>
@@ -1178,6 +1221,17 @@ window.addEventListener('pageshow', (e) => { if (e.persisted) Snd.reset(); });
 // =====================================================================
 let toastTimer = null;
 function toast(msg) {
+  if (playing) return; // shop news that lands after a battle has started would cover the battle's top row
+  // In the shop, messages show over the pond where the round title appears (after the title, if it's up)
+  const pm = $('#pondMsg'), bn = $('#banner');
+  if (pm && bn) {
+    const up = bn.getAnimations()[0];
+    const show = () => {
+      pm.textContent = msg; pm.getAnimations().forEach((a) => a.cancel());
+      pm.animate([{ opacity: 0, transform: 'translateY(6px)' }, { opacity: 1, transform: 'none', offset: .1 }, { opacity: 1, offset: .85 }, { opacity: 0 }], { duration: 2400, easing: 'ease-out', fill: 'forwards' });
+    };
+    return up && up.playState === 'running' ? up.finished.then(show, show) : show();
+  }
   const t = $('#toast'); t.textContent = msg; t.classList.add('show');
   clearTimeout(toastTimer); toastTimer = setTimeout(() => t.classList.remove('show'), 2200);
 }
@@ -1267,12 +1321,18 @@ function haptic([kind, style]) {
 if (TG) {
   TG.ready(); TG.expand();
   try { TG.disableVerticalSwipes(); } catch {} // dragging frogs must not pull the app closed
+  // The game is portrait only: lock it (Telegram 8.0+). Opened sideways, it locks once the phone is upright.
+  if (TG.isVersionAtLeast && TG.isVersionAtLeast('8.0')) {
+    const lock = () => { if (innerHeight < innerWidth) return false; try { TG.lockOrientation(); } catch {} return true; };
+    if (!lock()) TG.onEvent('viewportChanged', function upright() { if (lock()) TG.offEvent('viewportChanged', upright); });
+  }
   try { TG.setHeaderColor('#12252d'); TG.setBackgroundColor('#12252d'); TG.setBottomBarColor('#12252d'); } catch {}
   for (const [name, h] of Object.entries(HAPTIC)) { const f = Snd[name]; if (f) Snd[name] = (...a) => { haptic(h); return f(...a); }; }
   // Telegram's back button: closes a sheet, or goes back to the lobby
   TG.BackButton.onClick(() => {
     const top = $$('.sheet-wrap').pop();
     if (top) return top.click(); // same as tapping outside the sheet, so dialogs answer "no"
+    if (screen === 'code') return showHome();
     if (sess && !playing) toLobby();
   });
 }
@@ -1358,6 +1418,7 @@ function showHome(msg) {
   const roomCode = (qs.get('room') || '').toUpperCase().slice(0, 4);
   ME.start = ''; // only once
   const node = el(`<div class="screen home fade-in">
+    <button class="ib help-btn" id="helpBtn" aria-label="How to play">?</button>
     <button class="hero" id="heroBtn" aria-label="Edit your frog"><div class="moon"></div><div class="leafbig"></div><span id="heroAv"></span><span class="hero-edit">${ICON.pencil}</span></button>
     <h1>Pond Battle</h1>
     <div class="panel" id="panel"></div>
@@ -1368,6 +1429,7 @@ function showHome(msg) {
   const drawHero = () => { $('#heroAv').innerHTML = avatarHTML(myAvatar(), 84, { idle: true, id: 7 }); };
   drawHero();
   $('#heroBtn').onclick = () => openProfile(() => { drawHero(); if (ME.name) lobbyStep(); });
+  $('#helpBtn').onclick = () => { Snd.tap(); openGuide(); };
 
   // Browser guests pick a name first; Telegram players already have one
   const nameStep = () => {
@@ -1399,41 +1461,60 @@ function showHome(msg) {
     b.onclick = onOpen;
     return onEnd ? swipeRow(b, onEnd, endLabel) : b;
   };
-  const endFromList = (code, lonely) => async () => { if (await endGame(code, lonely)) { last = ''; load(); } else closeSwipes(); };
+  // Ending from the list (the End button or a full swipe) needs no confirmation: the row fades where it is at
+  // once, then the server is told and the list refreshed (a refresh in between won't bring the row back)
+  const gone = new Set();
+  const endFromList = (code) => async (wrap) => {
+    gone.add(code); wrap.classList.add('ending'); fold(wrap);
+    try { await api('/api/end', { room: code }); } catch {}
+    if (sess && sess.room === code) forget();
+    last = ''; load(true);
+  };
   // Rows are updated in place (keyed by section + pond): new ones open smoothly, gone ones fold away,
   // unchanged ones are left alone, so the lobby refreshing every few seconds never jolts the page.
   const LIST_GAP = 8;
-  const grow = (n) => {
+  // New rows open their space and fade in (a few at once come in one after another). A row you ended fades
+  // where it is, then its space closes and the rows below glide up; anything else leaving (a heading left
+  // empty, a game ended elsewhere) waits for that fade, then fades and closes at the same gentle pace.
+  const EASE = 'cubic-bezier(.25,.8,.35,1)';
+  const grow = (n, k) => {
     const h = n.offsetHeight, mt = parseFloat(getComputedStyle(n).marginTop) || 0;
     n.style.overflow = 'hidden';
-    anim(n, [{ height: '0px', opacity: 0, marginTop: `${-LIST_GAP}px` }, { height: `${h}px`, opacity: 1, marginTop: `${mt}px` }], { duration: 240, easing: 'cubic-bezier(.3,.8,.4,1)' })
-      .then(() => { n.style.overflow = ''; });
+    anim(n, [{ height: '0px', opacity: 0, marginTop: `${-LIST_GAP}px`, transform: 'translateY(-6px)' }, { height: `${h}px`, opacity: 1, marginTop: `${mt}px`, transform: 'none' }],
+      { duration: 320, delay: k * 50, easing: EASE, fill: 'backwards' }).then(() => { n.style.overflow = ''; });
   };
-  const fold = (n) => {
-    n.classList.add('leaving'); n.style.overflow = 'hidden'; n.style.pointerEvents = 'none';
+  const FADE = 200, CLOSE = 300;
+  const fold = async (n, wait = 0) => {
+    if (n.classList.contains('leaving')) return;
+    n.classList.add('leaving'); n.style.pointerEvents = 'none';
+    const ending = n.classList.contains('ending');
+    if (ending) await anim(n, [{ opacity: 1 }, { opacity: 0 }], { duration: FADE, easing: 'ease-out', fill: 'forwards' });
+    else if (wait) await sleep(wait);
+    n.style.overflow = 'hidden';
     const mt = parseFloat(getComputedStyle(n).marginTop) || 0;
-    anim(n, [{ height: `${n.offsetHeight}px`, opacity: 1, marginTop: `${mt}px` }, { height: '0px', opacity: 0, marginTop: `${-LIST_GAP}px` }], { duration: 200, easing: 'ease-in', fill: 'forwards' })
-      .then(() => n.remove());
+    await anim(n, [{ height: `${n.offsetHeight}px`, opacity: ending ? 0 : 1, marginTop: `${mt}px` }, { height: '0px', opacity: 0, marginTop: `${-LIST_GAP}px` }],
+      { duration: CLOSE, easing: 'cubic-bezier(.4,0,.2,1)', fill: 'forwards' });
+    n.remove();
   };
   const render = () => {
     const box = $('#lists'); if (!box || !lobby) return;
     const items = []; // { key, sig, make }
     const section = (label, list, make) => {
-      if (!list.length) return;
+      if (!list.some((x) => !gone.has(x.code))) return;
       items.push({ key: `L:${label}`, sig: label, make: () => el(`<div class="label">${label}</div>`) });
-      for (const r of list) items.push({ key: `${label}:${r.code}`, sig: JSON.stringify([r.seats.map((x) => [x.name, x.avatar]), r.mine, r.practice]), make: () => make(r) });
+      for (const r of list.filter((x) => !gone.has(x.code))) items.push({ key: `${label}:${r.code}`, sig: JSON.stringify([r.seats.map((x) => [x.name, x.avatar]), r.mine, r.practice]), make: () => make(r) });
     };
     const waiting = (r) => (r.mine
-      ? row(r.seats, 'Your pond', 'Resume', () => rejoin(r.code), endFromList(r.code, true), 'Cancel')
+      ? row(r.seats, 'Your pond', 'Resume', () => rejoin(r.code), endFromList(r.code), 'Cancel')
       : row(r.seats, `${esc(r.seats[0].name)}’s pond`, 'Join', () => join(r.code)));
-    section('In progress', lobby.active, (r) => row(r.seats, r.practice ? 'Practice' : r.seats.map((x) => esc(x.name)).join(' & '), 'Resume', () => rejoin(r.code), endFromList(r.code, false), 'End'));
-    // Nearby = ponds started on the same home network; Open = anyone else's
+    section('In progress', lobby.active, (r) => row(r.seats, r.practice ? 'Practice' : r.seats.map((x) => esc(x.name)).join(' & '), 'Resume', () => rejoin(r.code), endFromList(r.code), 'End'));
+    // Nearby = ponds started on the same home network (other people's ponds are joined by invite)
     section('Nearby', lobby.nearby, waiting);
-    section('Open ponds', lobby.open, waiting);
     const old = new Map([...box.children].filter((n) => !n.classList.contains('leaving')).map((n) => [n.dataset.key, n]));
     const keep = new Set(items.map((it) => it.key));
-    for (const [k, n] of old) if (!keep.has(k)) fold(n);
-    let prev = null;
+    const fading = $('.leaving.ending', box) ? FADE : 0; // let an ended row finish fading first
+    for (const [k, n] of old) if (!keep.has(k)) fold(n, fading);
+    let prev = null, added = 0;
     for (const it of items) {
       let n = old.get(it.key);
       const isNew = !n;
@@ -1442,9 +1523,10 @@ function showHome(msg) {
         if (n) n.replaceWith(fresh);
         n = fresh;
       }
-      const ref = prev ? prev.nextSibling : box.firstChild;
+      let ref = prev ? prev.nextSibling : box.firstChild;
+      while (ref && ref.classList.contains('leaving') && ref !== n) ref = ref.nextSibling; // rows on their way out keep their place
       if (n !== ref) box.insertBefore(n, ref);
-      if (isNew) grow(n);
+      if (isNew) grow(n, added++);
       prev = n;
     }
     // First time a swipeable row shows up, peek it open a little so the gesture is discoverable
@@ -1454,9 +1536,9 @@ function showHome(msg) {
       setTimeout(() => anim(first, [{ transform: 'none' }, { transform: 'translateX(-56px)', offset: .35 }, { transform: 'translateX(-56px)', offset: .6 }, { transform: 'none' }], { duration: 1300, easing: 'ease-in-out' }), 700);
     }
   };
-  const load = async () => {
+  const load = async (force) => {
     if (!$('#lists')) return clearInterval(pondTimer);
-    if ($('.swipe.open, .swipe.dragging')) return; // don't redraw under a finger
+    if (!force && $('.swipe.open, .swipe.dragging')) return; // don't redraw under a finger
     try {
       const l = await api('/api/lobby');
       const sig = JSON.stringify(l); if (sig === last) return; last = sig;
@@ -1472,16 +1554,41 @@ function showHome(msg) {
       <div class="code-join" id="codeJoin"><button class="link" id="showCode">Join with a code</button></div>`;
     $('#create').onclick = () => call('/api/create', {}, () => Snd.plop());
     $('#practice').onclick = () => call('/api/practice', {}, () => Snd.plop());
-    $('#showCode').onclick = () => {
-      const box = $('#codeJoin');
-      box.innerHTML = `<div class="code-row"><input id="code" maxlength="4" autocomplete="off" autocapitalize="characters" placeholder="ABCD"><button class="btn water" id="join" disabled>Join</button></div>`;
-      const code = $('#code'), jb = $('#join');
-      code.focus();
-      code.addEventListener('input', () => { code.value = code.value.toUpperCase().replace(/[^A-Z]/g, ''); jb.disabled = code.value.length !== 4; });
-      jb.onclick = () => join(code.value);
-    };
+    $('#showCode').onclick = () => { Snd.tap(); codeStep(); };
     last = ''; load(); clearInterval(pondTimer); pondTimer = setInterval(load, 2500);
     if (joinCode) join(joinCode); else if (roomCode) rejoin(roomCode);
+  };
+  // Join with a code: its own page. Four letter tiles fill in as you type (one real input sits over them).
+  const codeStep = () => {
+    clearInterval(pondTimer);
+    const page = el(`<div class="screen home code-page fade-in">
+      <h1>Join a pond</h1>
+      <p class="lede">Enter your partner’s code</p>
+      <label class="code-entry"><div class="code-tiles">${'<span></span>'.repeat(4)}</div>
+        <input id="code" maxlength="4" autocomplete="off" autocorrect="off" autocapitalize="characters" spellcheck="false" inputmode="text" aria-label="Pond code">
+        <span class="code-err" id="codeErr" role="alert"></span></label>
+      <button class="btn wide" id="join" disabled>Join</button>
+      <button class="link" id="back">Back</button>
+    </div>`);
+    mount('code', page);
+    const code = $('#code'), jb = $('#join'), tiles = $$('.code-tiles span', page), err = $('#codeErr');
+    // A wrong code is said right under the tiles (not in the top message spot, which sits on the title)
+    const tryJoin = async () => {
+      if (code.value.length !== 4) return;
+      jb.disabled = true;
+      try { enter(await api('/api/join', { room: code.value })); Snd.ribbit(); }
+      catch (e) {
+        err.textContent = e.message; Snd.nope(); jb.disabled = false;
+        anim($('.code-tiles', page), [{ transform: 'none' }, { transform: 'translateX(-8px)' }, { transform: 'translateX(7px)' }, { transform: 'translateX(-4px)' }, { transform: 'none' }], { duration: 320 });
+      }
+    };
+    const draw = () => tiles.forEach((t, i) => { t.textContent = code.value[i] || ''; t.classList.toggle('cur', i === Math.min(code.value.length, 3) && document.activeElement === code); });
+    code.addEventListener('input', () => { code.value = code.value.toUpperCase().replace(/[^A-Z]/g, '').slice(0, 4); jb.disabled = code.value.length !== 4; err.textContent = ''; draw(); });
+    code.addEventListener('focus', draw); code.addEventListener('blur', draw);
+    code.addEventListener('keydown', (e) => { if (e.key === 'Enter') tryJoin(); });
+    jb.onclick = tryJoin;
+    $('#back').onclick = () => { Snd.tap(); showHome(); };
+    code.focus(); draw();
   };
   ME.name ? lobbyStep() : nameStep();
 }
@@ -1522,21 +1629,23 @@ function showWaiting() {
   };
   $('#leave').onclick = () => endGame(S.code, true);
 }
-// Swipe a lobby row left to reveal its End button; a tap on an open row just closes it
+// Swipe a lobby row left to reveal its End button, or all the way (past half the row) to end it right away.
+// A tap on an open row just closes it.
 function closeSwipes(except) {
-  $$('.swipe.open').forEach((w) => { if (w !== except) w._set(0, true); });
+  $$('.swipe.open').forEach((w) => { if (w !== except && !w.classList.contains('ending')) w._set(0, true); });
 }
 function swipeRow(btn, onEnd, label) {
   const wrap = el(`<div class="swipe"><button class="swipe-act" tabindex="-1">${label}</button></div>`);
   wrap.appendChild(btn);
   const MAX = 92;
-  let x0 = null, y0 = 0, base = 0, dx = 0, mode = null, swiped = false;
+  let x0 = null, y0 = 0, base = 0, dx = 0, mode = null, swiped = false, armed = false;
+  const arm = (on) => { if (on !== armed) { armed = on; wrap.classList.toggle('armed', on); if (on) Snd.tap(); } };
   wrap._set = (x, smooth) => {
     btn.style.transition = smooth ? 'transform .24s cubic-bezier(.3,.8,.4,1)' : 'none';
     btn.style.transform = x ? `translateX(${x}px)` : '';
     wrap.classList.toggle('open', x < 0);
   };
-  $('.swipe-act', wrap).onclick = () => { Snd.tap(); onEnd(); };
+  $('.swipe-act', wrap).onclick = () => { Snd.tap(); onEnd(wrap); };
   btn.addEventListener('pointerdown', (e) => { x0 = e.clientX; y0 = e.clientY; mode = null; dx = base = wrap.classList.contains('open') ? -MAX : 0; closeSwipes(wrap); });
   btn.addEventListener('pointermove', (e) => {
     if (x0 === null) return;
@@ -1546,13 +1655,17 @@ function swipeRow(btn, onEnd, label) {
       else if (Math.abs(my) > 8) mode = 'scroll';
     }
     if (mode === 'swipe') {
-      let x = base + mx;
-      if (x < -MAX) x = -MAX - (-MAX - x) * .35; // rubber band past the button
-      dx = Math.min(0, x); wrap._set(dx, false);
+      const full = wrap.offsetWidth;
+      dx = Math.max(-full, Math.min(0, base + mx)); wrap._set(dx, false);
+      arm(-dx > full * .5);
     }
   });
   const end = () => {
-    if (mode === 'swipe') { swiped = true; wrap.classList.remove('dragging'); wrap._set(dx < -MAX / 2 ? -MAX : 0, true); setTimeout(() => { swiped = false; }, 60); }
+    if (mode === 'swipe') {
+      swiped = true; wrap.classList.remove('dragging'); setTimeout(() => { swiped = false; }, 60);
+      if (armed) { wrap.classList.add('open'); onEnd(wrap); } // swiped all the way: end it, the row stays where it is and fades
+      else wrap._set(dx < -MAX / 2 ? -MAX : 0, true);
+    }
     x0 = null; mode = null;
   };
   btn.addEventListener('pointerup', end);
@@ -1586,7 +1699,7 @@ function itemHTML(kind, i) {
 
 function buildGame() {
   const node = el(`<div class="screen game fade-in" id="game">
-    <header class="top"><div class="round" id="round"></div><div class="icons"><button class="ib" id="musicBtn" aria-label="Music"></button><button class="ib" id="menuBtn" aria-label="Menu">${ICON.menu}</button></div></header>
+    <header class="top"><div class="lead"><button class="ib ib-log" id="logBtn" aria-label="Last battle">${ICON.log}</button><div class="round" id="round"></div></div><div class="icons"><button class="ib" id="musicBtn" aria-label="Music"></button><button class="ib" id="menuBtn" aria-label="Menu">${ICON.menu}</button></div></header>
     <div class="players">
       <div class="pl me" id="meCard"></div>
       <div class="pl opp" id="oppCard"></div>
@@ -1596,6 +1709,8 @@ function buildGame() {
       <div class="dir"><span>Front ${ICON.chev}</span></div>
       <div class="info" id="info"></div>
       <div class="banner" id="banner"></div>
+      <div class="pond-news note" id="news"></div>
+      <div class="pond-msg note" id="pondMsg"></div>
     </section>
     <section class="bank">
       <div class="bank-head"><span class="gold" id="gold"></span><div class="shop-acts"><button class="roll" id="lockBtn"></button><button class="roll" id="rollBtn">${ICON.roll}Roll${coinBadge(1)}</button></div></div>
@@ -1614,6 +1729,7 @@ function buildGame() {
   $('#lockBtn').onclick = lockShop;
   // Tap your partner's plate to see the last battle: their pond and what happened
   $('#oppCard').onclick = () => { if (S && S.lastBattle) { Snd.tap(); openBattleSheet(S.lastBattle); } };
+  $('#logBtn').onclick = () => { if (S && S.lastBattle) { Snd.tap(); openBattleSheet(S.lastBattle); } };
   $('#mainBtn').onclick = mainAction;
   $('#readyBtn').onclick = toggleReady;
   node.addEventListener('pointerdown', onDown);
@@ -1632,9 +1748,14 @@ function showGame() {
 }
 function roundBanner(title, sub) {
   const b = $('#banner'); if (!b) return;
-  b.innerHTML = `<div><b>${esc(title)}</b>${sub ? `<span>${esc(sub)}</span>` : ''}</div>`;
+  b.innerHTML = `<div><b>${esc(title)}</b></div>`;
   b.getAnimations().forEach((a) => a.cancel());
   b.animate([{ opacity: 0, transform: 'scale(.9)' }, { opacity: 1, transform: 'scale(1)', offset: .15 }, { opacity: 1, offset: .75 }, { opacity: 0 }], { duration: 1900, easing: 'ease-out' });
+  // news ("New frogs in the shop") shows as a note under your pond, right above the shop it's about
+  const n = $('#news'); if (!n || !sub) return;
+  n.textContent = sub;
+  n.getAnimations().forEach((a) => a.cancel());
+  n.animate([{ opacity: 0, transform: 'translateY(6px)' }, { opacity: 1, transform: 'none', offset: .08 }, { opacity: 1, offset: .88 }, { opacity: 0 }], { duration: 3200, easing: 'ease-out' });
 }
 function updateGame() {
   if (sel && sel.kind === 'shop' && !S.me.shop.frogs[sel.i]) sel = null;
@@ -1646,6 +1767,7 @@ function updateGame() {
 function updateHeader() {
   const me = S.me, opp = S.opp || { name: '…', hearts: 0, trophies: 0 };
   $('#round').textContent = `Round ${S.round}`;
+  $('#logBtn').classList.toggle('off', !S.lastBattle); // nothing to show before the first battle
   const mb = $('#musicBtn'); setHTML(mb, ICON.music(Snd.music())); mb.classList.toggle('off', !Snd.music());
   // Player plate: round portrait at the outer edge (a check badge when ready, a moon when away),
   // name and hearts stacked beside it; mirrored for your partner.
@@ -2234,7 +2356,6 @@ function openMenu() {
     <button class="row-item" data-m="sfx">Sound effects<span class="switch ${Snd.sfxOn() ? 'on' : ''}"></span></button>
     <button class="row-item" data-m="guide">How to play ${ICON.chev}</button>
     <button class="row-item" data-m="name">Your frog ${ICON.chev}</button>
-    ${S && S.lastBattle ? `<button class="row-item" data-m="last">Last battle ${ICON.chev}</button>` : ''}
     <button class="row-item" data-m="lobby">Back to lobby ${ICON.chev}</button>
     <button class="row-item danger" data-m="end">End game</button>`);
   s.el.addEventListener('click', (e) => {
@@ -2245,7 +2366,6 @@ function openMenu() {
     if (m === 'guide') { s.close(); setTimeout(openGuide, 200); }
     if (m === 'name') { s.close(); setTimeout(() => openProfile(), 200); }
     if (m === 'lobby') { s.close(); setTimeout(toLobby, 200); }
-    if (m === 'last') { s.close(); setTimeout(() => openBattleSheet(S.lastBattle), 200); }
     if (m === 'end') { s.close(); setTimeout(() => endGame(), 200); }
   });
 }
@@ -2350,17 +2470,16 @@ async function playBattle(lb) {
     const lost = lb.winner !== -1 && (lb.winner === view.seat) !== isMe;
     return { hearts: p.hearts + (lost ? 1 : 0) };
   };
-  const who = (p, isMe, id) => `<div class="b-side ${isMe ? '' : 'r'}">${avatarHTML(p.avatar, 36, { idle: true, id })}<div class="b-id"><span class="nm">${esc(p.name)}</span><span id="${isMe ? 'bm' : 'bo'}">${meta(before(p, isMe))}</span></div></div>`;
+  // Player plaques: the shop's (same markup, styles and width), yours bottom left and your partner's top right
+  const who = (p, isMe, id) => `<div class="pl ${isMe ? 'me' : 'opp'}" id="${isMe ? 'bsm' : 'bso'}"><span class="portrait">${avatarHTML(p.avatar, 42, { idle: true, id, centered: true })}</span><span class="pl-info"><span class="nm"><span>${esc(p.name)}</span></span><span id="${isMe ? 'bm' : 'bo'}">${meta(before(p, isMe))}</span></span></div>`;
   const node = el(`<div class="screen battle fade-in">
     <div class="b-top">
-      <div class="b-lead"><button class="ib ib-sm" id="blog" aria-label="Battle log">${ICON.log}</button><div class="b-round">Round ${lb.round}</div></div>
+      <div class="lead"><button class="ib ib-log" id="blog" aria-label="Battle log">${ICON.log}</button><div class="round">Round ${lb.round}</div></div>
       ${who(view.opp, false, 2)}
     </div>
-    <div class="arena" id="arena"><div class="water"></div></div>
+    <div class="arena" id="arena"><div class="water"></div><div class="caption note" id="cap"></div></div>
     <div class="b-bot">${who(view.me, true, 1)}</div>
-    <div class="caption" id="cap"></div>
     <div class="b-ctrl"><button class="btn ghost" id="spd"></button><button class="btn ghost" id="skip">Skip</button></div>
-    <div class="result" id="result"></div>
   </div>`);
   mount('battle', node);
   Snd.duck(true);
@@ -2374,15 +2493,26 @@ async function playBattle(lb) {
   const wait = (ms) => (skipping ? Promise.resolve() : new Promise((r) => { wake = r; setTimeout(r, ms / speed); }));
   const dur = (ms) => ms / speed;
 
-  // Geometry: two zig-zag lines of lily pads meeting in the middle
+  // Geometry: two zig-zag lines of lily pads meeting in the middle, centred on the pads (they're always
+  // there; frogs come and go). Frogs are as big as the arena allows: 8 steps top to bottom of .76 of a frog
+  // (the next frog tucks in behind), plus room for a frog standing on the top pad, whose head may reach the
+  // play-by-play line; the bottom pad gets the same room below it, so both ends sit equally far from the plaques.
   const W = arena.clientWidth, H = arena.clientHeight;
-  const s = Math.min(1.25, W / 370, H / 640), mid = H / 2;
-  const pos = (side, i) => [W / 2 + (side ? 1 : -1) * (38 + i * 22) * s, mid + (side ? -1 : 1) * i * 64 * s];
-  const U = Math.round(56 * s);
+  // Frogs and pads (the shop's 70×38 pad for a 58px frog) grow with the arena, as big as its height allows
+  const s = Math.min(1.45, W / 300, H / (8.16 * 56)), mid = H / 2;
+  const U = Math.round(56 * s), lift = .42 * U; // a pad's centre is this far below its frog's centre
+  const padW = 70 * s * 56 / 58, padH = 38 * s * 56 / 58;
+  const dy = Math.min(.76 * U, (H - U * 1.84) / 8), dx = Math.max(10 * s, Math.min(26 * s, (W / 2 - 42 * s - U * 1.05) / 4));
+  // the two front pads sit a small gap apart (centres 84·s apart; a pad is ~68·s wide)
+  const pos = (side, i) => [W / 2 + (side ? 1 : -1) * (42 * s + i * dx), mid - lift + (side ? -1 : 1) * i * dy];
   for (const side of [0, 1]) for (let i = 0; i < 5; i++) {
-    const [x, y] = pos(side, i), w = 70 * s, h = 34 * s;
+    const [x, y] = pos(side, i), w = padW, h = padH;
+    const ww = w * 1.7, wh = h * 1.9, wy = y + lift; // the water patch, centred on the pad
+    const wv = el(`<div class="bwater" style="--rd:${(-Math.random() * 6).toFixed(2)}s"><i></i><i></i></div>`);
+    Object.assign(wv.style, { width: ww + 'px', height: wh + 'px', left: x - ww / 2 + 'px', top: wy - wh / 2 + 'px' });
+    arena.appendChild(wv);
     const p = el('<div class="bpad"></div>');
-    Object.assign(p.style, { width: w + 'px', height: h + 'px', left: x - w / 2 + 'px', top: y + U * .12 + 'px' });
+    Object.assign(p.style, { width: w + 'px', height: h + 'px', left: x - w / 2 + 'px', top: y + lift - h / 2 + 'px' });
     arena.appendChild(p);
   }
   const units = new Map(); // id -> { el, move, side, x, y, u }
@@ -2483,6 +2613,7 @@ async function playBattle(lb) {
     anim(r, [{ transform: 'scale(.4)', opacity: 1 }, { transform: 'scale(1.6)', opacity: 0 }], { duration: dur(600), easing: 'ease-out' }).then(() => r.remove());
   };
   const byId = (id) => units.get(id);
+  cap.style.top = ((mid + 4 * dy + padH / 2) + H) / 2 + 'px'; // play-by-play: midway between your last pad and your plaque
 
   // Entrance
   const first = frames[0];
@@ -2591,8 +2722,6 @@ async function playBattle(lb) {
   // Result
   Snd.duck(false);
   const w = lb.winner === -1 ? 'draw' : lb.winner === view.seat ? 'win' : 'lose';
-  const oppName = esc(view.opp.name);
-  const title = { win: 'You won the round', lose: `${oppName} won the round`, draw: 'It’s a tie' }[w];
   const final = view.phase === 'over';
   for (const [sel, p, isMe] of [['#bm', view.me, true], ['#bo', view.opp, false]]) {
     const box = $(sel), was = before(p, isMe).hearts;
@@ -2602,18 +2731,34 @@ async function playBattle(lb) {
       if (h) { anim(h, [{ transform: 'scale(1)' }, { transform: 'scale(1.6)', offset: .3 }, { transform: 'scale(1)' }], { duration: 450, easing: 'ease-out' }); const r = h.getBoundingClientRect(); floatAt(r.left + r.width / 2, r.top, '<span class="x">−1</span>'); }
     }
   }
-  const res = $('#result');
-  res.innerHTML = `<div class="r-title">${title}</div><button class="btn wide" id="cont">${final ? 'Final score' : 'Continue'}</button>`;
-  requestAnimationFrame(() => res.classList.add('show'));
+  // The winner's plaque lights up and their frog puts on the crown; the result reads where the play-by-play was
+  if (w !== 'draw') {
+    const [plate, p, id] = w === 'win' ? ['#bsm', view.me, 1] : ['#bso', view.opp, 2];
+    const pl = $(plate); pl.classList.add('won');
+    $('.portrait', pl).innerHTML = avatarHTML(p.avatar, 42, { idle: true, id, centered: true, crown: true });
+    anim($('.portrait', pl), [{ transform: 'scale(1)' }, { transform: 'scale(1.18)', offset: .4 }, { transform: 'scale(1)' }], { duration: 520, easing: 'ease-out' });
+  }
+  // The last play-by-play line fades and the result pops in at the top of the battlefield
+  caption('');
+  const res = el(`<div class="b-result ${w}"></div>`);
+  res.textContent = { win: 'You win!', lose: `${view.opp.name} wins`, draw: 'It’s a tie' }[w];
+  arena.appendChild(res);
+  anim(res, [{ opacity: 0, transform: 'scale(.6)' }, { opacity: 1, transform: 'scale(1.12)', offset: .6 }, { opacity: 1, transform: 'scale(1)' }], { duration: 480, easing: 'cubic-bezier(.3, 1.4, .5, 1)' });
+  const ctrl = $('.b-ctrl');
+  ctrl.innerHTML = `<button class="btn ghost" id="replay">Replay</button><button class="btn" id="cont">${final ? 'Final score' : 'Next round'}</button>`;
+  anim(ctrl, [{ opacity: 0, transform: 'translateY(8px)' }, { opacity: 1, transform: 'none' }], { duration: 260, easing: 'ease-out' });
   seen = frames.length - 1;
-  $('.b-ctrl').style.visibility = 'hidden';
   logView?.update(seen);
   if (w === 'win') { Snd.win(); petals(18); } else if (w === 'lose') Snd.lose(); else Snd.draw();
-  for (const rec of units.values()) {
-    if ((w === 'win' && rec.side === 0) || (w === 'lose' && rec.side === 1)) anim(rec.move, [{ transform: 'none' }, { transform: `translateY(${-16 * s}px)`, offset: .3 }, { transform: 'none', offset: .6 }, { transform: `translateY(${-10 * s}px)`, offset: .8 }, { transform: 'none' }], { duration: 900, iterations: 2 });
-  }
-  await new Promise((r) => { $('#cont').onclick = r; });
+  // The winning frogs keep celebrating until you leave: hop, hop, pause… all together
+  const won = [...units.values()].filter((rec) => (w === 'win' && rec.side === 0) || (w === 'lose' && rec.side === 1));
+  won.forEach((rec) => anim(rec.move, [
+    { transform: 'none' }, { transform: `translateY(${-16 * s}px)`, offset: .12 }, { transform: 'none', offset: .24 },
+    { transform: `translateY(${-12 * s}px)`, offset: .34 }, { transform: 'none', offset: .46 }, { transform: 'none' },
+  ], { duration: 1700, iterations: Infinity, easing: 'ease-in-out' }));
+  const again = await new Promise((r) => { $('#cont').onclick = () => r(false); $('#replay').onclick = () => r(true); });
   Snd.tap();
+  if (again) return playBattle(lb);
   localStorage[seenKey()] = lb.id;
   if (final) overGame = view.game;
   playing = false;

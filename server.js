@@ -206,7 +206,8 @@ http.createServer(async (req, res) => {
     }
     if (url.pathname === '/api/health') return json(res, 200, { ok: true });
     if (url.pathname === '/api/lobby') {
-      // Your own games, then open ponds: "nearby" = started from the same network as you, "open" = everyone else's
+      // Your own games, then ponds waiting on the same network as you ("nearby"). Ponds from other networks are
+      // not listed; those are joined by invite (a Play button that matches strangers will come with ratings)
       const uid = who(Object.fromEntries(url.searchParams)), ip = clientIp(req), now = Date.now(), list = Object.values(rooms);
       const mine = (r) => !!uid && r.players.some((p) => p.uid === uid);
       const seat = (r, p) => ({ name: p.name, avatar: p.avatar || cleanAvatar(), online: online(r, p), bot: !!p.bot });
@@ -214,7 +215,6 @@ http.createServer(async (req, res) => {
       const pond = (r) => ({ code: r.code, mine: mine(r), seats: r.players.map((p) => seat(r, p)) });
       return json(res, 200, {
         nearby: waiting.filter((r) => mine(r) || r.ip === ip).map(pond),
-        open: waiting.filter((r) => !mine(r) && r.ip !== ip).slice(0, 12).map(pond),
         active: list.filter((r) => r.players.length === 2 && r.phase !== 'over' && mine(r) && now - (r.touched || r.created) < 24 * 3600e3)
           .sort((x, y) => (y.touched || y.created) - (x.touched || x.created))
           .map((r) => ({ code: r.code, round: r.round, mine: true, practice: !!r.practice, seats: r.players.map((p) => seat(r, p)) })),
