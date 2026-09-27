@@ -118,7 +118,10 @@ input:focus { border-color: var(--firefly); outline: none; }
 .st { min-width: 24px; height: 22px; padding: 0 5px; display: grid; place-items: center; font-size: 14px; font-weight: 900; color: #fff; text-shadow: 0 1px 0 rgba(0, 0, 0, .25); font-variant-numeric: tabular-nums; }
 .st.atk { background: var(--ember); border-radius: 8px; }
 .st.hp { width: 26px; padding: 0 0 3px; background: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 22'%3E%3Cpath d='M12 21.5C5 16.5 1 12.5 1 7.2a5.6 5.6 0 0 1 11-2.4 5.6 5.6 0 0 1 11 2.4c0 5.3-4 9.3-11 14.3z' fill='%23f0869f'/%3E%3C/svg%3E") center / 100% 100% no-repeat; }
-.lvl { position: absolute; top: -6px; left: -8px; z-index: 3; font-size: 11px; font-weight: 900; background: var(--firefly); color: #4a3505; border-radius: 8px; padding: 1px 5px; }
+/* Level tag: above the head's corner, clear of the eyes (big-eyed frogs have them right at the top) */
+.lvl { position: absolute; top: -15px; left: -8px; z-index: 3; font-size: 11px; font-weight: 900; background: var(--firefly); color: #4a3505; border-radius: 8px; padding: 1px 5px; }
+/* In battle your line runs down to the left, so on the left the tag would sit on the next frog's health */
+.bu.s0 .lvl { left: auto; right: -8px; }
 /* Protective bubble around a frog: see-through, with a shine and a soft wobble */
 .gear.frog-bubble { position: absolute; left: calc(50% - var(--fs) * .6); top: calc(var(--fs) * -.1); width: calc(var(--fs) * 1.2); height: calc(var(--fs) * 1.2); box-sizing: border-box; border-radius: 50%; z-index: 1; pointer-events: none;
   border: 2px solid rgba(232, 246, 255, .75);
@@ -2308,7 +2311,7 @@ const AV_TABS = [
   { key: 'a', label: 'Extras', opts: AV_ACCS },
 ];
 function openProfile(done) {
-  let av = { ...myAvatar() }, tab = AV_TABS[0], current = -1, settle = 0;
+  let av = { ...myAvatar() }, tab = AV_TABS[0], current = -1, settle = 0, steering = -1, steerTimer = 0;
   const s = sheet(`<div class="profile">
       <div class="pv" id="pv"></div>
       <input id="pname" maxlength="14" autocomplete="off" placeholder="Your name" value="${esc(ME.name || '')}">
@@ -2330,11 +2333,15 @@ function openProfile(done) {
     label.textContent = o.name;
     if (av[tab.key] !== o.id && unlocked(tab.key, o.id)) { av = { ...av, [tab.key]: o.id }; preview(true); haptic(['selection']); }
   };
+  // A tapped option is picked at once and the wheel glides to it; the options it passes on the way are not
+  // picked (the frog changes once, not once per option). Touching the wheel hands control back to you.
   const center = (i, smooth) => {
     const it = track.children[i]; if (!it) return;
+    if (smooth) { steering = i; clearTimeout(steerTimer); steerTimer = setTimeout(() => { steering = -1; }, 700); }
     track.scrollTo({ left: it.offsetLeft - (track.clientWidth - it.offsetWidth) / 2, behavior: smooth ? 'smooth' : 'auto' });
     pick(i);
   };
+  track.addEventListener('pointerdown', () => { steering = -1; });
   const fill = () => {
     track.innerHTML = tab.opts.map((o, i) => `<button class="wheel-item${tab.face ? ' face' : ''}" data-i="${i}" aria-label="${esc(o.name)}">${avatarHTML({ ...av, [tab.key]: o.id }, 52, { id: 300 + i })}</button>`).join('');
     current = -1;
@@ -2347,6 +2354,7 @@ function openProfile(done) {
       const mid = track.scrollLeft + track.clientWidth / 2;
       let best = 0, dist = Infinity;
       [...track.children].forEach((n, k) => { const d = Math.abs(n.offsetLeft + n.offsetWidth / 2 - mid); if (d < dist) { dist = d; best = k; } });
+      if (steering >= 0) { if (best === steering) steering = -1; return; } // still gliding to a tapped option
       pick(best);
     });
   });
@@ -2668,10 +2676,17 @@ async function playBattle(lb) {
           r.el.style.zIndex = 900;
           anim(wrap, [{ transform: sc }, { transform: `translate(${dx * .5}px, ${dy * .5 - 70 * s}px) ${sc}`, offset: .4 }, { transform: `translate(${dx * .9}px, ${dy * .9}px) ${sc}`, offset: .58 }, { transform: `translate(${dx * .5}px, ${dy * .5 - 40 * s}px) ${sc}`, offset: .8 }, { transform: sc }], { duration: dur(820), easing: 'ease-in-out' })
             .then(() => { if (units.has(r.u.id)) r.el.style.zIndex = Math.round(r.y); });
-          setTimeout(() => leaps.get(r.u.id).forEach((id) => ring(byId(id))), dur(420));
+          // the frogs it lands on take their damage right then (their new numbers, a pop if a bubble took it)
+          setTimeout(() => leaps.get(r.u.id).forEach((id) => {
+            const t = byId(id), u = [...fr.mine, ...fr.theirs].find((x) => x.id === id);
+            ring(t); if (!t || !u || skipping) return;
+            if (t.u.gear === 'bubble' && u.gear === 'used') block(t);
+            Snd.hit(); setStats(t, u, true);
+          }), dur(420));
         }
       }
-      if (leaps.size) await wait(160);
+      // A Leapfrog is only hit once it's back on its pad: the frog ahead attacks it after the landing
+      if (leaps.size) await wait(820);
       for (const r of [ra, rb]) if (r && !leaps.has(r.u.id)) anim(r.move, [{ transform: 'translate(0,0)' }, { transform: `translate(${(r.side ? 1 : -1) * 6 * s}px, ${-4 * s}px) rotate(${r.side ? 6 : -6}deg)`, offset: .3 }, { transform: `translate(${(r.side ? -1 : 1) * 12 * s}px, ${-10 * s}px) rotate(${r.side ? -8 : 8}deg)`, offset: .55 }, { transform: `translate(${(r.side ? -1 : 1) * 10 * s}px, 0)`, offset: .66 }, { transform: 'translate(0,0)' }], { duration: dur(500), easing: 'ease-out' });
       await wait(320);
       Snd.hit(); apply(fr, true);
