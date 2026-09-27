@@ -792,11 +792,11 @@ const AV_EYES = [
 // Patterns are clipped to the body's outline (see avatarArt), so they never spill over the edges
 const AV_PATTERNS = [
   { id: 'none', name: 'Plain' },
-  { id: 'spots', name: 'Dart spots', art: () => dotsSVG([[36, 56, 4.2], [63, 53, 3.6], [57, 72, 3], [42, 74, 2.8], [70, 65, 2.8], [47, 49, 2.3], [28, 68, 2.4], [22, 58, 2.2], [78, 56, 2.2]], '#1d2a44') },
-  { id: 'warts', name: 'Toad warts', art: (p) => dotsSVG([[24, 64, 2.4], [31, 74, 2.2], [70, 62, 2.6], [78, 72, 2.2], [60, 57, 2], [41, 57, 2], [66, 79, 1.8], [36, 66, 1.8], [50, 54, 1.6]], p.deep) },
-  { id: 'leopard', name: 'Leopard', art: (p) => dotsSVG([[26, 60, 4.2], [74, 58, 3.6], [36, 72, 3], [66, 73, 3.4], [50, 52, 2.6], [20, 70, 2.6], [80, 69, 2.8]], p.deep) },
-  { id: 'gold', name: 'Lucky gold', art: () => dotsSVG([[24, 64, 2.6], [31, 74, 2.4], [70, 62, 2.8], [78, 72, 2.4], [60, 57, 2.2], [41, 57, 2.2], [66, 79, 2], [50, 54, 1.8]], '#f4c653') },
-  { id: 'stripes', name: 'Tree Frog stripes', art: () => [[22, 1], [78, -1]].map(([x, dir]) => E(x, 67, 5.5, 12, '#3f86d6') + `<path d="M${x - 4 * dir} 61h${7 * dir}M${x - 4 * dir} 66.5h${7.5 * dir}M${x - 3.5 * dir} 72h${6.5 * dir}" stroke="#eef5ff" stroke-width="1.7" stroke-linecap="round"/>`).join('') },
+  // one tidy grid of equal dots, offset every other row, in a darker shade of the frog's own color
+  { id: 'spots', name: 'Polka dots', art: (p) => `<g fill="${p.dark}" opacity=".6">${[40, 51, 62, 73, 84].map((y, row) => Array.from({ length: 8 }, (_, k) => C(8 + k * 12 + (row % 2) * 6, y, 2.6)).join('')).join('')}</g>` },
+  // soft curved bands across the body
+  { id: 'bands', name: 'Stripes', art: (p) => `<g stroke="${p.dark}" stroke-width="5" stroke-linecap="round" fill="none" opacity=".55">${[48, 60, 72, 84].map((y) => `<path d="M2 ${y + 6}Q50 ${y - 6} 98 ${y + 6}"/>`).join('')}</g>` },
+  { id: 'stripes', name: 'Tree Frog flanks', art: () => [[22, 1], [78, -1]].map(([x, dir]) => E(x, 67, 5.5, 12, '#3f86d6') + `<path d="M${x - 4 * dir} 61h${7 * dir}M${x - 4 * dir} 66.5h${7.5 * dir}M${x - 3.5 * dir} 72h${6.5 * dir}" stroke="#eef5ff" stroke-width="1.7" stroke-linecap="round"/>`).join('') },
   { id: 'freckles', name: 'Freckles', x: (b) => ({ face: b.cheeks.map(([x, y]) => dotsSVG([[x - 3.5, y - 1, 1.3], [x, y - 3, 1.3], [x + 3.5, y - 1, 1.3], [x + .5, y + 2, 1.1]], '#8a5a3a')).join('') }) },
   { id: 'glass', name: 'See-through', x: (b) => ({ glass: true, inside: heartSVG(b.heart, .8) }) },
 ];
@@ -828,13 +828,15 @@ const AV_ACCS = [
   { id: 'umbrella', name: 'Rain umbrella', x: (b, p) => ({ over: umbrella(b, p) }) },
 ];
 const byId = (list, id) => list.find((o) => o.id === id) || list[0];
+// patterns that were folded into Polka dots keep a dotted look
+const OLD_PATTERNS = { warts: 'spots', leopard: 'spots', gold: 'spots' };
 // Necklaces and bow ties sit a clear gap below the mouth, so they never read as teeth
 const neckY = (b) => Math.max(b.neck[1], b.mouth[1] + 10);
 function cleanAv(a) {
   a = a || {};
   return {
     b: BODIES.includes(a.b) ? a.b : 'classic', c: Math.max(0, Math.min(AV_COLORS.length - 1, a.c | 0)),
-    e: byId(AV_EYES, a.e).id, t: byId(AV_PATTERNS, a.t).id, a: byId(AV_ACCS, a.a).id,
+    e: byId(AV_EYES, a.e).id, t: byId(AV_PATTERNS, OLD_PATTERNS[a.t] || a.t).id, a: byId(AV_ACCS, a.a).id,
   };
 }
 // Your name and frog live on the server (ME, loaded at start) so they follow you to any phone
