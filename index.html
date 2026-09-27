@@ -629,6 +629,16 @@ function compose(b, p, x = {}) {
     + (x.over || '');
 }
 
+// Where accessories go, shared by the game frogs and the avatars:
+// - hats sit on the body's hat line (where its head starts, measured per body), behind the eyes, shifted by how
+//   far the hat's brim is below its own origin, so the brim rests on the head with no gap
+// - a flower tucks behind the top outer corner of the right eye; a band-aid goes on the cheek (never an eye)
+// - necklaces and bow ties sit a clear gap below the mouth, so they never read as teeth
+const hat = (b, art, s, brim) => ({ under: at([b.hat[0], b.hat[1] - brim * s], s, art) });
+const eyeCorner = (b, art, s) => { const [ex, ey, r] = b.eyes[1]; return { under: at([ex + r * .8, ey - r * .8], s, art) }; };
+const cheek = (b, art, s) => ({ face: at([b.cheeks[1][0], b.cheeks[1][1] - 1], s, art) });
+const neckY = (b) => Math.max(b.neck[1], b.mouth[1] + 10);
+
 // One drawing per frog type
 const ART = {
   tadpole: () => { const p = pal('#86cfa6'), b = BODY.tadpole(p); return compose(b, p); },
@@ -637,7 +647,7 @@ const ART = {
     const p = pal('#f2cf5b'), b = BODY.slim(p);
     return compose(b, p, { face: E(50, 71, 11, 8, '#fff6dc', ' stroke="#e6cf86" stroke-width="1.4"') + E(46, 68.5, 3.2, 1.9, '#fff', ' opacity=".9"') });
   },
-  lily: () => { const p = pal('#f2a4c1'), b = BODY.classic(p); return compose(b, p, { over: at([62, 22], .95, WATER_LILY) }); },
+  lily: () => { const p = pal('#f2a4c1'), b = BODY.classic(p); return compose(b, p, eyeCorner(b, WATER_LILY, .95)); },
   // Red-eyed tree frog: red eyes, blue barred flanks, orange sticky toes
   tree: () => {
     const p = pal('#5ccb68', { toe: '#f39a3d' }), b = BODY.tall(p);
@@ -656,14 +666,15 @@ const ART = {
     const ear = (x) => C(x, 52, 8.5, p.deep) + C(x, 52, 5.5, mix('#809b4b', '#1b2a22', .2)) + C(x - 1.5, 50.5, 1.6, '#c9d99a', ' opacity=".7"');
     return compose(b, p, { inside: ear(16) + ear(84) });
   },
-  knight: () => { const p = pal('#9aa7d8'), b = BODY.classic(p); return compose(b, p, { over: at(b.top, 1.05, HELMET) }); },
-  prince: () => { const p = pal('#f1b13b'), b = BODY.classic(p); return compose(b, p, { under: at(b.crown, 1, CROWN) }); },
+  knight: () => { const p = pal('#9aa7d8'), b = BODY.classic(p); return compose(b, p, hat(b, HELMET, 1.3, 5)); },
+  prince: () => { const p = pal('#f1b13b'), b = BODY.classic(p); return compose(b, p, hat(b, CROWN, 1, 0)); },
   // Goliath: huge, dark, mottled, with a spiny ridge and a stern brow
   goliath: () => {
     const p = pal('#4d7c45'), b = BODY.bull(p);
     return compose(b, p, {
-      under: dotsSVG([[28, 60, 3.4], [72, 58, 3], [62, 76, 2.6], [38, 78, 2.6], [80, 70, 2.2], [20, 70, 2.2]], mix('#4d7c45', '#1b2a22', .45)),
-      face: `<path d="M41 24l3-7 3 7zM48.5 22l3-8 3 8zM56 24l3-7 3 7z" fill="${p.deep}"/>`, brows: true,
+      under: dotsSVG([[28, 60, 3.4], [72, 58, 3], [62, 76, 2.6], [38, 78, 2.6], [80, 70, 2.2], [20, 70, 2.2]], mix('#4d7c45', '#1b2a22', .45))
+        + `<path d="M39 ${b.hat[1] + 1}l4-10 4 10zM46 ${b.hat[1] + 1}l4-12 4 12zM53 ${b.hat[1] + 1}l4-10 4 10z" fill="${p.deep}"/>`, // spikes grow out of the head, behind the eyes
+      brows: true,
     });
   },
   // Glass frog: see-through, with its little heart showing
@@ -671,7 +682,7 @@ const ART = {
   // Pac-man frog: a round mouth on legs, horned eyelids, mottled back
   hungry: () => {
     const p = pal('#b3c94b'), b = BODY.round(p);
-    return compose({ ...b, mouth: [50, 52, 34] }, p, { horns: true, mouth: 'open', noCheeks: true, under: dotsSVG([[22, 52, 4.5], [78, 50, 4], [72, 74, 3.4], [28, 76, 3.4], [50, 30, 3]], '#7d6232') });
+    return compose({ ...b, mouth: [50, 52, 34] }, p, { horns: 1.6, mouth: 'open', noCheeks: true, under: dotsSVG([[22, 52, 4.5], [78, 50, 4], [72, 74, 3.4], [28, 76, 3.4], [50, 30, 3]], '#7d6232') });
   },
   // Rain frog: a grumpy little blob under its umbrella
   rain: () => {
@@ -684,8 +695,8 @@ const ART = {
   },
   // Lucky toad: red and gold with a coin in its mouth
   lucky: () => { const p = pal('#dc5a49'), b = BODY.toad(p); return compose(b, p, { under: dotsSVG(b.dots, '#f4c653'), inside: COIN(b.heart[0], b.heart[1]) }); },
-  mama: () => { const p = pal('#f3a77c'), b = BODY.round(p); return compose(b, p, { lashes: true, face: PEARLS(b.neck) }); },
-  wizard: () => { const p = pal('#45b6a8'), b = BODY.classic(p); return compose(b, p, { over: at(b.top, 1, WIZARD_HAT) }); },
+  mama: () => { const p = pal('#f3a77c'), b = BODY.round(p); return compose(b, p, { lashes: true, face: PEARLS([b.neck[0], neckY(b), b.neck[2]]) }); },
+  wizard: () => { const p = pal('#45b6a8'), b = BODY.classic(p); return compose(b, p, hat(b, WIZARD_HAT, 1.12, 3)); },
   froglet: () => { const p = pal('#a9e29a'), b = BODY.classic(p); return compose(b, p); },
 };
 // Bugs from the shop, drawn in the same style
@@ -726,7 +737,7 @@ const BANDAID = '<g transform="rotate(-24)"><rect x="-9" y="-3.2" width="18" hei
   + '<circle cx="-1.4" cy="-1.2" r=".6" fill="#c48f5f"/><circle cx="1.4" cy="1.2" r=".6" fill="#c48f5f"/><circle cx="1.4" cy="-1.2" r=".6" fill="#c48f5f"/><circle cx="-1.4" cy="1.2" r=".6" fill="#c48f5f"/></g>';
 Object.assign(ART, {
   // Bouncy Frog: always bounces back, band-aid and all
-  bouncy: () => { const p = pal('#ff9f4a'), b = BODY.slim(p); return compose(b, p, { over: at([58, 32], 1, BANDAID) }); },
+  bouncy: () => { const p = pal('#ff9f4a'), b = BODY.slim(p); return compose(b, p, cheek(b, BANDAID, .9)); },
   // Surinam toad: flat and brown, carrying its eggs in its back
   // Surinam Toad: a wide, flat, sage-green mum with one smooth head (no eye bumps, unlike the Grumpy Toad)
   // and a crown of pearly eggs peeking up behind her back, two with babies (Surinam toads carry their young)
@@ -746,7 +757,7 @@ Object.assign(ART, {
     return compose(b, p, { behind: eggs });
   },
   hypno: () => { const p = pal('#a97fdc'), b = BODY.classic(p); return compose(b, p, { eyes: 'spiral' }); },
-  princess: () => { const p = pal('#8fcbf2'), b = BODY.classic(p); return compose(b, p, { lashes: true, under: at(b.crown, .95, TIARA) }); },
+  princess: () => { const p = pal('#8fcbf2'), b = BODY.classic(p); return compose(b, p, { lashes: true, ...hat(b, TIARA, .95, 0) }); },
   // Leapfrog: a spotted leopard frog, always looking back the other way (it leaps over the line)
   leapfrog: () => {
     const p = pal('#9bd46f'), b = BODY.slim(p);
@@ -799,10 +810,8 @@ const AV_PATTERNS = [
   { id: 'freckles', name: 'Freckles', x: (b) => ({ face: b.cheeks.map(([x, y]) => dotsSVG([[x - 3.5, y - 1, 1.3], [x, y - 3, 1.3], [x + 3.5, y - 1, 1.3], [x + .5, y + 2, 1.1]], '#8a5a3a')).join('') }) },
   { id: 'glass', name: 'See-through', x: (b) => ({ glass: true, inside: heartSVG(b.heart, .8) }) },
 ];
-// Accessories hang off the body's anchor points, so they fit every body. Hats sit on the body's hat line
-// (where the head starts, measured per body), behind the eyes, shifted by how far each hat's brim is below
-// its own origin so the brim rests on the head. head: true = hidden while the winner's crown is on.
-const hat = (b, art, s, brim) => ({ under: at([b.hat[0], b.hat[1] - brim * s], s, art) });
+// Accessories hang off the body's anchor points (see hat/eyeCorner/cheek/neckY), so they fit every body.
+// head: true = hidden while the winner's crown is on.
 const umbrella = (b, p) => `<g transform="translate(${b.cheeks[0][0] - 21} ${b.top[1] - 23})">`
   + `<g transform="translate(24 12) rotate(-12) scale(1.18)">${UMBRELLA_CANOPY}</g><path d="M11.5 75L22 13" stroke="#6b5a4c" stroke-width="2.4" stroke-linecap="round"/>`
   + `<path d="M11.5 75c-.6 3.6 3.6 4.8 4.8 1.6" stroke="#6b5a4c" stroke-width="2.4" fill="none" stroke-linecap="round"/>`
@@ -812,13 +821,13 @@ const AV_ACCS = [
   { id: 'none', name: 'Nothing' },
   { id: 'crown', name: 'Prince’s crown', head: true, x: (b) => hat(b, CROWN, 1, 0) },
   { id: 'tiara', name: 'Princess’s tiara', head: true, x: (b) => hat(b, TIARA, .95, 0) },
-  { id: 'helmet', name: 'Knight’s helmet', head: true, x: (b) => hat(b, HELMET, 1.05, 5) },
-  { id: 'wizard', name: 'Wizard’s hat', head: true, x: (b) => hat(b, WIZARD_HAT, 1, 3) },
+  { id: 'helmet', name: 'Knight’s helmet', head: true, x: (b) => hat(b, HELMET, 1.3, 5) },
+  { id: 'wizard', name: 'Wizard’s hat', head: true, x: (b) => hat(b, WIZARD_HAT, 1.12, 3) },
   { id: 'leaf', name: 'Leaf hat', head: true, x: (b) => hat(b, LEAF_HAT, 1.2, 2.5) },
   // tucked behind the top outer corner of the right eye, like a flower behind the ear
-  { id: 'lily', name: 'Water lily', x: (b) => { const [ex, ey, r] = b.eyes[1]; return { under: at([ex + r * .8, ey - r * .8], .9, WATER_LILY) }; } },
+  { id: 'lily', name: 'Water lily', x: (b) => eyeCorner(b, WATER_LILY, .9) },
   // on the cheek: every body has one, and it's never on an eye
-  { id: 'bandaid', name: 'Band-aid', x: (b) => ({ face: at([b.cheeks[1][0], b.cheeks[1][1] - 1], .85, BANDAID) }) },
+  { id: 'bandaid', name: 'Band-aid', x: (b) => cheek(b, BANDAID, .85) },
   { id: 'glasses', name: 'Round glasses', x: (b) => { const [[x1, y1, r1], [x2, y2, r2]] = b.eyes; return { face: `<g fill="rgba(255,255,255,.14)" stroke="#2a211c" stroke-width="2.2">${C(x1, y1, r1 + 2.6)}${C(x2, y2, r2 + 2.6)}</g><path d="M${x1 + r1 + 2.6} ${y1}Q${(x1 + x2) / 2} ${y1 - 4} ${x2 - r2 - 2.6} ${y2}" stroke="#2a211c" stroke-width="2.2" fill="none"/>` }; } },
   { id: 'horns', name: 'Horns', x: () => ({ horns: 1.7 }) },
   { id: 'coin', name: 'Lucky coin', x: (b) => ({ inside: COIN(b.heart[0], b.heart[1]) }) },
@@ -829,8 +838,7 @@ const AV_ACCS = [
 const byId = (list, id) => list.find((o) => o.id === id) || list[0];
 // patterns that were folded into Polka dots keep a dotted look
 const OLD_PATTERNS = { warts: 'spots', leopard: 'spots', gold: 'spots' };
-// Necklaces and bow ties sit a clear gap below the mouth, so they never read as teeth
-const neckY = (b) => Math.max(b.neck[1], b.mouth[1] + 10);
+
 function cleanAv(a) {
   a = a || {};
   return {
