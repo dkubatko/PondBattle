@@ -1320,9 +1320,10 @@ function showWaiting() {
   </div>`);
   mount('waiting', node);
   $('#share').onclick = async () => {
-    // In Telegram: the native "send to a chat" picker with a link that opens the bot on this pond
+    // In Telegram: the native "send to a chat" picker with a link that opens the game right in this pond
+    // (startapp links need the bot's Main App enabled in @BotFather)
     if (TG && ME.bot) {
-      const invite = `https://t.me/${ME.bot}?start=join_${S.code}`;
+      const invite = `https://t.me/${ME.bot}?startapp=join_${S.code}`;
       return TG.openTelegramLink(`https://t.me/share/url?url=${encodeURIComponent(invite)}&text=${encodeURIComponent('Come play Frog Pond Brawl with me! 🐸')}`);
     }
     try {
