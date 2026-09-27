@@ -75,6 +75,24 @@ async function start() {
   poll();
 }
 
+// An invite card for Telegram's share sheet: the app picture, a one-line caption and a button that opens
+// the game straight into the pond (t.me/<bot>?startapp=join_CODE, via the bot's Main App). The page sends it
+// with WebApp.shareMessage(id). Returns the prepared message id, or '' if Telegram refused.
+async function prepareInvite(tgId, code) {
+  if (!TOKEN || !username || !PUBLIC_URL.startsWith('https://')) return '';
+  const r = await api('savePreparedInlineMessage', {
+    user_id: Number(tgId), allow_user_chats: true, allow_group_chats: true,
+    result: {
+      type: 'photo', id: `invite-${code}-${Date.now()}`,
+      photo_url: `${PUBLIC_URL}/static/invite.jpg`, thumbnail_url: `${PUBLIC_URL}/static/invite.jpg`,
+      caption: 'Let’s play Pond Battle! 🐸',
+      reply_markup: { inline_keyboard: [[{ text: 'Join the pond', url: `https://t.me/${username}?startapp=join_${code}` }]] },
+    },
+  }).catch((e) => ({ ok: false, description: e.message }));
+  if (!r.ok) console.error('telegram invite:', r.description);
+  return r.ok ? r.result.id : '';
+}
+
 // A short note with a button back into the game (used when someone joins your pond or is waiting for you)
 function notify(tgId, text, query) {
   if (!TOKEN || !PUBLIC_URL.startsWith('https://')) return;
@@ -83,4 +101,4 @@ function notify(tgId, text, query) {
     .catch((e) => console.error('telegram notify:', e.message));
 }
 
-module.exports = { verifyInitData, start, notify, botUsername: () => username, enabled: () => !!TOKEN };
+module.exports = { verifyInitData, start, notify, prepareInvite, botUsername: () => username, enabled: () => !!TOKEN };

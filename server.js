@@ -166,7 +166,7 @@ E.hooks.gameOver = recordGame;
 
 // ---------- HTTP ----------
 const STATIC = path.join(__dirname, 'static');
-const MIME = { '.html': 'text/html; charset=utf-8', '.woff2': 'font/woff2', '.png': 'image/png', '.webmanifest': 'application/manifest+json', '.svg': 'image/svg+xml' };
+const MIME = { '.html': 'text/html; charset=utf-8', '.woff2': 'font/woff2', '.png': 'image/png', '.jpg': 'image/jpeg', '.webmanifest': 'application/manifest+json', '.svg': 'image/svg+xml' };
 function sendFile(res, file, cache) {
   fs.stat(file, (err, st) => {
     if (err || !st.isFile()) return json(res, 404, { error: 'not found' });
@@ -292,6 +292,13 @@ http.createServer(async (req, res) => {
       room.players.push(p); resetGame(room); changed(room);
       if (tgId(host) && !online(room, host)) TG.notify(tgId(host), `${p.name} joined your pond! 🐸`, `?room=${room.code}`);
       return json(res, 200, { room: room.code, token: p.token });
+    }
+    if (url.pathname === '/api/invite') {
+      // Telegram invite card for your pond (the page then opens Telegram's share sheet with it)
+      const room = rooms[String(b.room || '').toUpperCase()], p = room && room.players.find((x) => x.uid === uid);
+      if (!p || !tgId(p)) return json(res, 404, { error: 'No invite for this pond' });
+      const id = await TG.prepareInvite(tgId(p), room.code);
+      return id ? json(res, 200, { id }) : json(res, 502, { error: 'Telegram said no' });
     }
     if (url.pathname === '/api/rejoin') {
       const room = rooms[String(b.room || '').toUpperCase()], p = room && room.players.find((x) => x.uid === uid);

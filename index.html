@@ -1463,17 +1463,23 @@ function showWaiting() {
     <h1 class="h-sm">Waiting for your partner</h1>
     <div class="code-tiles">${S.code.split('').map((c) => `<span>${c}</span>`).join('')}</div>
     <div class="panel">
-      <button class="btn water wide" id="share">Send invite link</button>
+      <button class="btn water wide" id="share">Send invite</button>
       <button class="btn ghost wide" id="leave">Cancel pond</button>
     </div>
   </div>`);
   mount('waiting', node);
   $('#share').onclick = async () => {
-    // In Telegram: the native "send to a chat" picker with a link that opens the game right in this pond
-    // (startapp links need the bot's Main App enabled in @BotFather)
+    // In Telegram: the share sheet with an invite card (picture, "Let's play Pond Battle!", a Join button that
+    // opens the game in this pond). Telegram apps too old for cards get the same invite as a link message.
     if (TG && ME.bot) {
+      if (TG.isVersionAtLeast && TG.isVersionAtLeast('8.0')) {
+        try {
+          const { id } = await api('/api/invite', { room: S.code });
+          return TG.shareMessage(id, (sent) => { if (sent) toast('Invite sent'); });
+        } catch {}
+      }
       const invite = `https://t.me/${ME.bot}?startapp=join_${S.code}`;
-      return TG.openTelegramLink(`https://t.me/share/url?url=${encodeURIComponent(invite)}&text=${encodeURIComponent('Come play Pond Battle with me! 🐸')}`);
+      return TG.openTelegramLink(`https://t.me/share/url?url=${encodeURIComponent(invite)}&text=${encodeURIComponent('Let’s play Pond Battle! 🐸')}`);
     }
     try {
       if (navigator.share) await navigator.share({ title: 'Pond Battle', url: link });
