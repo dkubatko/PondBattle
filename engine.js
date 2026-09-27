@@ -147,9 +147,15 @@ function runBattle(teamA, teamB, opts = {}) {
       snap?.('morph', { actor: u.bid, text: `Chameleon turns into a ${nm(b)}` });
     }
   }
-  for (const s of [0, 1]) {
-    for (const u of [...T[s]]) {
-      if (u.hp <= 0 || !T[s].includes(u)) continue;
+  // Start of battle: the ponds take turns, frog by frog from the front (first pond's front frog, the other
+  // pond's front frog, then the second frogs, ...). opts.first says which pond starts; fight() switches it
+  // every round, so neither seat always acts first.
+  const first = opts.first ? 1 : 0, order = [first, 1 - first];
+  const lines = [[...T[0]], [...T[1]]];
+  for (let i = 0; i < Math.max(lines[0].length, lines[1].length); i++) {
+    for (const s of order) {
+      const u = lines[s][i];
+      if (!u || u.hp <= 0 || !T[s].includes(u)) continue;
       if (u.type === 'wizard') {
         // Shrinks L random enemies to 1/1 (skipping ones that already are); they keep their abilities
         const pool = alive(1 - s).filter((e) => e.atk + e.hp > 2), foes = [];
@@ -181,8 +187,8 @@ function runBattle(teamA, teamB, opts = {}) {
 
   let turns = 0;
   while (T[0].length && T[1].length && turns++ < 60) {
-    // Hypno Frog: before attacking, sends the enemy ahead to the back (L times per battle)
-    for (const s of [0, 1]) {
+    // Hypno Frog: before attacking, sends the enemy ahead to the back (L times per battle); same pond first
+    for (const s of order) {
       const u = T[s][0], line = T[1 - s];
       if (u.type === 'hypno' && u.uses < u.lvl && line.length > 1) {
         u.uses++;
@@ -333,7 +339,8 @@ function fight(room) {
       }
     });
   }
-  const { frames, winner } = runBattle(A.team, B.team, { frames: !room.sim }); // simulations skip the animation frames
+  // simulations skip the animation frames; the pond whose frogs act first switches every round
+  const { frames, winner } = runBattle(A.team, B.team, { frames: !room.sim, first: room.round % 2 === 0 });
   // Bubbles only protect for the battle right after they are given
   for (const p of room.players) for (const f of p.team) if (f && f.gear === 'bubble') delete f.gear;
   if (winner >= 0) { room.players[winner].trophies++; room.players[1 - winner].hearts--; }
