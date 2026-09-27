@@ -741,13 +741,13 @@ const TIARA = '<path d="M-13 0l2-9 5 5 6-10 6 10 5-5 2 9z" fill="#d9e2ee" stroke
 const BANDAID = '<g transform="rotate(-24)"><rect x="-9" y="-3.2" width="18" height="6.4" rx="3.2" fill="#f2c9a0" stroke="#d9a878" stroke-width="1"/><rect x="-3" y="-3.2" width="6" height="6.4" fill="#e6b184"/>'
   + '<circle cx="-1.4" cy="-1.2" r=".6" fill="#c48f5f"/><circle cx="1.4" cy="1.2" r=".6" fill="#c48f5f"/><circle cx="1.4" cy="-1.2" r=".6" fill="#c48f5f"/><circle cx="-1.4" cy="1.2" r=".6" fill="#c48f5f"/></g>';
 Object.assign(ART, {
-  // Bouncy Frog: a round rubber ball of a frog in mid-bounce (squash lines below), with a crossed band-aid
-  // on its head from all the times it came back
+  // Bouncy Frog: a small, round rubber ball of a frog caught mid-jump, high above its shadow, with a crossed
+  // band-aid on its head from all the times it came back
   bouncy: () => {
     const p = pal('#3cc3c8'), b = BODY.round(p);
-    const bounce = `<path d="M22 97q-6-3-9-8M78 97q6-3 9-8M14 99q-7-2-11-7M86 99q7-2 11-7" stroke="#bff3f4" stroke-width="2.8" fill="none" stroke-linecap="round" opacity=".8"/>`;
     const plaster = at([50, 22], .9, BANDAID + '<g transform="rotate(48)">' + BANDAID.slice(BANDAID.indexOf('>') + 1));
-    return compose(b, p, { behind: bounce, under: plaster });
+    const lines = `<path d="M20 88q-5-4-7-10M80 88q5-4 7-10M11 86q-6-4-8-10M89 86q6-4 8-10" stroke="#bff3f4" stroke-width="3" fill="none" stroke-linecap="round" opacity=".8"/>`;
+    return E(50, 97, 20, 3, 'rgba(0,0,0,.28)') + `<g transform="translate(50 50) scale(.86) translate(-50 -64)">${compose(b, p, { behind: lines, under: plaster })}</g>`;
   },
   // Surinam toad: flat and brown, carrying its eggs in its back
   // Surinam Toad: a wide, flat, sage-green mum with one smooth head (no eye bumps, unlike the Grumpy Toad)
@@ -785,7 +785,7 @@ Object.assign(ART, {
     });
   },
 });
-const ART_SIZE = { tadpole: .9, peeper: .92, froglet: .7, bullfrog: 1.06, goliath: 1.14, mama: 1.02, rain: .94, surinam: 1.06 };
+const ART_SIZE = { bouncy: .82, tadpole: .9, peeper: .92, froglet: .7, bullfrog: 1.06, goliath: 1.14, mama: 1.02, rain: .94, surinam: 1.06 };
 
 const artCache = new Map();
 function frogArt(type) {
@@ -822,7 +822,8 @@ const AV_PATTERNS = [
   { id: 'glass', name: 'See-through', x: (b) => ({ glass: true, inside: heartSVG(b.heart, .8) }) },
 ];
 // Accessories hang off the body's anchor points (see hat/eyeCorner/cheek/neckY), so they fit every body.
-// head: true = hidden while the winner's crown is on.
+// head: true = hidden while the winner's crown is on. small: how much bigger it's drawn on small avatars (player
+// plates, lobby rows, the picker wheel), where the finer extras would otherwise shrink to a few pixels. x gets that as k.
 const umbrella = (b, p) => `<g transform="translate(${b.cheeks[0][0] - 21} ${b.top[1] - 23})">`
   + `<g transform="translate(24 12) rotate(-12) scale(1.18)">${UMBRELLA_CANOPY}</g><path d="M11.5 75L22 13" stroke="#6b5a4c" stroke-width="2.4" stroke-linecap="round"/>`
   + `<path d="M11.5 75c-.6 3.6 3.6 4.8 4.8 1.6" stroke="#6b5a4c" stroke-width="2.4" fill="none" stroke-linecap="round"/>`
@@ -830,20 +831,20 @@ const umbrella = (b, p) => `<g transform="translate(${b.cheeks[0][0] - 21} ${b.t
 const LEAF_HAT = '<ellipse cy="-3" rx="17" ry="6.5" fill="#3f8a47"/><ellipse cy="-4.5" rx="16" ry="5.5" fill="#5cae5d"/><path d="M0-4.5L7-9.5L9.5-4.5z" fill="#3f8a47"/><path d="M-2-9c1-4 4-6 7-6" stroke="#4a9a50" stroke-width="2" fill="none" stroke-linecap="round"/>';
 const AV_ACCS = [
   { id: 'none', name: 'Nothing' },
-  { id: 'crown', name: 'Prince’s crown', head: true, x: (b) => hat(b, CROWN, 1, 0) },
-  { id: 'tiara', name: 'Princess’s tiara', head: true, x: (b) => hat(b, TIARA, .95, 0) },
+  { id: 'crown', name: 'Prince’s crown', head: true, small: 1.4, x: (b, p, k) => hat(b, CROWN, k, 0) },
+  { id: 'tiara', name: 'Princess’s tiara', head: true, small: 1.5, x: (b, p, k) => hat(b, TIARA, .95 * k, 0) },
   { id: 'helmet', name: 'Knight’s helmet', head: true, x: (b) => hat(b, HELMET, 1.3, 5) },
   { id: 'wizard', name: 'Wizard’s hat', head: true, x: (b) => hat(b, WIZARD_HAT, 1.12, 3) },
-  { id: 'leaf', name: 'Leaf hat', head: true, x: (b) => hat(b, LEAF_HAT, 1.2, 2.5) },
+  { id: 'leaf', name: 'Leaf hat', head: true, small: 1.15, x: (b, p, k) => hat(b, LEAF_HAT, 1.2 * k, 2.5) },
   // tucked behind the top outer corner of the right eye, like a flower behind the ear
-  { id: 'lily', name: 'Water lily', x: (b) => eyeCorner(b, WATER_LILY, .9) },
+  { id: 'lily', name: 'Water lily', small: 1.5, x: (b, p, k) => eyeCorner(b, WATER_LILY, .9 * k) },
   // on the cheek: every body has one, and it's never on an eye
-  { id: 'bandaid', name: 'Band-aid', x: (b) => cheek(b, BANDAID, .85) },
+  { id: 'bandaid', name: 'Band-aid', small: 1.5, x: (b, p, k) => cheek(b, BANDAID, .85 * k) },
   { id: 'glasses', name: 'Round glasses', x: (b) => { const [[x1, y1, r1], [x2, y2, r2]] = b.eyes; return { face: `<g fill="rgba(255,255,255,.14)" stroke="#2a211c" stroke-width="2.2">${C(x1, y1, r1 + 2.6)}${C(x2, y2, r2 + 2.6)}</g><path d="M${x1 + r1 + 2.6} ${y1}Q${(x1 + x2) / 2} ${y1 - 4} ${x2 - r2 - 2.6} ${y2}" stroke="#2a211c" stroke-width="2.2" fill="none"/>` }; } },
   { id: 'horns', name: 'Horns', x: () => ({ horns: 1.7 }) },
-  { id: 'coin', name: 'Lucky coin', x: (b) => ({ inside: COIN(b.heart[0], b.heart[1]) }) },
+  { id: 'coin', name: 'Lucky coin', small: 1.4, x: (b, p, k) => ({ inside: at(b.heart, k, COIN(0, 0)) }) },
   { id: 'pearls', name: 'Mama’s pearls', x: (b) => ({ face: PEARLS([b.neck[0], neckY(b), b.neck[2]]) }) },
-  { id: 'bowtie', name: 'Bow tie', x: (b) => ({ face: `<g transform="translate(${b.neck[0]} ${neckY(b) + 1})"><path d="M0 0L-9-5.5V5.5zM0 0L9-5.5V5.5z" fill="#e5533d"/><circle r="2.6" fill="#b83e2d"/></g>` }) },
+  { id: 'bowtie', name: 'Bow tie', small: 1.6, x: (b, p, k) => ({ face: `<g transform="translate(${b.neck[0]} ${neckY(b) + 1}) scale(${k})"><path d="M0 0L-9-5.5V5.5zM0 0L9-5.5V5.5z" fill="#e5533d"/><circle r="2.6" fill="#b83e2d"/></g>` }) },
   { id: 'umbrella', name: 'Rain umbrella', x: (b, p) => ({ over: umbrella(b, p) }) },
 ];
 const byId = (list, id) => list.find((o) => o.id === id) || list[0];
@@ -873,9 +874,9 @@ function bodyCenter(bd) {
   }
   return bodyCenters[bd];
 }
-function avatarArt(av, crown, centered) {
+function avatarArt(av, crown, centered, small) {
   av = cleanAv(av);
-  const key = `av:${av.b}:${av.c}:${av.e}:${av.t}:${av.a}:${crown ? 1 : 0}:${centered ? 1 : 0}`;
+  const key = `av:${av.b}:${av.c}:${av.e}:${av.t}:${av.a}:${crown ? 1 : 0}:${centered ? 1 : 0}:${small ? 1 : 0}`;
   if (!artCache.has(key)) {
     const p = pal(AV_COLORS[av.c]), b = BODY[av.b](p), x = {};
     const add = (more) => { for (const [k, v] of Object.entries(more || {})) x[k] = typeof v === 'string' ? (x[k] || '') + v : v; };
@@ -885,7 +886,7 @@ function avatarArt(av, crown, centered) {
     if (pat.art) add({ under: `<defs><clipPath id="avclip-${av.b}">${b.torso}${b.head}</clipPath></defs><g clip-path="url(#avclip-${av.b})">${pat.art(p)}</g>` });
     if (pat.x) add(pat.x(b, p));
     const acc = byId(AV_ACCS, av.a);
-    if (acc.x && !(crown && acc.head)) add(acc.x(b, p));
+    if (acc.x && !(crown && acc.head)) add(acc.x(b, p, small ? acc.small || 1 : 1));
     if (crown) add(hat(b, CROWN, 1, 0));
     const [cx, cy] = centered ? bodyCenter(av.b) : [50, 50];
     artCache.set(key, `<svg class="fsvg" viewBox="${(cx - 50).toFixed(1)} ${(cy - 50).toFixed(1)} 100 100" aria-hidden="true">${compose(b, p, x)}</svg>`);
@@ -893,7 +894,7 @@ function avatarArt(av, crown, centered) {
   return artCache.get(key);
 }
 function avatarHTML(av, size = 40, o = {}) {
-  return `<div class="frog avatar ${o.idle ? 'idle' : ''}" data-fid="${o.id || 0}" style="--fs:${size}px;${idleVars(o.id || 0)}"><div class="fbody">${avatarArt(av, o.crown, o.centered)}</div></div>`;
+  return `<div class="frog avatar ${o.idle ? 'idle' : ''}" data-fid="${o.id || 0}" style="--fs:${size}px;${idleVars(o.id || 0)}"><div class="fbody">${avatarArt(av, o.crown, o.centered, size <= 52)}</div></div>`;
 }
 
 function xpHTML(f) {
