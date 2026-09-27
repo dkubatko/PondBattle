@@ -280,7 +280,9 @@ h1 { margin: 0; text-align: center; font-size: 40px; font-weight: 900; line-heig
 .flyer { position: fixed; left: 0; top: 0; z-index: 50; pointer-events: none; will-change: transform; margin: 0; }
 .float { position: fixed; z-index: 60; pointer-events: none; font-weight: 900; font-size: 19px; white-space: nowrap; text-shadow: 0 2px 0 rgba(0, 0, 0, .35); display: flex; gap: 6px; transform: translate(-50%, -50%); }
 .float .a { color: #ffab73; } .float .h { color: #ffadc0; } .float .g { color: var(--firefly); } .float .x { color: #ff8a8a; } .float .blk { color: #c4f2c8; font-size: .8em; }
-.toast { position: fixed; left: 50%; top: calc(env(safe-area-inset-top) + 58px); z-index: 90; transform: translate(-50%, -12px); opacity: 0; transition: opacity .25s, transform .25s; background: #fbf1d6; color: #243021; padding: 10px 16px; border-radius: 14px; font-weight: 800; font-size: 15px; box-shadow: 0 8px 24px rgba(0, 0, 0, .3); max-width: 90vw; text-align: center; pointer-events: none; }
+.toast { position: fixed; left: 50%; top: calc(env(safe-area-inset-top) + 58px); z-index: 90; transform: translate(-50%, -12px); opacity: 0; transition: opacity .25s, transform .25s; background: #fbf1d6; color: #243021; padding: 10px 16px; border-radius: 14px; font-weight: 800; font-size: 15px; box-shadow: 0 8px 24px rgba(0, 0, 0, .3); text-align: center; pointer-events: none;
+  /* size to the text: with left: 50% the automatic width would otherwise stop at half the screen */
+  width: max-content; max-width: min(92vw, 420px); }
 .toast.show { opacity: 1; transform: translate(-50%, 0); }
 .spark { position: fixed; z-index: 55; width: 7px; height: 7px; border-radius: 50%; background: var(--firefly); box-shadow: 0 0 8px var(--firefly); pointer-events: none; }
 .petal { position: fixed; top: -20px; z-index: 70; width: 10px; height: 14px; border-radius: 60% 60% 60% 60% / 80% 80% 40% 40%; pointer-events: none; }
@@ -2159,13 +2161,15 @@ async function playBattle(lb) {
       const [ra, rb] = fr.ids.map(byId);
       const leaps = new Map(fr.leaps || []);
       for (const r of [ra, rb]) if (r && leaps.has(r.u.id)) {
-        // Leapfrog: a big arc over its own line's opponents onto the back frog, then back to its pad
+        // Leapfrog: a big arc over the enemy line onto its back frog, then back to its pad. It runs on the
+        // .bscale wrapper, because the frog's own hurt shake (it gets hit this turn too) animates .bmove
+        // and would cancel the jump mid-air.
         const t = byId(leaps.get(r.u.id)[0]);
         if (t) {
-          const dx = (t.x - r.x) / s, dy = (t.y - r.y) / s;
+          const dx = t.x - r.x, dy = t.y - r.y, sc = `scale(${s.toFixed(3)})`, wrap = $('.bscale', r.el);
           r.el.style.zIndex = 900;
-          anim(r.move, [{ transform: 'translate(0,0)' }, { transform: `translate(${dx * .5}px, ${dy * .5 - 70}px)`, offset: .4 }, { transform: `translate(${dx * .9}px, ${dy * .9}px)`, offset: .58 }, { transform: `translate(${dx * .5}px, ${dy * .5 - 40}px)`, offset: .8 }, { transform: 'translate(0,0)' }], { duration: dur(820), easing: 'ease-in-out' })
-            .then(() => { r.el.style.zIndex = Math.round(r.y); });
+          anim(wrap, [{ transform: sc }, { transform: `translate(${dx * .5}px, ${dy * .5 - 70 * s}px) ${sc}`, offset: .4 }, { transform: `translate(${dx * .9}px, ${dy * .9}px) ${sc}`, offset: .58 }, { transform: `translate(${dx * .5}px, ${dy * .5 - 40 * s}px) ${sc}`, offset: .8 }, { transform: sc }], { duration: dur(820), easing: 'ease-in-out' })
+            .then(() => { if (units.has(r.u.id)) r.el.style.zIndex = Math.round(r.y); });
           setTimeout(() => leaps.get(r.u.id).forEach((id) => ring(byId(id))), dur(420));
         }
       }
