@@ -127,7 +127,8 @@ input:focus { border-color: var(--firefly); outline: none; }
 .xp i.on { background: var(--firefly); }
 
 /* Home */
-.home { justify-content: center; gap: 14px; overflow-y: auto; }
+.home { justify-content: flex-start; gap: 14px; overflow-y: auto; padding-top: calc(env(safe-area-inset-top) + clamp(20px, 8dvh, 84px)); }
+/* anchored from the top (not centred), so games appearing in the lists below never shift the frog, title or buttons */
 .hero { position: relative; height: 128px; display: grid; place-items: end center; flex: none; }
 .hero .moon { position: absolute; top: 0; right: 22%; width: 54px; height: 54px; border-radius: 50%; background: #f8efd4; box-shadow: 0 0 40px 10px rgba(255, 236, 190, .18); }
 .hero .leafbig { position: absolute; bottom: 0; left: 50%; width: 132px; height: 52px; transform: translateX(-50%); background: var(--leaf) center / contain no-repeat; }
@@ -156,7 +157,6 @@ input:focus { border-color: var(--firefly); outline: none; }
 .me-chip { display: flex; align-items: center; justify-content: center; gap: 6px; margin: 0 auto; border: 0; background: none; color: var(--moon-dim); font-size: 16px; font-weight: 700; padding: 4px 8px; }
 .me-chip b { color: var(--moon); }
 .lists { display: flex; flex-direction: column; gap: 8px; }
-.lists:empty { display: none; }
 .code-join { display: flex; justify-content: center; }
 .code-join .code-row { width: 100%; }
 h1 { margin: 0; text-align: center; font-size: 40px; font-weight: 900; line-height: 1; letter-spacing: -.5px; }
@@ -1293,18 +1293,53 @@ function showHome(msg) {
     return onEnd ? swipeRow(b, onEnd, endLabel) : b;
   };
   const endFromList = (code, lonely) => async () => { if (await endGame(code, lonely)) { last = ''; load(); } else closeSwipes(); };
+  // Rows are updated in place (keyed by section + pond): new ones open smoothly, gone ones fold away,
+  // unchanged ones are left alone, so the lobby refreshing every few seconds never jolts the page.
+  const LIST_GAP = 8;
+  const grow = (n) => {
+    const h = n.offsetHeight, mt = parseFloat(getComputedStyle(n).marginTop) || 0;
+    n.style.overflow = 'hidden';
+    anim(n, [{ height: '0px', opacity: 0, marginTop: `${-LIST_GAP}px` }, { height: `${h}px`, opacity: 1, marginTop: `${mt}px` }], { duration: 240, easing: 'cubic-bezier(.3,.8,.4,1)' })
+      .then(() => { n.style.overflow = ''; });
+  };
+  const fold = (n) => {
+    n.classList.add('leaving'); n.style.overflow = 'hidden'; n.style.pointerEvents = 'none';
+    const mt = parseFloat(getComputedStyle(n).marginTop) || 0;
+    anim(n, [{ height: `${n.offsetHeight}px`, opacity: 1, marginTop: `${mt}px` }, { height: '0px', opacity: 0, marginTop: `${-LIST_GAP}px` }], { duration: 200, easing: 'ease-in', fill: 'forwards' })
+      .then(() => n.remove());
+  };
   const render = () => {
     const box = $('#lists'); if (!box || !lobby) return;
-    box.innerHTML = '';
-    const sections = [];
+    const items = []; // { key, sig, make }
+    const section = (label, list, make) => {
+      if (!list.length) return;
+      items.push({ key: `L:${label}`, sig: label, make: () => el(`<div class="label">${label}</div>`) });
+      for (const r of list) items.push({ key: `${label}:${r.code}`, sig: JSON.stringify([r.seats.map((x) => [x.name, x.avatar]), r.mine, r.practice]), make: () => make(r) });
+    };
     const waiting = (r) => (r.mine
       ? row(r.seats, 'Your pond', 'Resume', () => rejoin(r.code), endFromList(r.code, true), 'Cancel')
       : row(r.seats, `${esc(r.seats[0].name)}’s pond`, 'Join', () => join(r.code)));
-    if (lobby.active.length) sections.push(['In progress', lobby.active.map((r) => row(r.seats, r.practice ? 'Practice' : r.seats.map((x) => esc(x.name)).join(' & '), 'Resume', () => rejoin(r.code), endFromList(r.code, false), 'End'))]);
+    section('In progress', lobby.active, (r) => row(r.seats, r.practice ? 'Practice' : r.seats.map((x) => esc(x.name)).join(' & '), 'Resume', () => rejoin(r.code), endFromList(r.code, false), 'End'));
     // Nearby = ponds started on the same home network; Open = anyone else's
-    if (lobby.nearby.length) sections.push(['Nearby', lobby.nearby.map(waiting)]);
-    if (lobby.open.length) sections.push(['Open ponds', lobby.open.map(waiting)]);
-    for (const [label, rows] of sections) { box.appendChild(el(`<div class="label">${label}</div>`)); rows.forEach((r) => box.appendChild(r)); }
+    section('Nearby', lobby.nearby, waiting);
+    section('Open ponds', lobby.open, waiting);
+    const old = new Map([...box.children].filter((n) => !n.classList.contains('leaving')).map((n) => [n.dataset.key, n]));
+    const keep = new Set(items.map((it) => it.key));
+    for (const [k, n] of old) if (!keep.has(k)) fold(n);
+    let prev = null;
+    for (const it of items) {
+      let n = old.get(it.key);
+      const isNew = !n;
+      if (!n || n.dataset.sig !== it.sig) {
+        const fresh = it.make(); fresh.dataset.key = it.key; fresh.dataset.sig = it.sig;
+        if (n) n.replaceWith(fresh);
+        n = fresh;
+      }
+      const ref = prev ? prev.nextSibling : box.firstChild;
+      if (n !== ref) box.insertBefore(n, ref);
+      if (isNew) grow(n);
+      prev = n;
+    }
     // First time a swipeable row shows up, peek it open a little so the gesture is discoverable
     const first = $('.swipe .pond-btn', box);
     if (first && !localStorage.frogSwipeHint) {
