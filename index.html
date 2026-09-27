@@ -1425,6 +1425,7 @@ function mount(name, node) {
 // Home
 // =====================================================================
 let pondTimer = null;
+let lobbyCache = null; // the last lobby seen, so coming back draws the list at once (no pop-in, no fade)
 function showHome(msg) {
   clearInterval(pondTimer);
   // Opened from an invite (?join=ABCD or a Telegram join_ABCD link) or a bot message about a game (?room=ABCD)
@@ -1432,7 +1433,7 @@ function showHome(msg) {
   const joinCode = ((start && start[1]) || qs.get('join') || '').toUpperCase().slice(0, 4);
   const roomCode = (qs.get('room') || '').toUpperCase().slice(0, 4);
   ME.start = ''; // only once
-  const node = el(`<div class="screen home fade-in">
+  const node = el(`<div class="screen home">
     <button class="ib help-btn" id="helpBtn" aria-label="How to play">?</button>
     <button class="hero" id="heroBtn" aria-label="Edit your frog"><div class="moon"></div><div class="leafbig"></div><span id="heroAv"></span><span class="hero-edit">${ICON.pencil}</span></button>
     <h1>Pond Battle</h1>
@@ -1470,7 +1471,7 @@ function showHome(msg) {
   const rejoin = (room) => call('/api/rejoin', { room }, () => Snd.ribbit());
 
   // Lists: tap a row to resume/join; swipe a row left to end that game.
-  let lobby = null, last = '';
+  let lobby = null, last = '', quiet = true; // quiet: the first refresh after opening only catches up, without animating
   const row = (seats, text, cta, onOpen, onEnd, endLabel) => {
     const b = el(`<button class="pond-btn"><span class="avs">${seats.map((x, k) => `<span class="mini">${avatarHTML(x.avatar, 30, { id: 20 + k, centered: true })}</span>`).join('')}</span><span class="pt">${text}</span><em>${cta}</em></button>`);
     b.onclick = onOpen;
@@ -1511,7 +1512,7 @@ function showHome(msg) {
       { duration: CLOSE, easing: 'cubic-bezier(.4,0,.2,1)', fill: 'forwards' });
     n.remove();
   };
-  const render = () => {
+  const render = (still) => { // still: draw as is, without animating rows in (coming back to the landing)
     const box = $('#lists'); if (!box || !lobby) return;
     const items = []; // { key, sig, make }
     const section = (label, list, make) => {
@@ -1541,7 +1542,7 @@ function showHome(msg) {
       let ref = prev ? prev.nextSibling : box.firstChild;
       while (ref && ref.classList.contains('leaving') && ref !== n) ref = ref.nextSibling; // rows on their way out keep their place
       if (n !== ref) box.insertBefore(n, ref);
-      if (isNew) grow(n, added++);
+      if (isNew && !still) grow(n, added++);
       prev = n;
     }
     // First time a swipeable row shows up, peek it open a little so the gesture is discoverable
@@ -1557,7 +1558,7 @@ function showHome(msg) {
     try {
       const l = await api('/api/lobby');
       const sig = JSON.stringify(l); if (sig === last) return; last = sig;
-      lobby = l; render();
+      lobby = lobbyCache = l; render(quiet); quiet = false; // the catch-up after opening just appears; later changes animate
     } catch {}
   };
   const lobbyStep = () => {
@@ -1570,13 +1571,15 @@ function showHome(msg) {
     $('#create').onclick = () => call('/api/create', {}, () => Snd.plop());
     $('#practice').onclick = () => call('/api/practice', {}, () => Snd.plop());
     $('#showCode').onclick = () => { Snd.tap(); codeStep(); };
-    last = ''; load(); clearInterval(pondTimer); pondTimer = setInterval(load, 2500);
+    quiet = true;
+    if (lobbyCache) { lobby = lobbyCache; last = JSON.stringify(lobbyCache); render(true); } else last = '';
+    load(); clearInterval(pondTimer); pondTimer = setInterval(load, 2500);
     if (joinCode) join(joinCode); else if (roomCode) rejoin(roomCode);
   };
   // Join with a code: its own page. Four letter tiles fill in as you type (one real input sits over them).
   const codeStep = () => {
     clearInterval(pondTimer);
-    const page = el(`<div class="screen home code-page fade-in">
+    const page = el(`<div class="screen home code-page">
       <h1>Join a pond</h1>
       <p class="lede">Enter your partner’s code</p>
       <label class="code-entry"><div class="code-tiles">${'<span></span>'.repeat(4)}</div>
