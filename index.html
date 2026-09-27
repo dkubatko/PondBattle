@@ -2298,6 +2298,13 @@ function battleLog(frames, upto = frames.length - 1) {
           else if (t0.gear === 'bubble' && t1 && t1.gear === 'used') rows.push({ side: sideOf(pv, id), text: `${nm(t0)}’s bubble blocks ${nm(u)}` });
         }
       }
+    } else if (fr.kind === 'spit') {
+      // Dart Frog: reads like a hit, with the damage (or the bubble that took it)
+      const u = find(pv, fr.actor), t0 = find(pv, fr.target), t1 = find(fr, fr.target);
+      if (!u || !t0) continue;
+      const dmg = t0.hp - (t1 ? t1.hp : 0);
+      if (dmg > 0) rows.push({ side: sideOf(pv, u.id), text: `${nm(u)} spits at ${nm(t0)} for ${dmg}` });
+      else if (t0.gear === 'bubble' && t1 && t1.gear === 'used') rows.push({ side: sideOf(pv, t0.id), text: `${nm(t0)}’s bubble blocks ${nm(u)}` });
     } else if (fr.kind === 'faint') {
       for (const u of [...pv.mine, ...pv.theirs]) if (!find(fr, u.id)) rows.push({ side: sideOf(pv, u.id), text: `${nm(u)} faints` });
     } else if (fr.text) {
