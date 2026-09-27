@@ -4,7 +4,7 @@
 const fs = require('fs');
 const path = require('path');
 
-const TEAM_SIZE = 5, START_GOLD = 10, FROG_COST = 3, FOOD_COST = 3, ROLL_COST = 1;
+const TEAM_SIZE = 5, START_GOLD = 10, FROG_COST = 3, FOOD_COST = 3, ROLL_COST = 1, LOCK_COST = 1;
 const START_HEARTS = 5, WIN_TROPHIES = 5;
 // The server sets hooks.gameOver to record finished games
 const hooks = { gameOver: null };
@@ -34,6 +34,15 @@ function rollShop(p, round) {
   const n = round >= 5 ? 4 : 3;
   const food = r(Object.keys(FOODS));
   p.shop = { frogs: Array.from({ length: n }, () => newFrog(r(pool))), food, foodCost: foodCost(food) };
+}
+// A locked shop carries over to the next round: what's left stays, empty slots (and a newly opened
+// 4th slot) get fresh frogs, and it stays locked until you roll
+function refillShop(p, round) {
+  const old = p.shop;
+  rollShop(p, round);
+  p.shop.frogs = p.shop.frogs.map((f, i) => old.frogs[i] || f);
+  if (old.food) Object.assign(p.shop, { food: old.food, foodCost: old.foodCost });
+  p.shop.locked = true;
 }
 
 // ---------- Battle engine ----------
@@ -141,8 +150,9 @@ function runBattle(teamA, teamB, opts = {}) {
     for (const u of [...T[s]]) {
       if (u.hp <= 0 || !T[s].includes(u)) continue;
       if (u.type === 'wizard') {
-        // Shrinks the strongest enemies to 1/1; they keep their abilities
-        const foes = alive(1 - s).filter((e) => e.atk + e.hp > 2).sort((x, y) => y.atk + y.hp - (x.atk + x.hp)).slice(0, u.lvl);
+        // Shrinks L random enemies to 1/1 (skipping ones that already are); they keep their abilities
+        const pool = alive(1 - s).filter((e) => e.atk + e.hp > 2), foes = [];
+        while (foes.length < u.lvl && pool.length) foes.push(pool.splice(rand(pool.length), 1)[0]);
         if (foes.length) {
           for (const e of foes) { e.atk = 1; e.hp = 1; }
           snap?.('spell', { actor: u.bid, targets: foes.map((e) => e.bid), text: `${nm(u)} shrinks the enemy` });
@@ -295,9 +305,14 @@ function act(room, p, a) {
       }
       break;
     }
-    case 'roll': {
+    case 'roll': { // also cancels a lock: a fresh shop is never locked
       if (p.gold < ROLL_COST) return;
       p.gold -= ROLL_COST; rollShop(p, room.round);
+      break;
+    }
+    case 'lock': {
+      if (shop.locked || p.gold < LOCK_COST) return;
+      p.gold -= LOCK_COST; shop.locked = true;
       break;
     }
     case 'ready': p.ready = true; break;
@@ -335,11 +350,11 @@ function fight(room) {
   for (const p of room.players) {
     p.ready = false;
     p.gold = START_GOLD + p.team.reduce((g, f) => g + (f && f.type === 'lucky' ? f.lvl : 0), 0);
-    rollShop(p, room.round);
+    if (p.shop && p.shop.locked) refillShop(p, room.round); else rollShop(p, room.round);
   }
 }
 
 module.exports = {
-  TEAM_SIZE, ROLL_COST, FROGS, FOODS, hooks,
+  TEAM_SIZE, ROLL_COST, LOCK_COST, FROGS, FOODS, hooks,
   rand, bumpId, frogCost, runBattle, newPlayerState, resetGame, botShop, act,
 };

@@ -258,6 +258,20 @@ h1 { margin: 0; text-align: center; font-size: 40px; font-weight: 900; line-heig
 .roll .coinb { margin-left: 2px; }
 .roll:active:not(:disabled) { transform: translateY(1px); background: rgba(245, 237, 214, .16); }
 .roll:disabled { opacity: .4; }
+.shop-acts { display: flex; gap: 6px; }
+/* Lock: the same pill as Roll; gold once the shop is locked */
+.roll.locked { color: var(--firefly); background: rgba(255, 205, 102, .13); box-shadow: inset 0 0 0 1.5px rgba(255, 205, 102, .42); padding-right: 11px; }
+/* Upgrade chip on a shop frog that would join one of yours (gold: it would level it up) */
+.upchip { position: absolute; top: 4px; left: calc(50% + 10px); z-index: 3; width: 20px; height: 20px; border-radius: 50%; display: grid; place-items: center; background: #6cc46a; color: #fff; box-shadow: 0 2px 5px rgba(0, 0, 0, .35); opacity: 0; transform: scale(.4); transition: opacity .2s, transform .2s; pointer-events: none; }
+.upchip svg { width: 13px; height: 13px; }
+.upchip.on { opacity: 1; transform: none; }
+.upchip.lv { background: var(--firefly); color: #4a3505; }
+/* Battle log rows: a coloured edge says whose frog it was (green yours, pink theirs) */
+.log-row { font-size: 14px; line-height: 1.35; color: var(--moon-dim); padding: 4px 0 4px 10px; margin: 3px 0; border-left: 3px solid rgba(245, 237, 214, .15); }
+.log-row.me { border-left-color: #8fd47a; }
+.log-row.them { border-left-color: #f0869f; }
+.log-row.end { color: var(--moon); font-weight: 800; border-left-color: var(--firefly); }
+.guide-sec .sub { margin-left: 6px; font-size: 13px; font-weight: 700; color: var(--moon-dim); }
 .price { height: 20px; margin-top: 6px; display: flex; justify-content: center; pointer-events: none; }
 .price.poor .coinb { filter: grayscale(.9); opacity: .45; }
 .btn .amt { display: flex; }
@@ -341,7 +355,7 @@ h1 { margin: 0; text-align: center; font-size: 40px; font-weight: 900; line-heig
 .float .charm .ic { width: 22px; height: 20px; }
 .fx-wave { position: absolute; border-radius: 50%; border: 4px solid rgba(160, 220, 255, .8); pointer-events: none; z-index: 25; }
 .caption { height: 30px; display: grid; place-items: center; font-size: 16px; font-weight: 800; color: var(--moon); transition: opacity .25s; text-align: center; }
-.b-ctrl { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; margin-top: 8px; }
+.b-ctrl { display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 10px; margin-top: 8px; }
 .result {
   position: absolute; left: 24px; right: 24px; top: 50%; z-index: 1000; pointer-events: none;
   background: #fbf1d6; color: #243021; border-radius: 26px; padding: 20px 18px 18px; text-align: center;
@@ -452,6 +466,8 @@ const ICON = {
   chev: `<svg class="ic" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"><path d="M9 5l7 7-7 7"/></svg>`,
   x: `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.6" stroke-linecap="round"><path d="M7 7l10 10M17 7L7 17"/></svg>`,
   lock: `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round"><rect x="5" y="11" width="14" height="10" rx="2.5" fill="currentColor" stroke="none"/><path d="M8 11V8a4 4 0 0 1 8 0v3"/></svg>`,
+  lockSm: `<svg class="ic" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.6" stroke-linecap="round"><rect x="5" y="11" width="14" height="10" rx="2.5" fill="currentColor" stroke="none"/><path d="M8 11V8a4 4 0 0 1 8 0v3"/></svg>`,
+  up: `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3.4" stroke-linecap="round" stroke-linejoin="round"><path d="M12 19V6M6 11.5l6-6 6 6"/></svg>`,
   roll: `<svg class="ic" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.6" stroke-linecap="round" stroke-linejoin="round"><path d="M20 12a8 8 0 1 1-2.4-5.7"/><path d="M20 4v5h-5"/></svg>`,
   pencil: `<svg class="pencil" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><path d="M4 20h4L19 9l-4-4L4 16z"/></svg>`,
 };
@@ -1407,7 +1423,7 @@ let prevTeam = [], prevShop = [], prevFood = undefined, shownRound = 0;
 const flights = new Map();  // frog id -> { rect, drag }: where it should fly in from
 const coinBadge = (n) => `<span class="coinb">${n}</span>`;
 function itemHTML(kind, i) {
-  return `<div class="item ${kind === 'food' ? 'food' : ''}" data-tap="${kind}" data-i="${i}"><div class="slot"><div class="ring"></div><div class="stone"></div><div class="occ"></div></div><div class="price"></div></div>`;
+  return `<div class="item ${kind === 'food' ? 'food' : ''}" data-tap="${kind}" data-i="${i}"><div class="slot"><div class="ring"></div><div class="stone"></div><div class="occ"></div>${kind === 'shop' ? `<span class="upchip">${ICON.up}</span>` : ''}</div><div class="price"></div></div>`;
 }
 
 function buildGame() {
@@ -1424,7 +1440,7 @@ function buildGame() {
       <div class="banner" id="banner"></div>
     </section>
     <section class="bank">
-      <div class="bank-head"><span class="gold" id="gold"></span><button class="roll" id="rollBtn">${ICON.roll}Roll${coinBadge(1)}</button></div>
+      <div class="bank-head"><span class="gold" id="gold"></span><div class="shop-acts"><button class="roll" id="lockBtn"></button><button class="roll" id="rollBtn">${ICON.roll}Roll${coinBadge(1)}</button></div></div>
       <div class="items" id="items">${[0, 1, 2, 3].map((i) => itemHTML('shop', i)).join('')}${itemHTML('food', 0)}</div>
     </section>
     <nav class="actions">
@@ -1437,6 +1453,9 @@ function buildGame() {
   $('#musicBtn').onclick = () => { Snd.setMusic(!Snd.music()); updateHeader(); };
   $('#menuBtn').onclick = openMenu;
   $('#rollBtn').onclick = roll;
+  $('#lockBtn').onclick = lockShop;
+  // Tap your partner's plate to see the last battle: their pond and what happened
+  $('#oppCard').onclick = () => { if (S && S.lastBattle) { Snd.tap(); openBattleSheet(S.lastBattle); } };
   $('#mainBtn').onclick = mainAction;
   $('#readyBtn').onclick = toggleReady;
   node.addEventListener('pointerdown', onDown);
@@ -1568,6 +1587,8 @@ function updateItems() {
         anim(fr, [{ transform: 'translateY(10px) scale(.4)', opacity: 0 }, { transform: 'translateY(-4px) scale(1.05)', opacity: 1, offset: .65 }, { transform: 'none' }], { duration: 340, delay: i * 60, easing: 'ease-out', fill: 'backwards' });
       }
     }
+    const t = f && me.team.find((x) => x && x.type === f.type && x.lvl < 3), chip = $('.upchip', it);
+    chip.classList.toggle('on', !!t); chip.classList.toggle('lv', !!t && levelOf(t.xp + 1) > t.lvl);
     const pr = $('.price', it);
     setHTML(pr, f ? coinBadge(costOf(f)) : '');
     pr.classList.toggle('poor', !!f && me.gold < costOf(f));
@@ -1590,6 +1611,10 @@ function updateInfo() {
 function updateButtons() {
   const me = S.me, rb = $('#rollBtn'), mb = $('#mainBtn'), yb = $('#readyBtn');
   rb.disabled = me.ready || me.gold < 1;
+  const lb = $('#lockBtn'), locked = !!me.shop.locked;
+  lb.classList.toggle('locked', locked);
+  setHTML(lb, locked ? `${ICON.lockSm}Locked` : `${ICON.lockSm}Lock${coinBadge(1)}`);
+  lb.disabled = me.ready || (!locked && me.gold < 1);
   // One contextual action: Buy by default, Sell for your own frog, Feed for a bug
   let label = 'Buy', amt = '', cls = 'btn buy', off = true;
   const dragging = drag && drag.started;
@@ -1928,6 +1953,18 @@ function roll() {
     await act({ type: 'roll' });
   });
 }
+// Lock keeps this shop for the next round (1 gold); rolling unlocks it
+function lockShop() {
+  if (!S || S.me.ready) return;
+  if (S.me.shop.locked) { toast('Rolling unlocks the shop'); return Snd.tap(); }
+  if (S.me.gold < 1) return notEnoughGold();
+  sel = null;
+  return run(async () => {
+    Snd.coin();
+    applyLocal((m) => { m.gold -= 1; m.shop.locked = true; });
+    await act({ type: 'lock' });
+  });
+}
 function toggleReady() {
   if (!S) return;
   if (S.me.ready) { Snd.unready(); return run(() => act({ type: 'unready' })); }
@@ -1999,6 +2036,7 @@ function openMenu() {
     <button class="row-item" data-m="sfx">Sound effects<span class="switch ${Snd.sfxOn() ? 'on' : ''}"></span></button>
     <button class="row-item" data-m="guide">How to play ${ICON.chev}</button>
     <button class="row-item" data-m="name">Your frog ${ICON.chev}</button>
+    ${S && S.lastBattle ? `<button class="row-item" data-m="last">Last battle ${ICON.chev}</button>` : ''}
     <button class="row-item" data-m="lobby">Back to lobby ${ICON.chev}</button>
     <button class="row-item danger" data-m="end">End game</button>`);
   s.el.addEventListener('click', (e) => {
@@ -2009,6 +2047,7 @@ function openMenu() {
     if (m === 'guide') { s.close(); setTimeout(openGuide, 200); }
     if (m === 'name') { s.close(); setTimeout(() => openProfile(), 200); }
     if (m === 'lobby') { s.close(); setTimeout(toLobby, 200); }
+    if (m === 'last') { s.close(); setTimeout(() => openBattleSheet(S.lastBattle), 200); }
     if (m === 'end') { s.close(); setTimeout(() => endGame(), 200); }
   });
 }
@@ -2020,6 +2059,7 @@ function openGuide() {
       <li>You get <b>10 gold</b> each round. Prices are on each frog and item.</li>
       <li>The frog on the <b>right</b> fights first.</li>
       <li>Drop a frog on a matching one to <b>level it up</b>.</li>
+      <li><b>Lock</b> the shop (1 gold) to keep it for next round. Rolling unlocks it.</li>
       <li>Lose a round and you lose a <b>heart</b>. Whoever still has hearts at the end wins.</li>
     </ul>
     ${tiers.map(([n, lbl]) => `<div class="guide-sec">${lbl}</div>` + Object.keys(TIER).filter((t) => TIER[t] === n).map(row).join('')).join('')}
@@ -2032,12 +2072,57 @@ function openGuide() {
 // =====================================================================
 // Battle
 // =====================================================================
+// Battle frames seen from your side: mine = your frogs, theirs = your partner's (seat 1 sees it flipped)
+function viewFrames(lb, seat) {
+  const flip = seat === 1;
+  return lb.frames.map((f) => ({ ...f, mine: flip ? f.b : f.a, theirs: flip ? f.a : f.b, side: f.side === undefined ? undefined : (flip ? 1 - f.side : f.side) }));
+}
+// What happened, line by line, from the frames: hits and faints are read from how the frogs changed,
+// abilities use their own caption. side: 'me' / 'them' (whose frog it was)
+function battleLog(frames, upto = frames.length - 1) {
+  const rows = [], nm = (u) => NAMES[u.type] || 'Frog';
+  const find = (f, id) => f.mine.find((u) => u.id === id) || f.theirs.find((u) => u.id === id);
+  const sideOf = (f, id) => (f.mine.some((u) => u.id === id) ? 'me' : f.theirs.some((u) => u.id === id) ? 'them' : '');
+  for (let k = 1; k <= upto && k < frames.length; k++) {
+    const fr = frames[k], pv = frames[k - 1];
+    if (fr.kind === 'hit') {
+      const [a, b] = fr.ids, leaps = new Map(fr.leaps || []);
+      for (const [x, other] of [[a, b], [b, a]]) {
+        const u = find(pv, x); if (!u) continue;
+        for (const id of leaps.get(x) || [other]) {
+          const t0 = find(pv, id), t1 = find(fr, id); if (!t0) continue;
+          const dmg = t0.hp - (t1 ? t1.hp : 0);
+          if (dmg > 0) rows.push({ side: sideOf(pv, x), text: `${nm(u)} ${leaps.has(x) ? 'leaps over and hits' : 'hits'} ${nm(t0)} for ${dmg}` });
+          else if (t0.gear === 'bubble' && t1 && t1.gear === 'used') rows.push({ side: sideOf(pv, id), text: `${nm(t0)}’s bubble blocks ${nm(u)}` });
+        }
+      }
+    } else if (fr.kind === 'faint') {
+      for (const u of [...pv.mine, ...pv.theirs]) if (!find(fr, u.id)) rows.push({ side: sideOf(pv, u.id), text: `${nm(u)} faints` });
+    } else if (fr.text) {
+      const id = fr.actor ?? fr.target;
+      rows.push({ side: fr.kind === 'splash' ? (fr.side === 0 ? 'them' : 'me') : sideOf(pv, id) || sideOf(fr, id), text: fr.text });
+    }
+  }
+  return rows;
+}
+// The battle sheet: your partner's pond as it fought (front first) and the log so far (upto = frame index)
+function openBattleSheet(lb, upto) {
+  const frames = viewFrames(lb, S.seat), oppName = S.opp ? S.opp.name : 'Your partner';
+  const lineup = frames[0].theirs.map((u, i) => `<div class="guide-row"><div class="gfrog">${frogHTML({ ...u, id: 900 + i }, { size: 46, idle: false })}</div><div class="txt"><span class="gname">${NAMES[u.type] || 'Frog'}</span>${descHTML(u.type, u.lvl)}</div></div>`).join('');
+  const rows = battleLog(frames, upto);
+  if (upto == null || upto >= frames.length - 1) rows.push({ side: 'end', text: lb.winner === -1 ? 'It’s a tie' : lb.winner === S.seat ? 'You won the round' : `${oppName} won the round` });
+  const s = sheet(`<h2>Round ${lb.round}</h2>
+    <div class="guide-sec">${esc(oppName)}’s pond <span class="sub">front first</span></div>${lineup}
+    <div class="guide-sec">What happened</div>
+    ${rows.map((r) => `<div class="log-row ${r.side}">${esc(r.text)}</div>`).join('') || '<div class="log-row">The battle is about to start</div>'}
+    <div class="btns"><button class="btn" data-a="close">Close</button></div>`);
+  $('[data-a="close"]', s.el).onclick = s.close;
+}
 async function playBattle(lb) {
   playing = true;
   $('#toast').classList.remove('show');
-  const flip = S.seat === 1;
   const view = { ...S };
-  const frames = lb.frames.map((f) => ({ ...f, mine: flip ? f.b : f.a, theirs: flip ? f.a : f.b, side: f.side === undefined ? undefined : (flip ? 1 - f.side : f.side) }));
+  const frames = viewFrames(lb, S.seat);
   const meta = (p) => pips(5, p.hearts, ICON.heart);
   // Show hearts as they were before this battle
   const before = (p, isMe) => {
@@ -2053,7 +2138,7 @@ async function playBattle(lb) {
     <div class="arena" id="arena"><div class="water"></div></div>
     <div class="b-bot">${who(view.me, true, 1)}</div>
     <div class="caption" id="cap"></div>
-    <div class="b-ctrl"><button class="btn ghost" id="spd"></button><button class="btn ghost" id="skip">Skip</button></div>
+    <div class="b-ctrl"><button class="btn ghost" id="spd"></button><button class="btn ghost" id="blog">Log</button><button class="btn ghost" id="skip">Skip</button></div>
     <div class="result" id="result"></div>
   </div>`);
   mount('battle', node);
@@ -2189,7 +2274,10 @@ async function playBattle(lb) {
   if (first.mine.length || first.theirs.length) setTimeout(() => Snd.ribbit(), dur(300));
   await wait(1100);
 
+  let seen = 0; // frames shown so far, for the Log button
+  $('#blog').onclick = () => { Snd.tap(); openBattleSheet(lb, seen); };
   for (let k = 1; k < frames.length && !skipping; k++) {
+    seen = k;
     const fr = frames[k];
     if (fr.kind === 'hit') {
       caption('');
@@ -2294,7 +2382,8 @@ async function playBattle(lb) {
   const res = $('#result');
   res.innerHTML = `<div class="r-title">${title}</div><button class="btn wide" id="cont">${final ? 'Final score' : 'Continue'}</button>`;
   requestAnimationFrame(() => res.classList.add('show'));
-  $('.b-ctrl').style.visibility = 'hidden';
+  seen = frames.length - 1;
+  $('#spd').style.visibility = 'hidden'; $('#skip').style.visibility = 'hidden'; // Log stays for after the battle
   if (w === 'win') { Snd.win(); petals(18); } else if (w === 'lose') Snd.lose(); else Snd.draw();
   for (const rec of units.values()) {
     if ((w === 'win' && rec.side === 0) || (w === 'lose' && rec.side === 1)) anim(rec.move, [{ transform: 'none' }, { transform: `translateY(${-16 * s}px)`, offset: .3 }, { transform: 'none', offset: .6 }, { transform: `translateY(${-10 * s}px)`, offset: .8 }, { transform: 'none' }], { duration: 900, iterations: 2 });
