@@ -126,6 +126,11 @@ input:focus { border-color: var(--firefly); outline: none; }
 .frog[class*="sz"] .fbody { transform-origin: 50% 100%; transform: scale(var(--k)); transition: transform .35s cubic-bezier(.3, 1.4, .5, 1); }
 .frog[class*="sz"].flip .fbody { transform: scaleX(-1) scale(var(--k)); }
 .frog[class*="sz"] .lvl { top: calc((1 - var(--k)) * 100% - 15px); left: calc((1 - var(--k)) * 50% - 8px); }
+/* in your pond every tag sits on one line above the pads (just clear of a level 3 frog), whatever the frog */
+.pad .frog .lvl { top: auto; bottom: 70px; left: 50%; transform: translateX(-50%); }
+/* a Bubble wraps the frog at its size: centred on its body, 1.2× across */
+.frog[class*="sz"] .gear.frog-bubble { width: calc(var(--fs) * 1.2 * var(--k)); height: calc(var(--fs) * 1.2 * var(--k));
+  left: calc(50% - var(--fs) * .6 * var(--k)); top: calc(var(--fs) * (1 - 1.1 * var(--k))); }
 /* no level tag on the battlefield: the size says it (the log sheet's lineup still shows it) */
 .bu .lvl { display: none; }
 /* Protective bubble around a frog: see-through, with a shine and a soft wobble */
