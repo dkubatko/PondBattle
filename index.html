@@ -367,7 +367,7 @@ h1 { margin: 0; text-align: center; font-size: 40px; font-weight: 900; line-heig
 /* Floating things */
 .flyer { position: fixed; left: 0; top: 0; z-index: 50; pointer-events: none; will-change: transform; margin: 0; }
 .float { position: fixed; z-index: 60; pointer-events: none; font-weight: 900; font-size: 19px; white-space: nowrap; text-shadow: 0 2px 0 rgba(0, 0, 0, .35); display: flex; gap: 6px; transform: translate(-50%, -50%); }
-.float .a { color: #ffab73; } .float .h { color: #ffadc0; } .float .g { color: var(--firefly); } .float .x { color: #ff8a8a; } .float .blk { color: #c4f2c8; font-size: .8em; }
+.float .a { color: #ffab73; } .float .h { color: #ffadc0; } .float .g { color: var(--firefly); } .float .x { color: #ff8a8a; } .float .mix { color: var(--moon); } .float .blk { color: #c4f2c8; font-size: .8em; }
 /* Notifications (shop messages and news, the battle's play-by-play) share one look: just text, lifted off the
    background by a soft shadow */
 .note { color: var(--moon); font-weight: 800; font-size: 16px; line-height: 1.3; text-align: center; text-shadow: 0 1px 2px rgba(0, 0, 0, .55), 0 0 12px rgba(8, 22, 27, .9); pointer-events: none; }
@@ -569,8 +569,8 @@ const DESC = {
 // Bugs and gear (items.json): name, attack/health given, price; gear stays on the frog
 const FOODS = JSON.parse(document.getElementById('items').textContent);
 const GEAR_TEXT = { bubble: 'blocks the first hit in the next battle' };
-// A Cricket gives a level-up point, like merging one more copy (with the +1/+1 a merge gives)
-const itemText = (k) => (FOODS[k].gear ? GEAR_TEXT[FOODS[k].gear] : FOODS[k].xp ? `a level-up point (and ${statText(FOODS[k].atk, FOODS[k].hp)})` : statText(FOODS[k].atk, FOODS[k].hp));
+// A Cricket gives a level-up point, like merging one more copy (its +1/+1 is shown on the bug itself)
+const itemText = (k) => (FOODS[k].gear ? GEAR_TEXT[FOODS[k].gear] : FOODS[k].xp ? 'a level-up point' : statText(FOODS[k].atk, FOODS[k].hp));
 const COST = 3;
 
 // =====================================================================
@@ -899,7 +899,7 @@ Object.assign(ART, {
     const eggs = [[23, 42, 6], [32, 34, 6.5], [68, 34, 6.5], [77, 42, 6]].map(([x, y, r]) => egg(x, y, r)).join('') + baby(43, 28, 7) + baby(57, 28, 7);
     return compose(b, p, { behind: eggs });
   },
-  hypno: () => { const p = pal('#a97fdc'), b = BODY.classic(p); return compose(b, p, { eyes: 'spiral', over: PENDULUM }); },
+  hypno: () => { const p = pal('#a97fdc'), b = BODY.classic(p); return compose(b, p, { eyes: 'spiral', over: PENDULUM(b) }); },
   princess: () => { const p = pal('#8fcbf2'), b = BODY.classic(p); return compose(b, p, { lashes: true, ...hat(b, TIARA, .95, 0) }); },
   // Leapfrog: a spotted leopard frog, always looking back the other way (it leaps over the line)
   leapfrog: () => {
@@ -1007,10 +1007,39 @@ const hood = (b, fill, edge) => { const [[x1, y1, r1], [x2, y2, r2]] = b.eyes; c
 const eyeMask = (b) => { const [[x1, y1, r1], [x2, y2, r2]] = b.eyes;
   return `<path d="M${x1 - r1 - 4} ${y1 - 3}Q${(x1 + x2) / 2} ${y1 - 8} ${x2 + r2 + 4} ${y2 - 3}L${x2 + r2 + 3} ${y2 + 4}Q${(x1 + x2) / 2} ${y1 + 2} ${x1 - r1 - 3} ${y1 + 4}z" fill="#1f2328"/>`; };
 const ROGUE_HOOD = ['#5a1f2e', '#76303f'];
-const DRAGON_WINGS = (c) => [-1, 1].map((d) => `<path d="M${50 + d * 30} 52C${50 + d * 44} 30 ${50 + d * 50} 22 ${50 + d * 49} 16C${50 + d * 44} 26 ${50 + d * 40} 26 ${50 + d * 38} 34C${50 + d * 36} 30 ${50 + d * 33} 32 ${50 + d * 31} 38z" fill="${c}"/>`).join('');
-const KING_CAPE = '<path d="M16 44Q50 28 84 44L94 92Q50 100 6 92z" fill="#c0392b"/><path d="M16 44Q50 28 84 44" stroke="#9a2c21" stroke-width="2" fill="none"/>';
-// A gold pocket watch swinging on its chain from the frog's hand
-const PENDULUM = '<path d="M83 60L88 80" stroke="#c9a54c" stroke-width="1.6"/>' + C(83, 60, 3.4, 'none', ' stroke="#8a6a2c" stroke-width="1.4"') + C(88.5, 83, 6, '#f6c343', ' stroke="#c48b22" stroke-width="1.5"') + C(88.5, 83, 3.6, '#fff6d8') + '<path d="M88.5 83v-2.4M88.5 83h2" stroke="#8a6a2c" stroke-width="1" stroke-linecap="round"/>';
+// The outline of a body (legs, body and head, measured once per shape), so extras that hang off the body (wings,
+// a cape, a watch in hand) fit every shape
+const boxCache = new Map();
+function bodyBox(b) {
+  const key = b.back + b.torso + b.head + b.front;
+  if (!boxCache.has(key)) {
+    const svg = document.createElementNS('http://www.w3.org/2000/svg', 'svg');
+    svg.setAttribute('viewBox', '0 0 100 100'); svg.style.cssText = 'position:absolute;width:100px;height:100px;visibility:hidden';
+    svg.innerHTML = key; document.body.appendChild(svg);
+    const bb = svg.getBBox(); svg.remove();
+    boxCache.set(key, { x: bb.x, y: bb.y, w: bb.width, h: bb.height });
+  }
+  return boxCache.get(key);
+}
+// Bat-like wings rising from the shoulders, behind the body
+const DRAGON_WINGS = (b, c) => {
+  const [[x1, y1, r1], [x2]] = b.eyes, cx = (x1 + x2) / 2, bb = bodyBox(b), ry = y1 + r1 + 6, off = bb.w * .3;
+  return [-1, 1].map((d) => { const rx = cx + d * off, X = (k) => (rx + d * k).toFixed(1);
+    return `<path d="M${X(0)} ${ry}C${X(8)} ${ry - 10} ${X(15)} ${ry - 24} ${X(22)} ${ry - 33}C${X(22)} ${ry - 25} ${X(25)} ${ry - 20} ${X(29)} ${ry - 17}C${X(24)} ${ry - 14} ${X(23)} ${ry - 9} ${X(25)} ${ry - 4}C${X(16)} ${ry - 6} ${X(8)} ${ry - 3} ${X(0)} ${ry + 5}z" fill="${c}"/>`
+      + `<path d="M${X(2)} ${ry}L${X(21)} ${ry - 30}M${X(4)} ${ry + 1}L${X(26)} ${ry - 16}" stroke="${mix(c, '#1b1410', .25)}" stroke-width="1.4" fill="none" stroke-linecap="round"/>`; }).join('');
+};
+// A royal cape from the shoulders, flaring out past the body to the ground
+const KING_CAPE = (b) => {
+  const [[x1, y1, r1], [x2, , r2]] = b.eyes, cx = (x1 + x2) / 2, bb = bodyBox(b), top = y1 + r1, bot = Math.min(97, bb.y + bb.h);
+  return `<path d="M${x1 - r1} ${top}Q${cx} ${top - 12} ${x2 + r2} ${top}L${bb.x + bb.w + 5} ${bot}Q${cx} ${bot + 5} ${bb.x - 5} ${bot}z" fill="#c0392b"/>`
+    + `<path d="M${x1 - r1} ${top}Q${cx} ${top - 12} ${x2 + r2} ${top}" stroke="#9a2c21" stroke-width="2" fill="none"/>`;
+};
+// A gold pocket watch swinging on its chain from the frog's right hand (the art's right, where no stats sit)
+const PENDULUM = (b) => {
+  const [, [, y2, r2]] = b.eyes, bb = bodyBox(b), hx = bb.x + bb.w - 10, hy = y2 + r2 + 12, wx = hx + 5.5, wy = hy + 23;
+  return `<path d="M${hx} ${hy}L${wx} ${wy - 3}" stroke="#c9a54c" stroke-width="1.6"/>` + C(hx, hy, 3.4, 'none', ' stroke="#8a6a2c" stroke-width="1.4"') + C(wx, wy, 6, '#f6c343', ' stroke="#c48b22" stroke-width="1.5"') + C(wx, wy, 3.6, '#fff6d8')
+    + `<path d="M${wx} ${wy}v-2.4M${wx} ${wy}h2" stroke="#8a6a2c" stroke-width="1" stroke-linecap="round"/>`;
+};
 Object.assign(ART, {
   peasant: () => { const p = pal('#a9b45a'), b = BODY.classic(p); return compose(b, p, { ...hat(b, STRAW_HAT, 1.3, 5) }); },
   // Archer: forest green, a feathered cap and a bow held at its side
@@ -1063,12 +1092,12 @@ Object.assign(ART, {
   king: () => {
     const p = pal('#62b95f'), b = BODY.round(p);
     const ermine = `<path d="M26 ${neckY(b) - 1}Q50 ${neckY(b) + 9} 74 ${neckY(b) - 1}" stroke="#fbf7ee" stroke-width="6" fill="none" stroke-linecap="round"/>` + dotsSVG([[33, neckY(b) + 2.2, 1], [44, neckY(b) + 4.4, 1], [56, neckY(b) + 4.4, 1], [67, neckY(b) + 2.2, 1]], '#2a211c');
-    return compose(b, p, { behind: KING_CAPE, ...hat(b, BIG_CROWN, 1.05, 0), face: ermine });
+    return compose(b, p, { behind: KING_CAPE(b), ...hat(b, BIG_CROWN, 1.05, 0), face: ermine });
   },
   // Dragon Frog: fiery red with an orange belly, little wings and horns
   dragon: () => {
     const p = pal('#dc5f3c', { belly: '#f6b35c' }), b = BODY.bull(p);
-    return compose(b, p, { behind: DRAGON_WINGS(mix('#dc5f3c', '#1b2a22', .25)), horns: 1.4, under: dotsSVG([[30, 52, 2.2], [70, 52, 2.2], [24, 62, 1.8], [76, 62, 1.8]], mix('#dc5f3c', '#1b2a22', .3)) });
+    return compose(b, p, { behind: DRAGON_WINGS(b, mix('#dc5f3c', '#1b2a22', .25)), horns: 1.4, under: dotsSVG([[30, 52, 2.2], [70, 52, 2.2], [24, 62, 1.8], [76, 62, 1.8]], mix('#dc5f3c', '#1b2a22', .3)) });
   },
   // Paladin: cream-white, a golden halo and a blue tabard
   paladin: () => {
@@ -1089,7 +1118,7 @@ BUG_ART.cricket = '<g transform="translate(-8 -12) scale(1.18)"><path d="M30 60L
 const ART_SIZE = {
   bouncy: .98, bullfrog: .94, chameleon: .98, froglet: .86, glass: .98, goliath: .93, hungry: .98, knight: .95, leapfrog: 1.12, lucky: 1.05, mama: .98, peeper: 1.11,
   rain: .94, spitter: 1.13, tadpole: 1.10, toad: 1.03, tree: .97, wizard: .97, midwife: .99, turtle: 1.12, pebble: 1.24, budgett: 1.05, golden: .98,
-  archer: 1.06, bard: 1.08, blacksmith: .94, cleric: .94, dragon: .92, guard: .99, jester: .97, king: .90, merchant: .95, necro: .96, paladin: .92, peasant: .97, rogue: 1.11, squire: .94,
+  archer: 1.06, bard: 1.08, blacksmith: .94, cleric: .94, dragon: .90, guard: .99, jester: .97, king: .88, merchant: .95, necro: .96, paladin: .92, peasant: .97, rogue: 1.11, squire: .94,
 };
 
 const artCache = new Map();
@@ -1162,11 +1191,10 @@ const AV_ACCS = [
   { id: 'mitre', name: 'Cleric’s mitre', head: true, small: 1.2, x: (b, p, k) => hat(b, MITRE, k, 0) },
   { id: 'cap', name: 'Squire’s cap', head: true, x: (b) => hat(b, STEEL_CAP, 1.05, 1) },
   { id: 'kettle', name: 'Guard’s helmet', head: true, x: (b) => hat(b, KETTLE_HAT, 1.12, 1) },
-  { id: 'hood', name: 'Rogue’s hood', head: true, x: (b) => ({ inside: hood(b, ROGUE_HOOD[0], ROGUE_HOOD[1]) }) },
   { id: 'mask', name: 'Rogue’s mask', x: (b) => ({ inside: eyeMask(b) }) },
-  { id: 'pendulum', name: 'Hypno’s watch', x: () => ({ over: PENDULUM }) },
-  { id: 'cape', name: 'King’s cape', x: () => ({ behind: KING_CAPE }) },
-  { id: 'wings', name: 'Dragon wings', x: (b, p) => ({ behind: DRAGON_WINGS(p.dark) }) },
+  { id: 'pendulum', name: 'Hypno’s watch', x: (b) => ({ over: PENDULUM(b) }) },
+  { id: 'cape', name: 'King’s cape', x: (b) => ({ behind: KING_CAPE(b) }) },
+  { id: 'wings', name: 'Dragon wings', x: (b, p) => ({ behind: DRAGON_WINGS(b, p.dark) }) },
 ];
 const byId = (list, id) => list.find((o) => o.id === id) || list[0];
 // patterns that were folded into Polka dots keep a dotted look
@@ -2992,6 +3020,17 @@ async function playBattle(lb) {
     a.textContent = u.atk; h.textContent = Math.max(0, u.hp);
     if (!animate) return;
     const da = u.atk - old.atk, dh = u.hp - old.hp;
+    // Attack only goes down when stats are changed (a bonus lost, a scream, a spell), never from a hit: show the
+    // change as one label ("−2/−2") with a small shrink, not as damage
+    if (da < 0) {
+      const n = (v) => `${v > 0 ? '+' : '−'}${Math.abs(v)}`;
+      const b = $('.fbody', rec.el).getBoundingClientRect(), [x, y] = center(b);
+      floatAt(x, y - 24, `<span class="${dh > 0 ? 'mix' : 'x'}">${dh ? `${n(da)}/${n(dh)}` : `${n(da)} attack`}</span>`);
+      anim(rec.move, [{ transform: 'scale(1)' }, { transform: 'scale(.88)', offset: .45 }, { transform: 'scale(1)' }], { duration: dur(380), easing: 'ease-in-out' });
+      anim(a, [{ transform: 'scale(1.4)' }, { transform: 'scale(1)' }], { duration: 300 });
+      if (dh) anim(h, [{ transform: 'scale(1.4)' }, { transform: 'scale(1)' }], { duration: 300 });
+      return;
+    }
     if (dh < 0) {
       statFloat($('.fbody', rec.el), 0, dh);
       anim(rec.move, [{ transform: 'translateX(0)', filter: 'brightness(1)' }, { transform: `translateX(${rec.side ? 5 : -5}px)`, filter: 'brightness(1.9)', offset: .2 }, { transform: `translateX(${rec.side ? -4 : 4}px)`, offset: .5 }, { transform: 'translateX(0)', filter: 'brightness(1)' }], { duration: dur(300) });

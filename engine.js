@@ -59,6 +59,8 @@ function refillShop(p, round, set) {
 // Produces a list of frames (full snapshots of both teams, front first) tagged with
 // what just happened, so the client can animate each step.
 // Battle copies of frogs all have the same fields (keeps the engine fast; abilities keep their per-battle counters here)
+// Frogs with a start-of-battle ability (they take turns, see runBattle)
+const START_OF_BATTLE = new Set(['wizard', 'jester', 'princess', 'spitter', 'archer', 'dragon', 'budgett', 'prince', 'squire', 'cleric']);
 const unit = (type, atk, hp, lvl, gear, bid) => ({ id: 0, type, atk, hp, xp: 0, lvl, gear: gear || null, bid, blocked: false, bounced: 0, uses: 0, koBy: null, aura: 0 });
 function runBattle(teamA, teamB, opts = {}) {
   let bid = 0;
@@ -225,11 +227,11 @@ function runBattle(teamA, teamB, opts = {}) {
     if (u.aura && u.type === 'paladin') snap?.('ability', { actor: u.bid, text: `${nm(u)} takes on ${u.aura / u.lvl} ${u.aura === u.lvl ? 'enemy' : 'enemies'}` });
     if (u.aura && u.type === 'guard') snap?.('ability', { actor: u.bid, text: `${nm(u)} stands with its friends` });
   }
-  // Start of battle: the ponds take turns, frog by frog from the front (first pond's front frog, the other
-  // pond's front frog, then the second frogs, ...). opts.first says which pond starts; fight() switches it
-  // every round, so neither seat always acts first.
+  // Start of battle: the ponds take turns, one start-of-battle frog each (each pond's are taken front to back), so
+  // two of one pond's never go in a row while the other pond still has one waiting, however many frogs stand
+  // before them. opts.first says which pond starts; fight() switches it every round, so neither seat always acts first.
   const first = opts.first ? 1 : 0, order = [first, 1 - first];
-  const lines = [[...T[0]], [...T[1]]];
+  const lines = T.map((t) => t.filter((u) => START_OF_BATTLE.has(u.type)));
   // L random enemies from a list (fewer if there aren't that many)
   const some = (pool, L) => { const out = []; pool = [...pool]; while (out.length < L && pool.length) out.push(pool.splice(rand(pool.length), 1)[0]); return out; };
   for (let i = 0; i < Math.max(lines[0].length, lines[1].length); i++) {
