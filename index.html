@@ -181,7 +181,15 @@ input:focus { border-color: var(--firefly); outline: none; }
 .mini:first-child { z-index: 1; }
 
 .profile { display: flex; flex-direction: column; gap: 14px; align-items: stretch; }
-.profile .pv { height: 104px; display: grid; place-items: end center; }
+.profile .pv { position: relative; height: 112px; display: grid; place-items: end center; }
+.profile .pv .frog { margin-bottom: 12px; } /* feet near the middle of the pad, like on the landing page */
+.pv-pad { position: absolute; bottom: 0; left: 50%; width: 132px; height: 52px; transform: translateX(-50%); background: var(--leaf) center / contain no-repeat; }
+/* Frog / Lily pad: a larger switch above the tabs */
+.av-sections { display: flex; gap: 6px; }
+.av-sec { flex: 1; height: 40px; border: 0; border-radius: 14px; background: rgba(245, 237, 214, .06); color: var(--moon-dim); font-size: 16px; font-weight: 900; }
+.av-sec.on { background: rgba(255, 205, 102, .14); color: var(--moon); box-shadow: inset 0 0 0 2px var(--firefly); }
+.wheel-item.padopt { place-items: center; padding: 0; }
+.wheel-pad { width: 62px; height: 35px; background: var(--leaf) center / contain no-repeat; }
 .av-tabs { display: flex; gap: 4px; padding: 4px; border-radius: 14px; background: rgba(5, 15, 18, .28); }
 .av-tab { flex: 1; min-width: 0; height: 34px; border: 0; border-radius: 10px; background: none; color: var(--moon-dim); font-size: 14px; font-weight: 800; }
 .av-tab.on { background: rgba(245, 237, 214, .12); color: var(--moon); }
@@ -561,8 +569,8 @@ const DESC = {
 // Bugs and gear (items.json): name, attack/health given, price; gear stays on the frog
 const FOODS = JSON.parse(document.getElementById('items').textContent);
 const GEAR_TEXT = { bubble: 'blocks the first hit in the next battle' };
-// A Cricket counts as one more copy of the frog (the stats a merge gives, and a step toward the next level)
-const itemText = (k) => (FOODS[k].gear ? GEAR_TEXT[FOODS[k].gear] : FOODS[k].xp ? `${statText(FOODS[k].atk, FOODS[k].hp)} and counts as a copy toward the next level` : statText(FOODS[k].atk, FOODS[k].hp));
+// A Cricket gives a level-up point, like merging one more copy (with the +1/+1 a merge gives)
+const itemText = (k) => (FOODS[k].gear ? GEAR_TEXT[FOODS[k].gear] : FOODS[k].xp ? `a level-up point (and ${statText(FOODS[k].atk, FOODS[k].hp)})` : statText(FOODS[k].atk, FOODS[k].hp));
 const COST = 3;
 
 // =====================================================================
@@ -1164,11 +1172,55 @@ const byId = (list, id) => list.find((o) => o.id === id) || list[0];
 // patterns that were folded into Polka dots keep a dotted look
 const OLD_PATTERNS = { warts: 'spots', leopard: 'spots', gold: 'spots' };
 
+// Lily pads: each player picks a style and a color; their pads in the shop, in battle and under their frog on the
+// landing page use it. Colors are [fill, rim, veins]; the first style in the first color is the original pad.
+const PAD_COLORS = [
+  ['Lily green', '#519d56', '#79c273', '#3f8747'], ['Spring', '#7cbf4e', '#a3db72', '#5e9a36'], ['Jade', '#3a9677', '#62bf9c', '#2b7a5f'],
+  ['Teal', '#358f98', '#5fbac2', '#27737b'], ['Sky', '#4f8fcf', '#7db4e8', '#3a72ad'], ['Lavender', '#8b7cc8', '#b0a4e2', '#6e5fac'],
+  ['Pink', '#d9819f', '#f0a8c0', '#b8637f'], ['Burgundy', '#8f2d48', '#b8516a', '#6e1f35'], ['Autumn', '#d0803a', '#eca65f', '#a9622a'],
+  ['Gold', '#d9aa38', '#f0cc62', '#b0862a'], ['Moss', '#6b8436', '#90a957', '#526827'], ['Midnight', '#3a4c7a', '#5d71a3', '#2a385d'],
+];
+// Every style fits the same 100×56 box, so pads keep their size and place whatever the style
+const PAD_NOTCHED = 'M50 28 L58.4 2.4 A48 26 0 1 1 41.6 2.4 Z';
+const padVeins = (V, ends) => `<path d="${ends.map(([x, y]) => `M50 28L${x} ${y}`).join('')}" stroke="${V}" stroke-width="1.8" stroke-linecap="round"/>`;
+const padClassic = (F, R, V) => `<path d="${PAD_NOTCHED}" fill="${F}"/><path d="${PAD_NOTCHED}" fill="none" stroke="${R}" stroke-width="3" opacity=".55"/>` + padVeins(V, [[22, 42], [50, 52], [78, 42], [12, 24], [88, 24]]);
+const PAD_STYLES = [
+  { id: 'classic', name: 'Classic', art: padClassic },
+  // a water lily in bloom on the front edge, where the frog doesn't hide it
+  { id: 'blossom', name: 'Blossom', art: (F, R, V) => padClassic(F, R, V) + `<g transform="translate(77 40) scale(1.25)">${[0, 60, 120, 180, 240, 300].map((a) => `<ellipse cy="-5" rx="3" ry="6" fill="${a % 120 ? '#fbd3e2' : '#fff1f6'}" transform="rotate(${a})"/>`).join('')}${[30, 150, 270].map((a) => `<ellipse cy="-4" rx="2.4" ry="4.6" fill="#f7a8c6" transform="rotate(${a})"/>`).join('')}<circle r="2.8" fill="#ffd76a"/></g>` },
+  // big glassy dewdrops around the edge of the pad
+  { id: 'dew', name: 'Dewdrops', art: (F, R, V) => padClassic(F, R, V) + [[17, 32, 4.6], [30, 45, 3.8], [72, 46, 4.8], [86, 30, 3.6], [22, 16, 3.2], [80, 14, 3], [52, 48, 2.8]]
+    .map(([x, y, r]) => `<circle cx="${x}" cy="${y + .8}" r="${r}" fill="#000" opacity=".15"/><circle cx="${x}" cy="${y}" r="${r}" fill="#e8f8ff" opacity=".75" stroke="#fff" stroke-width=".8"/><circle cx="${x - r * .35}" cy="${y - r * .38}" r="${r * .34}" fill="#fff"/>`).join('') },
+  // Lotus: a pad with a petalled edge (eight rounded points all round)
+  { id: 'lotus', name: 'Lotus', art: (F, R, V) => { const petals = Array.from({ length: 8 }, (_, k) => { const a = (k / 8) * Math.PI * 2 + Math.PI / 8;
+      const x = (50 + Math.cos(a) * 29).toFixed(1), y = (28 + Math.sin(a) * 12).toFixed(1);
+      return `<ellipse cx="${x}" cy="${y}" rx="${(12 + 4 * Math.abs(Math.cos(a))).toFixed(1)}" ry="9" transform="rotate(${(Math.atan2(Math.sin(a) * .5, Math.cos(a)) * 180 / Math.PI).toFixed(0)} ${x} ${y})"`; });
+    return petals.map((e) => `${e} fill="${R}" stroke="${R}" stroke-width="3"/>`).join('') + petals.map((e) => `${e} fill="${F}"/>`).join('') + `<ellipse cx="50" cy="28" rx="30" ry="13" fill="${F}"/>` + padVeins(V, Array.from({ length: 8 }, (_, k) => { const a = (k / 8) * Math.PI * 2 + Math.PI / 8; return [(50 + Math.cos(a) * 40).toFixed(1), (28 + Math.sin(a) * 18).toFixed(1)]; })); } },
+  { id: 'heart', name: 'Heart', art: (F, R, V) => { const d = 'M50 53C22 42 3 31 6 17 9 5 27 1 40 7 45 9 48 12 50 15 52 12 55 9 60 7 73 1 91 5 94 17 97 31 78 42 50 53Z';
+    return `<path d="${d}" fill="${F}"/><path d="${d}" fill="none" stroke="${R}" stroke-width="3" opacity=".55"/>` + padVeins(V, [[22, 36], [50, 48], [78, 36], [16, 18], [84, 18]]); } },
+  // a four-leaf clover (the rim is drawn under all four leaves, so it only shows around the outside)
+  { id: 'clover', name: 'Clover', art: (F, R, V) => { const leaves = [[29, 28, 21, 13], [71, 28, 21, 13], [50, 14, 20, 11], [50, 42, 20, 12]];
+    return leaves.map(([x, y, rx, ry]) => `<ellipse cx="${x}" cy="${y}" rx="${rx}" ry="${ry}" fill="${R}" stroke="${R}" stroke-width="3"/>`).join('')
+      + leaves.map(([x, y, rx, ry]) => `<ellipse cx="${x}" cy="${y}" rx="${rx}" ry="${ry}" fill="${F}"/>`).join('') + padVeins(V, [[14, 28], [86, 28], [50, 6], [50, 50]]); } },
+];
+const padCache = new Map();
+// The pad as a CSS image (set as --leaf on whatever draws pads for this player)
+function padURL(av) {
+  const a = cleanAv(av), key = `${a.l}:${a.lc}`;
+  if (!padCache.has(key)) {
+    const [, F, R, V] = PAD_COLORS[a.lc];
+    const svg = `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 100 56">${byId(PAD_STYLES, a.l).art(F, R, V)}</svg>`;
+    padCache.set(key, `url("data:image/svg+xml,${encodeURIComponent(svg)}")`);
+  }
+  return padCache.get(key);
+}
+const padStyle = (av) => `--leaf:${padURL(av)}`;
 function cleanAv(a) {
   a = a || {};
   return {
     b: BODIES.includes(a.b) ? a.b : 'classic', c: Math.max(0, Math.min(AV_COLORS.length - 1, a.c | 0)),
     e: byId(AV_EYES, a.e).id, t: byId(AV_PATTERNS, OLD_PATTERNS[a.t] || a.t).id, a: byId(AV_ACCS, a.a).id,
+    l: byId(PAD_STYLES, a.l).id, lc: Math.max(0, Math.min(PAD_COLORS.length - 1, a.lc | 0)),
   };
 }
 // Your name and frog live on the server (ME, loaded at start) so they follow you to any phone
@@ -1711,14 +1763,14 @@ function showHome(msg) {
   ME.start = ''; // only once
   const node = el(`<div class="screen home">
     <button class="ib help-btn" id="helpBtn" aria-label="How to play">?</button>
-    <button class="hero" id="heroBtn" aria-label="Edit your frog"><div class="moon"></div><div class="leafbig"></div><span id="heroAv"></span><span class="hero-edit">${ICON.pencil}</span></button>
+    <button class="hero" id="heroBtn" aria-label="Edit your frog"><div class="moon"></div><div class="leafbig" id="heroPad"></div><span id="heroAv"></span><span class="hero-edit">${ICON.pencil}</span></button>
     <h1>Pond Battle</h1>
     <div class="panel" id="panel"></div>
   </div>`);
   mount('home', node);
   if (msg) toast(msg);
   const panel = $('#panel');
-  const drawHero = () => { $('#heroAv').innerHTML = avatarHTML(myAvatar(), 84, { idle: true, id: 7 }); };
+  const drawHero = () => { $('#heroAv').innerHTML = avatarHTML(myAvatar(), 84, { idle: true, id: 7 }); $('#heroPad').style.setProperty('--leaf', padURL(myAvatar())); };
   drawHero();
   $('#heroBtn').onclick = () => openProfile(() => { drawHero(); if (ME.name) lobbyStep(); });
   $('#helpBtn').onclick = () => { Snd.tap(); openGuide(null, true); };
@@ -1895,7 +1947,7 @@ function showWaiting() {
   if (screen === 'waiting') return;
   const link = `${location.origin}/?join=${S.code}`;
   const node = el(`<div class="screen home fade-in">
-    <div class="hero"><div class="moon"></div><div class="leafbig"></div>${avatarHTML(S.me.avatar, 84, { idle: true, id: 7 })}</div>
+    <div class="hero"><div class="moon"></div><div class="leafbig" style='${padStyle(S.me.avatar)}'></div>${avatarHTML(S.me.avatar, 84, { idle: true, id: 7 })}</div>
     <h1 class="h-sm">Waiting for your partner</h1>
     <div class="code-tiles">${S.code.split('').map((c) => `<span>${c}</span>`).join('')}</div>
     <button class="me-chip" id="wset"><b>${esc(SETS[setId(S.set)].name)}</b> frogs ${ICON.chev}</button>
@@ -2059,6 +2111,7 @@ function updateGame() {
   if (sel && sel.kind === 'team' && !S.me.team[sel.i]) sel = null;
   if (sel && sel.kind === 'food' && !S.me.shop.food) sel = null;
   if (sel && sel.target != null && !S.me.team[sel.target]) sel.target = null;
+  $('#pads')?.style.setProperty('--leaf', padURL(S.me.avatar)); // your pond sits on your own lily pads
   updateHeader(); updatePads(); updateItems(); updateInfo(); updateButtons(); updateTargets(); updateBubble();
 }
 function updateHeader() {
@@ -2605,19 +2658,28 @@ const AV_TABS = [
   { key: 't', label: 'Pattern', opts: AV_PATTERNS },
   { key: 'a', label: 'Extras', opts: AV_ACCS },
 ];
+const PAD_TABS = [
+  { key: 'l', label: 'Style', opts: PAD_STYLES, pad: true },
+  { key: 'lc', label: 'Color', opts: PAD_COLORS.map(([name], i) => ({ id: i, name })), pad: true },
+];
+// The editor's two sections, each with its own tabs
+const AV_SECTIONS = [{ label: 'Frog', tabs: AV_TABS }, { label: 'Lily pad', tabs: PAD_TABS }];
 function openProfile(done) {
-  let av = { ...myAvatar() }, tab = AV_TABS[0], current = -1, settle = 0, steering = -1, steerTimer = 0;
+  let av = { ...myAvatar() }, section = AV_SECTIONS[0], tab = AV_TABS[0], current = -1, settle = 0, steering = -1, steerTimer = 0;
+  const tabsHTML = () => section.tabs.map((t, i) => `<button class="av-tab${t === tab ? ' on' : ''}" data-t="${i}">${t.label}</button>`).join('');
   const s = sheet(`<div class="profile">
       <div class="pv" id="pv"></div>
       <input id="pname" maxlength="14" autocomplete="off" placeholder="Your name" value="${esc(ME.name || '')}">
-      <div class="av-tabs">${AV_TABS.map((t, i) => `<button class="av-tab${i ? '' : ' on'}" data-t="${i}">${t.label}</button>`).join('')}</div>
+      <div class="av-sections">${AV_SECTIONS.map((x, i) => `<button class="av-sec${i ? '' : ' on'}" data-s="${i}">${x.label}</button>`).join('')}</div>
+      <div class="av-tabs">${tabsHTML()}</div>
       <div class="wheel"><div class="wheel-track" id="wt"></div></div>
       <div class="wheel-name" id="wn"></div>
       <div class="btns"><button class="btn" id="psave">Save</button></div>
     </div>`);
   const pv = $('#pv', s.el), inp = $('#pname', s.el), save = $('#psave', s.el), track = $('#wt', s.el), label = $('#wn', s.el);
+  // Your frog standing on your lily pad
   const preview = (hop) => {
-    pv.innerHTML = avatarHTML(av, 92, { idle: true, id: 7 });
+    pv.innerHTML = `<div class="pv-pad" style='${padStyle(av)}'></div>${avatarHTML(av, 92, { idle: true, id: 7 })}`;
     if (hop) anim($('.frog', pv), [{ transform: 'none' }, { transform: 'translateY(-8px)', offset: .4 }, { transform: 'none' }], { duration: 260 });
   };
   const pick = (i) => {
@@ -2638,7 +2700,9 @@ function openProfile(done) {
   };
   track.addEventListener('pointerdown', () => { steering = -1; });
   const fill = () => {
-    track.innerHTML = tab.opts.map((o, i) => `<button class="wheel-item${tab.face ? ' face' : ''}" data-i="${i}" aria-label="${esc(o.name)}">${avatarHTML({ ...av, [tab.key]: o.id }, 52, { id: 300 + i })}</button>`).join('');
+    // lily pad options show just the pad (in your current style or color)
+    track.innerHTML = tab.opts.map((o, i) => `<button class="wheel-item${tab.face ? ' face' : ''}${tab.pad ? ' padopt' : ''}" data-i="${i}" aria-label="${esc(o.name)}">${tab.pad
+      ? `<span class="wheel-pad" style='${padStyle({ ...av, [tab.key]: o.id })}'></span>` : avatarHTML({ ...av, [tab.key]: o.id }, 52, { id: 300 + i })}</button>`).join('');
     current = -1;
     center(Math.max(0, tab.opts.findIndex((o) => o.id === av[tab.key])), false);
   };
@@ -2655,9 +2719,17 @@ function openProfile(done) {
   });
   track.addEventListener('click', (e) => { const it = e.target.closest('.wheel-item'); if (it) { Snd.tap(); center(+it.dataset.i, true); } });
   $('.av-tabs', s.el).addEventListener('click', (e) => {
-    const b = e.target.closest('.av-tab'); if (!b || tab === AV_TABS[+b.dataset.t]) return;
-    Snd.tap(); tab = AV_TABS[+b.dataset.t];
+    const b = e.target.closest('.av-tab'); if (!b || tab === section.tabs[+b.dataset.t]) return;
+    Snd.tap(); tab = section.tabs[+b.dataset.t];
     $$('.av-tab', s.el).forEach((x) => x.classList.toggle('on', x === b));
+    fill();
+  });
+  // Frog / Lily pad: each section opens on its first tab
+  $('.av-sections', s.el).addEventListener('click', (e) => {
+    const b = e.target.closest('.av-sec'); if (!b || section === AV_SECTIONS[+b.dataset.s]) return;
+    Snd.tap(); section = AV_SECTIONS[+b.dataset.s]; tab = section.tabs[0];
+    $$('.av-sec', s.el).forEach((x) => x.classList.toggle('on', x === b));
+    $('.av-tabs', s.el).innerHTML = tabsHTML();
     fill();
   });
   preview(false); fill();
@@ -2877,6 +2949,7 @@ async function playBattle(lb) {
     Object.assign(wv.style, { width: ww + 'px', height: wh + 'px', left: x - ww / 2 + 'px', top: wy - wh / 2 + 'px' });
     arena.appendChild(wv);
     const p = el('<div class="bpad"></div>');
+    p.style.setProperty('--leaf', padURL(side ? view.opp && view.opp.avatar : view.me.avatar)); // each pond on its owner's pads
     Object.assign(p.style, { width: w + 'px', height: h + 'px', left: x - w / 2 + 'px', top: y + lift - h / 2 + 'px' });
     arena.appendChild(p);
   }
@@ -3186,7 +3259,7 @@ function showOver() {
   const wasWin = screen === 'over' ? $('#root').dataset.won === '1' : won;
   const me = S.me, opp = S.opp;
   const node = el(`<div class="screen over fade-in">
-    <div class="hero" style="width:100%"><div class="moon"></div><div class="leafbig"></div>${avatarHTML(wasWin ? me.avatar : opp.avatar, 96, { idle: true, crown: true, id: 7 })}</div>
+    <div class="hero" style="width:100%"><div class="moon"></div><div class="leafbig" style='${padStyle(wasWin ? me.avatar : opp.avatar)}'></div>${avatarHTML(wasWin ? me.avatar : opp.avatar, 96, { idle: true, crown: true, id: 7 })}</div>
     <h1>${wasWin ? 'You win the pond' : `${esc(opp.name)} wins the pond`}</h1>
     ${restarted ? `<p class="lede">${esc(opp.name)} started a new game</p>` : ''}
     ${restarted ? '' : `<div class="score"><div>${avatarHTML(me.avatar, 40, { id: 1 })}<b>${esc(me.name)}</b>${pips(5, me.hearts, ICON.heart)}</div><div>${avatarHTML(opp.avatar, 40, { id: 2 })}<b>${esc(opp.name)}</b>${pips(5, opp.hearts, ICON.heart)}</div></div>`}

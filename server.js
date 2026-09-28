@@ -55,13 +55,15 @@ let saveTimer = null;
 const save = () => { clearTimeout(saveTimer); saveTimer = setTimeout(() => fs.writeFile(SAVE, JSON.stringify(rooms), () => {}), 500); };
 
 const cleanName = (n) => String(n || '').replace(/\s+/g, ' ').trim().slice(0, 14) || 'Frog';
-// Avatar: a frog body shape in one of 13 colors, plus eyes, pattern and accessory (the page draws them)
-const AV_COLORS = 13, AV_BODIES = ['classic', 'slim', 'tall', 'round', 'toad', 'bull', 'flat', 'tadpole'];
+// Avatar: a frog body shape in one of 13 colors, plus eyes, pattern, accessory and a lily pad (the page draws them)
+const PAD_COLORS = 12, AV_COLORS = 13, AV_BODIES = ['classic', 'slim', 'tall', 'round', 'toad', 'bull', 'flat', 'tadpole'];
 // Eyes, pattern and accessory are short option ids; the page owns the art and falls back to the default for unknown ids
 const optId = (v, dflt) => (/^[a-z]{1,12}$/.test(String(v || '')) ? v : dflt);
 const cleanAvatar = (a) => ({
   b: AV_BODIES.includes(a && a.b) ? a.b : 'classic', c: Math.max(0, Math.min(AV_COLORS - 1, (a && a.c) | 0)),
   e: optId(a && a.e, 'dark'), t: optId(a && a.t, 'none'), a: optId(a && a.a, 'none'),
+  // lily pad: style id and color (one of PAD_COLORS on the page)
+  l: optId(a && a.l, 'classic'), lc: Math.max(0, Math.min(PAD_COLORS - 1, (a && a.lc) | 0)),
 });
 function newPlayer(uid) {
   const pr = profile(uid);
@@ -133,7 +135,7 @@ function nudge(room) {
 
 // ---------- Practice: Pond Bot shops on its own, then readies up ----------
 const botTimers = new Map(); // room code -> pending turn
-function newBot() { const b = { ...newPlayer(''), name: 'Pond Bot', avatar: { b: 'round', c: 3 }, bot: true }; return b; }
+function newBot() { const b = { ...newPlayer(''), name: 'Pond Bot', avatar: { b: 'round', c: 3, l: 'dew', lc: 3 }, bot: true }; return b; }
 function scheduleBot(room) {
   const bot = room.players.find((x) => x.bot);
   if (!bot || room.phase !== 'shop' || bot.ready || botTimers.has(room.code)) return;
