@@ -12,7 +12,8 @@
 | `telegram.js` | Checks Mini App launch data; the bot (Play button, invites, "your move" nudges) |
 | `index.html` | The whole client (it only replays battles the server computed) |
 | `frogs.json`, `items.json` | Stats, tiers and prices |
-| `tools/simulate.js` | Plays 120k full games and reports how every frog and item does (changes nothing) |
+| `sets.json` | Frog sets: which frogs a pond's shop sells (picked when the pond is made) |
+| `tools/simulate.js` | Plays 120k full games per set and reports how every frog and item does (changes nothing) |
 | `deploy/compose.yaml` | How it runs on Tower |
 
 No dependencies: plain Node (20+).

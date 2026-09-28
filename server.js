@@ -18,7 +18,9 @@ const HISTORY = process.env.HISTORY_FILE || path.join(DATA, 'games.jsonl');
 const GUESTS = process.env.ALLOW_GUESTS !== '0';
 const E = require('./engine');
 const TG = require('./telegram');
-const { FROGS, FOODS, rand, frogCost, botShop } = E;
+const { FROGS, FOODS, SETS, rand, frogCost, botShop } = E;
+// The set a new pond plays (sent by the page); unknown ids get the first set
+const cleanSet = (v) => (SETS[v] ? v : E.DEFAULT_SET);
 
 // ---------- Players ----------
 // A player id is "tg<telegram id>" (checked with Telegram's signature) or "g<random>" for browser guests.
@@ -53,8 +55,8 @@ let saveTimer = null;
 const save = () => { clearTimeout(saveTimer); saveTimer = setTimeout(() => fs.writeFile(SAVE, JSON.stringify(rooms), () => {}), 500); };
 
 const cleanName = (n) => String(n || '').replace(/\s+/g, ' ').trim().slice(0, 14) || 'Frog';
-// Avatar: a frog body shape in one of 10 colors, plus eyes, pattern and accessory (the page draws them)
-const AV_COLORS = 10, AV_BODIES = ['classic', 'slim', 'tall', 'round', 'toad', 'bull', 'tadpole'];
+// Avatar: a frog body shape in one of 13 colors, plus eyes, pattern and accessory (the page draws them)
+const AV_COLORS = 13, AV_BODIES = ['classic', 'slim', 'tall', 'round', 'toad', 'bull', 'flat', 'tadpole'];
 // Eyes, pattern and accessory are short option ids; the page owns the art and falls back to the default for unknown ids
 const optId = (v, dflt) => (/^[a-z]{1,12}$/.test(String(v || '')) ? v : dflt);
 const cleanAvatar = (a) => ({
@@ -79,10 +81,10 @@ function currentPage() {
   const st = fs.statSync(INDEX);
   if (st.mtimeMs !== page.mtime) {
     const raw = fs.readFileSync(INDEX, 'utf8');
-    const catalog = JSON.stringify(Object.fromEntries(Object.entries(FROGS).map(([k, f]) => [k, { name: f.name, tier: f.tier, atk: f.atk, hp: f.hp, cost: frogCost(k) }])));
-    const items = JSON.stringify(FOODS);
-    const build = crypto.createHash('sha1').update(raw + catalog + items).digest('hex').slice(0, 10);
-    page = { mtime: st.mtimeMs, build, html: raw.replace('__BUILD__', build).replace('__CATALOG__', catalog.replace(/</g, '\\u003c')).replace('__ITEMS__', items.replace(/</g, '\\u003c')) };
+    const catalog = JSON.stringify(Object.fromEntries(Object.entries(FROGS).map(([k, f]) => [k, { name: f.name, tier: f.tier, atk: f.atk, hp: f.hp, cost: frogCost(k), ...(f.fixed ? { fixed: f.fixed } : {}) }])));
+    const items = JSON.stringify(FOODS), sets = JSON.stringify(SETS);
+    const build = crypto.createHash('sha1').update(raw + catalog + items + sets).digest('hex').slice(0, 10);
+    page = { mtime: st.mtimeMs, build, html: raw.replace('__BUILD__', build).replace('__CATALOG__', catalog.replace(/</g, '\\u003c')).replace('__ITEMS__', items.replace(/</g, '\\u003c')).replace('__SETS__', sets.replace(/</g, '\\u003c')) };
   }
   return page;
 }
@@ -94,7 +96,7 @@ const online = (room, p) => !!p.bot || [...(subs.get(room.code) || [])].some((s)
 function view(room, me) {
   const i = room.players.indexOf(me), opp = room.players[1 - i];
   return {
-    v: room.v, build: currentPage().build, code: room.code, round: room.round, phase: room.phase, seat: i, winner: room.winner, game: room.game,
+    v: room.v, build: currentPage().build, code: room.code, set: E.setOf(room), round: room.round, phase: room.phase, seat: i, winner: room.winner, game: room.game,
     me: { name: me.name, avatar: me.avatar || cleanAvatar(), hearts: me.hearts, trophies: me.trophies, gold: me.gold, team: me.team, shop: me.shop, ready: me.ready },
     opp: opp ? { name: opp.name, avatar: opp.avatar || cleanAvatar(), bot: !!opp.bot, hearts: opp.hearts, trophies: opp.trophies, ready: opp.ready, online: online(room, opp) } : null,
     lastBattle: room.lastBattle,
@@ -152,6 +154,7 @@ function recordGame(room) {
     v: 1,
     id: crypto.randomBytes(6).toString('hex'),
     room: room.code,
+    set: E.setOf(room),
     practice: !!room.practice,
     startedAt: room.gameStarted ? new Date(room.gameStarted).toISOString() : null,
     endedAt: new Date().toISOString(),
@@ -212,12 +215,12 @@ http.createServer(async (req, res) => {
       const mine = (r) => !!uid && r.players.some((p) => p.uid === uid);
       const seat = (r, p) => ({ name: p.name, avatar: p.avatar || cleanAvatar(), online: online(r, p), bot: !!p.bot });
       const waiting = list.filter((r) => r.players.length === 1 && now - r.created < 6 * 3600e3).sort((x, y) => y.created - x.created);
-      const pond = (r) => ({ code: r.code, mine: mine(r), seats: r.players.map((p) => seat(r, p)) });
+      const pond = (r) => ({ code: r.code, set: E.setOf(r), mine: mine(r), seats: r.players.map((p) => seat(r, p)) });
       return json(res, 200, {
         nearby: waiting.filter((r) => mine(r) || r.ip === ip).map(pond),
         active: list.filter((r) => r.players.length === 2 && r.phase !== 'over' && mine(r) && now - (r.touched || r.created) < 24 * 3600e3)
           .sort((x, y) => (y.touched || y.created) - (x.touched || x.created))
-          .map((r) => ({ code: r.code, round: r.round, mine: true, practice: !!r.practice, seats: r.players.map((p) => seat(r, p)) })),
+          .map((r) => ({ code: r.code, set: E.setOf(r), round: r.round, mine: true, practice: !!r.practice, seats: r.players.map((p) => seat(r, p)) })),
       });
     }
     if (url.pathname === '/api/state') {
@@ -274,17 +277,21 @@ http.createServer(async (req, res) => {
       return json(res, 200, { name: pr.name, avatar: pr.avatar });
     }
     if (url.pathname === '/api/create') {
-      // One waiting pond per player: starting again just takes you back to it
+      // One waiting pond per player: starting again just takes you back to it (with the set picked this time)
+      const set = cleanSet(b.set);
       const open = Object.values(rooms).find((r) => r.players.length === 1 && r.players[0].uid === uid);
-      if (open) return json(res, 200, { room: open.code, token: open.players[0].token });
+      if (open) {
+        if (E.setOf(open) !== set) { open.set = set; resetGame(open); changed(open); }
+        return json(res, 200, { room: open.code, token: open.players[0].token });
+      }
       const c = code(), p = newPlayer(uid);
-      rooms[c] = { code: c, created: Date.now(), v: 1, ip: clientIp(req), players: [p] };
+      rooms[c] = { code: c, created: Date.now(), v: 1, set, ip: clientIp(req), players: [p] };
       resetGame(rooms[c]); save();
       return json(res, 200, { room: c, token: p.token });
     }
     if (url.pathname === '/api/practice') {
       const c = code(), p = newPlayer(uid);
-      rooms[c] = { code: c, created: Date.now(), v: 1, practice: true, players: [p, newBot()] };
+      rooms[c] = { code: c, created: Date.now(), v: 1, set: cleanSet(b.set), practice: true, players: [p, newBot()] };
       resetGame(rooms[c]); changed(rooms[c]);
       return json(res, 200, { room: c, token: p.token });
     }

@@ -396,6 +396,18 @@ h1 { margin: 0; text-align: center; font-size: 40px; font-weight: 900; line-heig
 .guide-row .gname { display: block; color: var(--moon); font-size: 16px; font-weight: 900; margin-bottom: 1px; }
 .guide-row div.txt { font-size: 14px; color: var(--moon-dim); line-height: 1.35; }
 .guide-row div.txt b { color: var(--moon); font-weight: 800; }
+/* Sets: the cards on New pond / Practice, and the set tabs in How to play */
+.set-cards { display: flex; flex-direction: column; gap: 10px; }
+.set-card { display: flex; align-items: center; gap: 12px; min-height: 78px; padding: 8px 10px 8px 12px; border-radius: 18px; background: rgba(245, 237, 214, .05); cursor: pointer; transition: background-color .18s, box-shadow .18s; }
+.set-card.on { background: rgba(255, 205, 102, .1); box-shadow: inset 0 0 0 2px var(--firefly); }
+.set-cover { display: flex; flex: none; align-items: flex-end; }
+.set-cover .sc { display: flex; align-items: flex-end; }
+.set-cover .sc + .sc { margin-left: -12px; }
+.set-name { flex: 1; min-width: 0; font-size: 18px; font-weight: 900; line-height: 1.15; }
+.set-name small, .pond-btn .pt small { display: block; font-size: 13px; font-weight: 700; color: var(--moon-dim); }
+.set-info { flex: none; width: 34px; height: 34px; border: 0; border-radius: 50%; background: rgba(245, 237, 214, .1); color: var(--moon); font: italic 900 17px Georgia, serif; }
+.set-tabs { margin-top: 16px; }
+.guide-set { margin: 18px 0 -6px; font-size: 18px; font-weight: 900; }
 .rules { margin: 0; padding-left: 18px; color: var(--moon-dim); line-height: 1.5; font-size: 15px; }
 .rules li { margin-bottom: 4px; }
 .rules b { color: var(--moon); }
@@ -426,6 +438,11 @@ h1 { margin: 0; text-align: center; font-size: 40px; font-weight: 900; line-heig
 .fx-ring.charm { border-color: rgba(255, 160, 196, .95); box-shadow: 0 0 14px rgba(255, 160, 196, .6); }
 .float .charm .ic { width: 22px; height: 20px; }
 .fx-wave { position: absolute; border-radius: 50%; border: 4px solid rgba(160, 220, 255, .8); pointer-events: none; z-index: 25; }
+.fx-wave.fire { border-color: rgba(255, 150, 70, .95); background: radial-gradient(closest-side, rgba(255, 170, 80, .35), transparent); }
+.fx-wave.scream { border: 3px dashed rgba(255, 240, 200, .85); }
+.fx-arrow { position: absolute; left: 0; top: 0; width: 24px; height: 4px; margin-top: 5px; border-radius: 2px; background: #c89a62; z-index: 30; transform-origin: 50% 50%; }
+.fx-arrow::after { content: ''; position: absolute; right: -5px; top: -4px; border: 6px solid transparent; border-left: 8px solid #e7eef5; border-right: 0; }
+.fx-arrow::before { content: ''; position: absolute; left: -2px; top: -3px; width: 7px; height: 10px; background: #f0869f; clip-path: polygon(0 0, 100% 30%, 100% 70%, 0 100%); }
 /* The play-by-play: a note in the gap between your last pad and your plaque (always the same height: it
    mirrors the room the top frog stands in). Its top is set when the battlefield is laid out */
 .caption:empty { visibility: hidden; }
@@ -472,6 +489,7 @@ h1 { margin: 0; text-align: center; font-size: 40px; font-weight: 900; line-heig
 <div class="toast note" id="toast"></div>
 <script id="catalog" type="application/json">__CATALOG__</script>
 <script id="items" type="application/json">__ITEMS__</script>
+<script id="sets" type="application/json">__SETS__</script>
 <script>
 'use strict';
 // =====================================================================
@@ -482,38 +500,69 @@ const CATALOG = JSON.parse(document.getElementById('catalog').textContent);
 const NAMES = Object.fromEntries(Object.entries(CATALOG).map(([k, f]) => [k, f.name]));
 const TIER = Object.fromEntries(Object.entries(CATALOG).filter(([, f]) => f.tier > 0).map(([k, f]) => [k, [0, 1, 3, 5, 7][f.tier]]));
 const BASE = Object.fromEntries(Object.entries(CATALOG).map(([k, f]) => [k, [f.atk, f.hp]]));
+// Frog sets (sets.json): a pond plays one set, picked when it's made. cover: the frogs on its card.
+const SETS = JSON.parse(document.getElementById('sets').textContent);
+const SET_IDS = Object.keys(SETS);
+const setId = (id) => (SETS[id] ? id : SET_IDS[0]);
+// Stats that only follow the level (Frog King both, Pebble Toad's attack): base stats times the level
+function fixStats(f) {
+  const x = CATALOG[f.type] && CATALOG[f.type].fixed;
+  if (x) { f.atk = BASE[f.type][0] * f.lvl; if (x === 'both') f.hp = BASE[f.type][1] * f.lvl; }
+}
 // Ability words: Buy, Sell, Start of round, End of round, Start of battle, Before attack, Attack,
 // Hurt, Faint, Friend ahead faints, Enemy ahead faints.
-const statText = (a, h) => [a && `+${a} attack`, h && `+${h} health`].filter(Boolean).join(' and ');
+// Stats read as +1/+1 when both change, else "+1 attack" / "+1 health"
+const statText = (a, h) => (a && h ? `+${a}/+${h}` : a ? `+${a} attack` : `+${h} health`);
+const times = (L) => (L === 1 ? 'once' : L === 2 ? 'twice' : `${L} times`);
 const DESC = {
   tadpole:  (L) => ['Faint', `become a ${L}/${L} Froglet`],
-  peeper:   (L) => ['Buy', `give a random friend ${statText(L, 0)}`],
-  lily:     (L) => ['End of round', `give the friend ahead ${statText(0, L)}`],
-  tree:     (L) => ['Faint', `give a random friend ${statText(2 * L, L)} this battle`],
+  peeper:   (L) => ['Buy', `a random friend gets ${statText(L, 0)}`],
+  lily:     (L) => ['End of round', `the friend ahead gets ${statText(0, L)}`],
+  tree:     (L) => ['Faint', `a random friend gets ${statText(2 * L, L)} this battle`],
   toad:     (L) => ['Hurt', `gain ${statText(L, 0)} this battle`],
-  spitter:  (L) => ['Start of battle', L === 1 ? 'deal 2 damage to a random enemy' : `deal 2 damage to ${L} random enemies`],
+  spitter:  (L) => ['Start of battle', `2 damage to ${L === 1 ? 'a random enemy' : `${L} random enemies`}`],
   bullfrog: (L) => ['Friend ahead faints', `gain ${statText(L, L)} this battle`],
   knight:   (L) => ['Before attack', `gain ${statText(L, 0)} this battle`],
-  prince:   (L) => ['Start of battle', `give all friends ${statText(L, L)} this battle`],
-  goliath:  (L) => ['Faint', `deal ${2 * L} damage to all enemies`],
-  glass:    (L) => ['Sell', `give a random friend ${statText(L, L)}`],
+  prince:   (L) => ['Start of battle', `all friends get ${statText(L, L)} this battle`],
+  goliath:  (L) => ['Faint', `${2 * L} damage to all enemies`],
+  glass:    (L) => ['Sell', `a random friend gets ${statText(L, L)}`],
   hungry:   (L) => ['Knocks out an enemy', `gain ${statText(L, L)} this battle`],
-  rain:     (L) => ['Hurt', `give the friend behind ${statText(L, L)} this battle`],
-  lucky:    (L) => ['Start of round', `gain ${L} extra gold`],
-  mama:     (L) => ['Faint', `lay as many ${L}/${L} Froglets as there’s room for`],
-  wizard:   (L) => ['Start of battle', L === 1 ? 'shrink the strongest enemy to 1/1 (it keeps its ability)' : `shrink the ${L} strongest enemies to 1/1 (they keep their abilities)`],
-  bouncy:   (L) => ['Faint', `come back once on the last lily pad with ${2 * L} health`],
-  surinam:  (L) => ['Hurt', `a ${L}/${L} Froglet hatches behind it`],
-  hypno:    (L) => ['Before attack', `send the enemy ahead to the back, ${L === 1 ? 'once' : L === 2 ? 'twice' : `${L} times`} per battle`],
-  princess: (L) => ['Start of battle', L === 1 ? 'charm the strongest enemy so it hits itself' : `charm the ${L} strongest enemies so they hit themselves`],
-  chameleon:(L) => ['Start of battle', `copy the ability of the friend behind, at level ${L}`],
-  leapfrog: (L) => ['Attack', L === 1 ? 'leap over the line and hit the enemy’s last frog' : `leap over the line and hit the enemy’s last ${L} frogs`],
+  rain:     (L) => ['Hurt', `the friend behind gets ${statText(L, L)} this battle`],
+  lucky:    (L) => ['Start of round', `+${L} gold`],
+  mama:     (L) => ['Friend hatches', `it gets ${statText(L, L)}`],
+  wizard:   (L) => ['Start of battle', `shrink ${L === 1 ? 'a random enemy' : `${L} random enemies`} to 1/1`],
+  bouncy:   (L) => ['Faint', `come back once at the back with ${2 * L} health`],
+  surinam:  (L) => ['Faint', `fill the pond with ${L}/${L} Froglets`],
+  midwife:  (L) => ['Hurt', `a ${L}/${L} Froglet hatches behind it`],
+  turtle:   (L) => ['', `Takes ${L} less damage per hit (min 1)`],
+  pebble:   (L) => ['Attack', `hits all enemies. Attack is always ${BASE.pebble[0] * L}`],
+  golden:   (L) => ['Attack', L === 1 ? 'its first hit knocks the enemy out' : `its first ${L} hits knock enemies out`],
+  budgett:  (L) => ['Start of battle', `all enemies get −${L} attack this battle (min 1)`],
+  peasant:  () => ['', 'No ability'],
+  guard:    (L) => ['', `${statText(L, L)} for each friend beside it`],
+  archer:   (L) => ['Start of battle', `2 damage to the enemy’s last ${L === 1 ? 'frog' : `${L} frogs`}`],
+  merchant: (L) => ['Sell', `+${L} extra gold`],
+  blacksmith: (L) => ['End of round', `the friend ahead gets ${statText(L, 0)}`],
+  bard:     (L) => ['Buy', `2 random friends get ${statText(0, L)}`],
+  jester:   (L) => ['Start of battle', `swap attack and health of ${L === 1 ? 'a random enemy' : `${L} random enemies`}`],
+  rogue:    () => ['', 'Only the enemy it’s fighting can hurt it'],
+  squire:   (L) => ['Start of battle', `the friend ahead gets ${statText(L, L)} this battle`],
+  cleric:   (L) => ['Start of battle', `${L === 1 ? 'the friend ahead gets' : `the ${L} friends ahead get`} a Bubble`],
+  necro:    (L) => ['Friend faints', `it comes back as 1/1 (${times(L)} per battle)`],
+  king:     (L) => ['', `Friends behind it are immune to enemies. Stats always ${BASE.king[0] * L}/${BASE.king[1] * L}`],
+  paladin:  (L) => ['', `${statText(L, L)} for each living enemy`],
+  dragon:   (L) => ['Start of battle', `${L} damage to all enemies`],
+  hypno:    (L) => ['Before attack', `send the enemy ahead to the back (${times(L)} per battle)`],
+  princess: (L) => ['Start of battle', L === 1 ? 'the strongest enemy hits itself' : `the ${L} strongest enemies hit themselves`],
+  chameleon:(L) => ['Start of battle', `copy the ability of the friend behind (at level ${L})`],
+  leapfrog: (L) => ['Attack', `leap over and hit the enemy’s last ${L === 1 ? 'frog' : `${L} frogs`}`],
   froglet:  () => ['', 'No ability'],
 };
 // Bugs and gear (items.json): name, attack/health given, price; gear stays on the frog
 const FOODS = JSON.parse(document.getElementById('items').textContent);
 const GEAR_TEXT = { bubble: 'blocks the first hit in the next battle' };
-const itemText = (k) => (FOODS[k].gear ? GEAR_TEXT[FOODS[k].gear] : statText(FOODS[k].atk, FOODS[k].hp));
+// A Cricket counts as one more copy of the frog (the stats a merge gives, and a step toward the next level)
+const itemText = (k) => (FOODS[k].gear ? GEAR_TEXT[FOODS[k].gear] : FOODS[k].xp ? `${statText(FOODS[k].atk, FOODS[k].hp)} and counts as a copy toward the next level` : statText(FOODS[k].atk, FOODS[k].hp));
 const COST = 3;
 
 // =====================================================================
@@ -618,6 +667,14 @@ const BODY = {
       + C(33, 35, 15, p.c) + C(67, 35, 15, p.c),
     front: E(36, 90, 9.5, 5, p.foot) + E(64, 90, 9.5, 5, p.foot),
     eyes: [[33, 34, 10], [67, 34, 10]], cheeks: [[27, 58], [73, 58]], mouth: [50, 58, 28], top: [50, 21], crown: [50, 30], neck: [50, 67, 32], heart: [50, 74], hat: [50, 34],
+  }),
+  // Flat: a wide, low frog with a broad head (Budgett's frog, the Guard)
+  flat: (p) => ({
+    back: E(14, 86, 15, 6.5, p.dark) + E(86, 86, 15, 6.5, p.dark),
+    torso: E(50, 70, 43, 21, p.c) + E(50, 80, 26, 9, p.belly),
+    head: E(50, 55, 38, 19, p.c),
+    front: E(33, 90, 9, 4.5, p.foot) + E(67, 90, 9, 4.5, p.foot),
+    eyes: [[35, 45, 8], [65, 45, 8]], cheeks: [[18, 63], [82, 63]], mouth: [50, 61, 24], top: [50, 34], crown: [50, 39], neck: [50, 72, 30], heart: [50, 79], hat: [50, 44],
   }),
   tadpole: (p) => ({
     back: `<path d="M38 60C26 50 14 44 3 48 9 57 18 63 30 68 34 70 38 67 38 64Z" fill="${p.light}" opacity=".9"/>`
@@ -740,7 +797,6 @@ const ART = {
     const flank = (x, dir) => E(x, 67, 5.5, 12, '#3f86d6') + `<path d="M${x - 4 * dir} 61h${7 * dir}M${x - 4 * dir} 66.5h${7.5 * dir}M${x - 3.5 * dir} 72h${6.5 * dir}" stroke="#eef5ff" stroke-width="1.7" stroke-linecap="round"/>`;
     return compose(b, p, { eyes: 'red', under: flank(22, 1) + flank(78, -1) });
   },
-  toad: () => { const p = pal('#b88a5c'), b = BODY.toad(p); return compose(b, p, { under: dotsSVG(b.dots, mix('#b88a5c', '#3b2a1c', .35)), brows: true, mouth: 'flat' }); },
   // Poison dart frog: vivid blue, black spots, dark legs
   spitter: () => {
     const p = pal('#4ea5ee', { dark: '#1d2a44', foot: '#1d2a44', limb: '#1d2a44', toe: '#1d2a44' }), b = BODY.slim(p);
@@ -754,15 +810,6 @@ const ART = {
   },
   knight: () => { const p = pal('#9aa7d8'), b = BODY.classic(p); return compose(b, p, hat(b, HELMET, 1.3, 5)); },
   prince: () => { const p = pal('#f1b13b'), b = BODY.classic(p); return compose(b, p, hat(b, CROWN, 1, 0)); },
-  // Goliath: huge, dark, mottled, with a spiny ridge and a stern brow
-  goliath: () => {
-    const p = pal('#4d7c45'), b = BODY.bull(p);
-    return compose(b, p, {
-      under: dotsSVG([[28, 60, 3.4], [72, 58, 3], [62, 76, 2.6], [38, 78, 2.6], [80, 70, 2.2], [20, 70, 2.2]], mix('#4d7c45', '#1b2a22', .45))
-        + `<path d="M39 ${b.hat[1] + 1}l4-10 4 10zM46 ${b.hat[1] + 1}l4-12 4 12zM53 ${b.hat[1] + 1}l4-10 4 10z" fill="${p.deep}"/>`, // spikes grow out of the head, behind the eyes
-      brows: true,
-    });
-  },
   // Glass frog: see-through, with its little heart showing
   glass: () => { const p = pal('#cdeee2'), b = BODY.tall(p); return compose(b, p, { glass: true, inside: heartSVG(b.heart, .9) + dotsSVG([[36, 56, 1.3], [63, 54, 1.2], [58, 80, 1.1], [42, 82, 1.1], [70, 68, 1]], '#f4fff9') }); },
   // Pac-man frog: a round mouth on legs, horned eyelids, mottled back
@@ -844,7 +891,7 @@ Object.assign(ART, {
     const eggs = [[23, 42, 6], [32, 34, 6.5], [68, 34, 6.5], [77, 42, 6]].map(([x, y, r]) => egg(x, y, r)).join('') + baby(43, 28, 7) + baby(57, 28, 7);
     return compose(b, p, { behind: eggs });
   },
-  hypno: () => { const p = pal('#a97fdc'), b = BODY.classic(p); return compose(b, p, { eyes: 'spiral' }); },
+  hypno: () => { const p = pal('#a97fdc'), b = BODY.classic(p); return compose(b, p, { eyes: 'spiral', over: PENDULUM }); },
   princess: () => { const p = pal('#8fcbf2'), b = BODY.classic(p); return compose(b, p, { lashes: true, ...hat(b, TIARA, .95, 0) }); },
   // Leapfrog: a spotted leopard frog, always looking back the other way (it leaps over the line)
   leapfrog: () => {
@@ -862,9 +909,180 @@ Object.assign(ART, {
     });
   },
 });
+// ----- Nature: new frogs, drawn after the real species -----
+Object.assign(ART, {
+  // Hairy frog: dark brown, with the hair-like skin strands on its flanks and thighs it's named for
+  toad: () => {
+    const p = pal('#86493f'), b = BODY.toad(p);
+    // wavy strands hanging off the flanks and thighs, a lighter shade so they read against the body
+    const strands = (side) => [[12, 60], [9, 66], [8, 72], [8, 78], [10, 84], [15, 89], [21, 92], [28, 93]].map(([x, y], k) => {
+      const X = side ? 100 - x : x, d = side ? 1 : -1;
+      return `<path d="M${X - d * 3} ${y - 2}q${d * 4} ${2 + (k % 2)} ${d * 3} ${5}t${d * 2} ${4.5}" stroke="${mix('#86493f', '#f0dcc4', .38)}" stroke-width="1.9" fill="none" stroke-linecap="round"/>`;
+    }).join('');
+    return compose(b, p, { under: dotsSVG(b.dots.slice(0, 5), mix('#86493f', '#1b1410', .3)), over: strands(0) + strands(1), brows: true, mouth: 'flat' });
+  },
+  // Mossy frog: lumpy, bumpy skin in moss green with dark blotches, so it looks like a clump of moss
+  goliath: () => {
+    const p = pal('#6aa64e', { dark: '#3e6a33', foot: '#557f3f' }), b = BODY.bull(p);
+    const lumps = Array.from({ length: 18 }, (_, k) => { const a = (k / 18) * Math.PI * 2; return C(50 + Math.cos(a) * 40, 62 + Math.sin(a) * 28, 5.2, p.c); }).join('');
+    const blotch = '#33301f';
+    return compose({ ...b, torso: lumps + b.torso }, p, {
+      under: dotsSVG([[27, 58, 4.4], [70, 55, 5], [60, 78, 4], [38, 80, 3.6], [82, 68, 3.4], [18, 70, 3.4], [50, 49, 3]], blotch)
+        + dotsSVG([[33, 66, 2], [64, 66, 2.2], [46, 60, 1.8], [74, 76, 1.8], [24, 78, 1.8], [56, 86, 1.6], [42, 71, 1.5]], '#a9d86e'),
+      inside: dotsSVG([[22, 30, 2.4], [78, 30, 2.4], [44, 24, 1.8], [58, 23, 2]], blotch),
+      eyes: 'iris:#b0512f',
+    });
+  },
+  // Midwife toad: a sandy, warty toad carrying strings of yellow eggs wrapped around its back legs
+  midwife: () => {
+    const p = pal('#cfb07a'), b = BODY.classic(p);
+    const egg = (x, y, r = 3.4) => C(x, y + .8, r, '#8f6d2e', ' opacity=".35"') + C(x, y, r, '#f6d468') + C(x - r * .35, y - r * .35, r * .3, '#fffbe0');
+    const clutch = (side) => [[8, 82], [12, 77.5], [18, 76], [24, 78], [7, 88], [12, 92], [19, 93.5], [26, 91]].map(([x, y]) => egg(side ? 100 - x : x, y)).join('');
+    return compose(b, p, { under: dotsSVG([[30, 58, 2.6], [70, 57, 2.4], [60, 75, 2.2], [40, 76, 2.2], [50, 52, 2]], mix('#cfb07a', '#4a3a1c', .4)), over: clutch(0) + clutch(1) });
+  },
+  // Turtle frog: a round, pinkish dome of a frog with a tiny head and little eyes (it digs, head first)
+  turtle: () => {
+    const p = pal('#e2a98e');
+    const b = {
+      back: '',
+      torso: E(50, 63, 37, 30, p.c) + E(50, 74, 22, 14, p.belly),
+      head: E(50, 38, 17, 12, p.c),
+      front: E(30, 90, 8, 4.5, p.foot) + E(70, 90, 8, 4.5, p.foot),
+      eyes: [[42, 35, 6.4], [58, 35, 6.4]], cheeks: [[31, 47], [69, 47]], mouth: [50, 44, 9], top: [50, 25], crown: [50, 28], neck: [50, 52, 20], heart: [50, 72], hat: [50, 30],
+    };
+    return compose(b, p, { under: `<path d="M24 48Q50 34 76 48" stroke="${p.dark}" stroke-width="1.6" fill="none" opacity=".35" stroke-linecap="round"/>` });
+  },
+  // Pebble toad: a little charcoal, knobbly toad that tucks up into a ball, with two pebbles beside it
+  pebble: () => {
+    const p = pal('#55555c', { foot: '#3f3f45', belly: '#77777e' });
+    const b = {
+      back: C(18, 88, 6.5, '#8d8a84') + C(10, 91, 3.8, '#a39f97') + C(84, 90, 5, '#98948d'),
+      torso: C(50, 63, 29, p.c) + E(50, 74, 17, 11, p.belly),
+      head: C(39, 43, 10.5, p.c) + C(61, 43, 10.5, p.c),
+      front: E(40, 90, 7, 4, p.foot) + E(60, 90, 7, 4, p.foot),
+      eyes: [[39, 43, 7.5], [61, 43, 7.5]], cheeks: [[30, 62], [70, 62]], mouth: [50, 58, 13], top: [50, 31], crown: [50, 34], neck: [50, 66, 22], heart: [50, 72], hat: [50, 36],
+    };
+    return compose(b, p, { under: dotsSVG([[28, 66, 2.6], [72, 64, 2.8], [36, 80, 2.2], [64, 80, 2.4], [50, 50, 2], [22, 56, 1.8], [78, 54, 1.8]], '#7b7b83') });
+  },
+  // Budgett's frog: a wide, flat frog that's mostly mouth, screaming, with small eyes on top
+  budgett: () => {
+    const p = pal('#8e8a58', { belly: '#d6cf9a' }), b = { ...BODY.flat(p), eyes: [[36, 42, 7], [64, 42, 7]], mouth: [50, 57, 44] };
+    return compose(b, p, { under: dotsSVG([[20, 72, 2.4], [80, 72, 2.4], [28, 81, 2], [72, 81, 2], [12, 64, 1.8], [88, 64, 1.8]], '#d8d08a'), mouth: 'open', noCheeks: true });
+  },
+  // Golden poison frog: small, glossy and golden, with dark eyes and toes
+  golden: () => {
+    const p = pal('#f4ad22', { toe: '#2d2620', light: '#ffd878' }), b = BODY.tall(p);
+    return compose(b, p, { inside: E(38, 55, 7, 3.4, '#fff3c6', ' opacity=".75" transform="rotate(-24 38 55)"') + E(22, 26, 4, 2.2, '#fff6d8', ' opacity=".7" transform="rotate(-30 22 26)"') });
+  },
+});
+// ----- Might & Magic: new frogs, told apart by color and what they wear or carry -----
+const STRAW_HAT = '<ellipse cy="-2" rx="24" ry="5.5" fill="#dcb95e"/><path d="M-12-2C-12-17 12-17 12-2z" fill="#ecd07c"/><path d="M-12.5-5.5h25v3.5h-25z" fill="#b5553d"/>'
+  + '<path d="M-20-1.5l-3 3M-14 1l-2 3M16 1l2 3M21-1l3 3" stroke="#c9a54c" stroke-width="1.4" stroke-linecap="round"/>';
+const ROBIN_HAT = '<path d="M-18 0C-13-15 5-21 19-6L15 0z" fill="#4f8a3c"/><path d="M-18 0h33v-3.5h-33z" fill="#3d6e2f"/><path d="M5-11C10-26 21-29 26-27 20-21 14-15 8-9z" fill="#e5533d"/>';
+const TURBAN = '<path d="M-16 0C-17-16 17-16 16 0z" fill="#7d4ec0"/><path d="M-16-3C-6-10 6-10 16-3M-14-9C-4-15 6-15 14-9" stroke="#5f369c" stroke-width="2.4" fill="none"/><circle cy="-9" r="3" fill="#f6c343" stroke="#c48b22" stroke-width="1"/>';
+const BERET = '<ellipse cx="3" cy="-4" rx="18" ry="6.5" fill="#2f4f8a"/><circle cx="3" cy="-10" r="1.8" fill="#2f4f8a"/><path d="M8-8C15-22 25-24 29-22 22-18 16-13 11-8z" fill="#f6c343"/>';
+const JESTER_HAT = '<path d="M-15 0C-18-10-26-19-33-15-26-12-21-6-15 0z" fill="#e5533d"/><path d="M15 0C18-10 26-19 33-15 26-12 21-6 15 0z" fill="#3f86d6"/>'
+  + '<path d="M-9 0C-8-14-3-25 1-31 4-22 7-12 9 0z" fill="#f6c343"/><path d="M-17 0h34v-4.5h-34z" fill="#7d4ec0"/>'
+  + '<circle cx="-33" cy="-15" r="3.2" fill="#ffd76a"/><circle cx="33" cy="-15" r="3.2" fill="#ffd76a"/><circle cx="1" cy="-31" r="3.2" fill="#ff8a8a"/>';
+const STEEL_CAP = '<path d="M-15 1C-15-17 15-17 15 1z" fill="#b9c2d3"/><path d="M-15 1C-15-17 15-17 15 1" fill="none" stroke="#8e98ab" stroke-width="1.6"/><path d="M-16-1h32v3.5h-32z" fill="#8e98ab"/><circle cx="-7" cy="-9" r="1.4" fill="#eef2f8"/>';
+const KETTLE_HAT = '<ellipse cy="-1" rx="23" ry="4.8" fill="#8e98ab"/><path d="M-13-2C-13-19 13-19 13-2z" fill="#b9c2d3"/><path d="M-13-2C-13-19 13-19 13-2" fill="none" stroke="#8e98ab" stroke-width="1.5"/><path d="M-1-17v14" stroke="#a3adc0" stroke-width="2.2"/>';
+const MITRE = '<path d="M-12 0V-15Q0-32 12-15V0z" fill="#fbf7ee" stroke="#d9c89a" stroke-width="1.5"/><path d="M0-4v-20M-6-15h12" stroke="#e0a82e" stroke-width="2.8" stroke-linecap="round"/>';
+const BIG_CROWN = '<path d="M-19 0V-17l9.5 8L0-22l9.5 13L19-17V0z" fill="#f6c343"/><path d="M-19 0h38v-5.5h-38z" fill="#dea02a"/>'
+  + '<circle cx="-19" cy="-18" r="2.8" fill="#ffe08a"/><circle cy="-23" r="3" fill="#ffe08a"/><circle cx="19" cy="-18" r="2.8" fill="#ffe08a"/>'
+  + '<circle cy="-10" r="3.2" fill="#3f86d6"/><circle cx="-11" cy="-7" r="2.2" fill="#e5533d"/><circle cx="11" cy="-7" r="2.2" fill="#e5533d"/>';
+const HALO = '<ellipse cy="-16" rx="15" ry="4.4" fill="none" stroke="#ffd76a" stroke-width="3.2"/><ellipse cy="-16" rx="15" ry="4.4" fill="none" stroke="#fff3c4" stroke-width="1.1"/>';
+// A hood over the head (drawn behind the eyes; eyes and face stay visible)
+const hood = (b, fill, edge) => { const [[x1, y1, r1], [x2, y2, r2]] = b.eyes; const top = Math.min(y1 - r1, y2 - r2) - 9;
+  return `<path d="M${x1 - r1 - 7} ${y1 + r1 + 6}C${x1 - r1 - 9} ${top}, ${x2 + r2 + 9} ${top}, ${x2 + r2 + 7} ${y2 + r2 + 6}C${x2 + r2 + 2} ${y2 - r2 + 2}, ${x1 - r1 - 2} ${y1 - r1 + 2}, ${x1 - r1 - 7} ${y1 + r1 + 6}z" fill="${fill}"/>`
+    + `<path d="M${x1 - r1 - 3} ${y1 + r1 + 1}C${x1 - r1 - 1} ${y1 - r1 - 1}, ${x2 + r2 + 1} ${y2 - r2 - 1}, ${x2 + r2 + 3} ${y2 + r2 + 1}" stroke="${edge}" stroke-width="2" fill="none"/>`; };
+// A band across the eyes (drawn behind them, so the eyes show through)
+const eyeMask = (b) => { const [[x1, y1, r1], [x2, y2, r2]] = b.eyes;
+  return `<path d="M${x1 - r1 - 4} ${y1 - 3}Q${(x1 + x2) / 2} ${y1 - 8} ${x2 + r2 + 4} ${y2 - 3}L${x2 + r2 + 3} ${y2 + 4}Q${(x1 + x2) / 2} ${y1 + 2} ${x1 - r1 - 3} ${y1 + 4}z" fill="#1f2328"/>`; };
+const ROGUE_HOOD = ['#5a1f2e', '#76303f'];
+const DRAGON_WINGS = (c) => [-1, 1].map((d) => `<path d="M${50 + d * 30} 52C${50 + d * 44} 30 ${50 + d * 50} 22 ${50 + d * 49} 16C${50 + d * 44} 26 ${50 + d * 40} 26 ${50 + d * 38} 34C${50 + d * 36} 30 ${50 + d * 33} 32 ${50 + d * 31} 38z" fill="${c}"/>`).join('');
+const KING_CAPE = '<path d="M16 44Q50 28 84 44L94 92Q50 100 6 92z" fill="#c0392b"/><path d="M16 44Q50 28 84 44" stroke="#9a2c21" stroke-width="2" fill="none"/>';
+// A gold pocket watch swinging on its chain from the frog's hand
+const PENDULUM = '<path d="M83 60L88 80" stroke="#c9a54c" stroke-width="1.6"/>' + C(83, 60, 3.4, 'none', ' stroke="#8a6a2c" stroke-width="1.4"') + C(88.5, 83, 6, '#f6c343', ' stroke="#c48b22" stroke-width="1.5"') + C(88.5, 83, 3.6, '#fff6d8') + '<path d="M88.5 83v-2.4M88.5 83h2" stroke="#8a6a2c" stroke-width="1" stroke-linecap="round"/>';
+Object.assign(ART, {
+  peasant: () => { const p = pal('#a9b45a'), b = BODY.classic(p); return compose(b, p, { ...hat(b, STRAW_HAT, 1.3, 5) }); },
+  // Archer: forest green, a feathered cap and a bow held at its side
+  archer: () => {
+    const p = pal('#5aa65e'), b = BODY.slim(p);
+    const bow = '<path d="M85 44Q100 66 85 88" stroke="#8a5a2b" stroke-width="3.2" fill="none" stroke-linecap="round"/><path d="M85 44V88" stroke="#f1e6c8" stroke-width="1.1"/>';
+    return compose(b, p, { ...hat(b, ROBIN_HAT, 1.05, 1), over: bow });
+  },
+  // Merchant: round and orange, a jewelled turban and a fat purse of gold
+  merchant: () => {
+    const p = pal('#e38b4d'), b = BODY.round(p);
+    const purse = '<path d="M71 70q7-5 14 0l2 12q-9 6-18 0z" fill="#b88a5c"/><path d="M72 71h12" stroke="#7a5534" stroke-width="2.2" stroke-linecap="round"/>' + C(78, 79, 2.6, '#f6c343');
+    return compose(b, p, { ...hat(b, TURBAN, 1, 1), over: purse });
+  },
+  // Blacksmith: burly and soot-grey, in a leather apron with a hammer
+  blacksmith: () => {
+    const p = pal('#8c9098'), b = BODY.bull(p);
+    const apron = '<path d="M36 62h28l3 24q-17 6-34 0z" fill="#7a5534"/><path d="M38 62L33 51M62 62L67 51" stroke="#5e4028" stroke-width="2.4" stroke-linecap="round"/><path d="M42 70h16" stroke="#5e4028" stroke-width="1.8" stroke-linecap="round"/>';
+    const hammer = '<path d="M86 88L80 60" stroke="#8a5a2b" stroke-width="3.4" stroke-linecap="round"/><rect x="71" y="52" width="17" height="10" rx="2" transform="rotate(-12 79 57)" fill="#5d636e"/>';
+    return compose(b, p, { face: apron, over: hammer });
+  },
+  // Bard: slim and pink, a feathered beret and a little lute
+  bard: () => {
+    const p = pal('#963249'), b = BODY.slim(p);
+    const lute = '<path d="M77 72L92 48" stroke="#7a5534" stroke-width="3" stroke-linecap="round"/>' + E(74, 76, 8.5, 10, '#c98a4b', ' transform="rotate(32 74 76)"') + C(75, 75, 2.6, '#5e4028') + '<path d="M91 50l3-2" stroke="#5e4028" stroke-width="2.6" stroke-linecap="round"/>';
+    return compose(b, p, { ...hat(b, BERET, 1, 2), over: lute });
+  },
+  jester: () => { const p = pal('#c9d64f'), b = BODY.classic(p); return compose(b, p, { ...hat(b, JESTER_HAT, 1, 1), mouth: 'open' }); },
+  // Rogue: charcoal, hooded, with a mask across its eyes
+  rogue: () => { const p = pal('#56646c'), b = BODY.slim(p); return compose(b, p, { inside: hood(b, ROGUE_HOOD[0], ROGUE_HOOD[1]) + eyeMask(b), mouth: 'flat' }); },
+  // Squire: young and sandy, a plain steel cap and a small round shield
+  squire: () => {
+    const p = pal('#e2bd74'), b = BODY.tall(p);
+    const shield = C(16, 72, 11, '#3f86d6', ' stroke="#8e98ab" stroke-width="2.4"') + C(16, 72, 3.2, '#f6c343');
+    return compose(b, p, { ...hat(b, STEEL_CAP, 1.05, 1), over: shield });
+  },
+  cleric: () => { const p = pal('#d6c9ef'), b = BODY.round(p); return compose(b, p, { ...hat(b, MITRE, 1, 0) }); },
+  // Guard: a sturdy sage frog in an iron kettle hat, with a spear
+  guard: () => {
+    const p = pal('#7f9d86'), b = BODY.flat(p);
+    const spear = '<path d="M90 94V22" stroke="#8a5a2b" stroke-width="3" stroke-linecap="round"/><path d="M90 8l5 14h-10z" fill="#c9d1dd"/>';
+    return compose(b, p, { ...hat(b, KETTLE_HAT, 1.12, 1), brows: true, mouth: 'flat', over: spear });
+  },
+  // Necromancer: dusky and hooded, with glowing green eyes
+  necro: () => {
+    const p = pal('#6d6082'), b = BODY.tall(p);
+    return compose(b, p, { inside: hood(b, '#3b2f4d', '#54456b') + b.eyes.map(([x, y, r]) => C(x, y, r + 2.5, '#7dffa6', ' opacity=".25"')).join(''), eyes: 'iris:#3ed27a', noCheeks: true, mouth: 'flat' });
+  },
+  // Frog King: a plump green frog in a big crown, a red cape and an ermine collar
+  king: () => {
+    const p = pal('#62b95f'), b = BODY.round(p);
+    const ermine = `<path d="M26 ${neckY(b) - 1}Q50 ${neckY(b) + 9} 74 ${neckY(b) - 1}" stroke="#fbf7ee" stroke-width="6" fill="none" stroke-linecap="round"/>` + dotsSVG([[33, neckY(b) + 2.2, 1], [44, neckY(b) + 4.4, 1], [56, neckY(b) + 4.4, 1], [67, neckY(b) + 2.2, 1]], '#2a211c');
+    return compose(b, p, { behind: KING_CAPE, ...hat(b, BIG_CROWN, 1.05, 0), face: ermine });
+  },
+  // Dragon Frog: fiery red with an orange belly, little wings and horns
+  dragon: () => {
+    const p = pal('#dc5f3c', { belly: '#f6b35c' }), b = BODY.bull(p);
+    return compose(b, p, { behind: DRAGON_WINGS(mix('#dc5f3c', '#1b2a22', .25)), horns: 1.4, under: dotsSVG([[30, 52, 2.2], [70, 52, 2.2], [24, 62, 1.8], [76, 62, 1.8]], mix('#dc5f3c', '#1b2a22', .3)) });
+  },
+  // Paladin: cream-white, a golden halo and a blue tabard
+  paladin: () => {
+    const p = pal('#eee7d4'), b = BODY.bull(p);
+    const tabard = '<path d="M39 64h22l2 25q-13 4-26 0z" fill="#3f73c4"/><path d="M50 68v17M44 74h12" stroke="#f6c343" stroke-width="3" stroke-linecap="round"/>';
+    return compose(b, p, { ...hat(b, HALO, 1.15, -2), face: tabard, brows: true });
+  },
+});
+BUG_ART.cricket = '<g transform="translate(-8 -12) scale(1.18)"><path d="M30 60L18 80M44 64l-4 18M58 64l5 18" stroke="#5b4326" stroke-width="3" stroke-linecap="round"/>'
+  + '<path d="M62 52C74 40 84 42 88 52L80 80" stroke="#6e5230" stroke-width="5" fill="none" stroke-linecap="round" stroke-linejoin="round"/>'
+  + '<ellipse cx="46" cy="55" rx="24" ry="11.5" fill="#7a5a33"/><path d="M28 50C40 42 58 42 68 50" stroke="#94703f" stroke-width="3" fill="none" stroke-linecap="round"/>'
+  + '<path d="M40 47C50 44 60 45 66 50L58 58z" fill="#a47d45" opacity=".7"/>'
+  + '<circle cx="24" cy="52" r="10" fill="#6e5230"/><circle cx="20" cy="49" r="3.2" fill="#fff"/><circle cx="19.2" cy="49.4" r="1.7" fill="#2a211c"/>'
+  + '<path d="M18 44C12 30 6 22 2 20M22 43C20 30 18 20 16 12" stroke="#5b4326" stroke-width="1.8" fill="none" stroke-linecap="round"/>'
+  + '<path d="M17 57q3 2 6 0" stroke="#3d2c18" stroke-width="1.6" fill="none" stroke-linecap="round"/></g>';
 // Every frog is drawn at the same on-screen size (measured by how much of the pad its drawing covers), so
 // size only ever says level; the Froglet, a hatched baby, stays a little smaller
-const ART_SIZE = { bouncy: .98, bullfrog: .94, chameleon: .98, froglet: .86, glass: .98, goliath: .94, hungry: .98, knight: .95, leapfrog: 1.12, lucky: 1.05, mama: .98, peeper: 1.11, rain: .94, spitter: 1.13, tadpole: 1.10, toad: 1.04, tree: .97, wizard: .97 };
+const ART_SIZE = {
+  bouncy: .98, bullfrog: .94, chameleon: .98, froglet: .86, glass: .98, goliath: .93, hungry: .98, knight: .95, leapfrog: 1.12, lucky: 1.05, mama: .98, peeper: 1.11,
+  rain: .94, spitter: 1.13, tadpole: 1.10, toad: 1.03, tree: .97, wizard: .97, midwife: .99, turtle: 1.12, pebble: 1.24, budgett: 1.05, golden: .98,
+  archer: 1.06, bard: 1.08, blacksmith: .94, cleric: .94, dragon: .92, guard: .99, jester: .97, king: .90, merchant: .95, necro: .96, paladin: .92, peasant: .97, rogue: 1.11, squire: .94,
+};
 
 const artCache = new Map();
 function frogArt(type) {
@@ -872,8 +1090,8 @@ function frogArt(type) {
   return artCache.get(type);
 }
 
-// Player avatars: a body shape in one of 10 colors, dressed up with the options below (the winner crown is added on top)
-const AV_COLORS = ['#6cc46a', '#86cfa6', '#45b6a8', '#4ea5ee', '#9aa7d8', '#f2a4c1', '#dc5a49', '#f1b13b', '#f2cf5b', '#b88a5c'];
+// Player avatars: a body shape in one of 13 colors, dressed up with the options below (the winner crown is added on top)
+const AV_COLORS = ['#6cc46a', '#86cfa6', '#45b6a8', '#4ea5ee', '#9aa7d8', '#f2a4c1', '#dc5a49', '#f1b13b', '#f2cf5b', '#b88a5c', '#963249', '#f07c6a', '#7a3d6d'];
 // Avatar options: body, color, eyes, pattern and accessory. Each option has an id (what gets saved)
 // and adds to the layers compose() draws. Many borrow the game frogs' signature looks.
 // unlocked() is the hook for making options earnable later; for now everything is open.
@@ -925,6 +1143,22 @@ const AV_ACCS = [
   { id: 'pearls', name: 'Mama’s pearls', x: (b) => ({ face: PEARLS([b.neck[0], neckY(b), b.neck[2]]) }) },
   { id: 'bowtie', name: 'Bow tie', small: 1.6, x: (b, p, k) => ({ face: `<g transform="translate(${b.neck[0]} ${neckY(b) + 1}) scale(${k})"><path d="M0 0L-9-5.5V5.5zM0 0L9-5.5V5.5z" fill="#e5533d"/><circle r="2.6" fill="#b83e2d"/></g>` }) },
   { id: 'umbrella', name: 'Rain umbrella', x: (b, p) => ({ over: umbrella(b, p) }) },
+  // from the Might & Magic frogs
+  { id: 'kingcrown', name: 'King’s crown', head: true, small: 1.2, x: (b, p, k) => hat(b, BIG_CROWN, 1.05 * k, 0) },
+  { id: 'halo', name: 'Paladin’s halo', head: true, small: 1.2, x: (b, p, k) => hat(b, HALO, 1.15 * k, -2) },
+  { id: 'jester', name: 'Jester’s hat', head: true, x: (b) => hat(b, JESTER_HAT, 1, 1) },
+  { id: 'straw', name: 'Straw hat', head: true, x: (b) => hat(b, STRAW_HAT, 1.3, 5) },
+  { id: 'robin', name: 'Archer’s cap', head: true, x: (b) => hat(b, ROBIN_HAT, 1.05, 1) },
+  { id: 'turban', name: 'Merchant’s turban', head: true, small: 1.2, x: (b, p, k) => hat(b, TURBAN, k, 1) },
+  { id: 'beret', name: 'Bard’s beret', head: true, x: (b) => hat(b, BERET, 1, 2) },
+  { id: 'mitre', name: 'Cleric’s mitre', head: true, small: 1.2, x: (b, p, k) => hat(b, MITRE, k, 0) },
+  { id: 'cap', name: 'Squire’s cap', head: true, x: (b) => hat(b, STEEL_CAP, 1.05, 1) },
+  { id: 'kettle', name: 'Guard’s helmet', head: true, x: (b) => hat(b, KETTLE_HAT, 1.12, 1) },
+  { id: 'hood', name: 'Rogue’s hood', head: true, x: (b) => ({ inside: hood(b, ROGUE_HOOD[0], ROGUE_HOOD[1]) }) },
+  { id: 'mask', name: 'Rogue’s mask', x: (b) => ({ inside: eyeMask(b) }) },
+  { id: 'pendulum', name: 'Hypno’s watch', x: () => ({ over: PENDULUM }) },
+  { id: 'cape', name: 'King’s cape', x: () => ({ behind: KING_CAPE }) },
+  { id: 'wings', name: 'Dragon wings', x: (b, p) => ({ behind: DRAGON_WINGS(p.dark) }) },
 ];
 const byId = (list, id) => list.find((o) => o.id === id) || list[0];
 // patterns that were folded into Polka dots keep a dotted look
@@ -1487,7 +1721,7 @@ function showHome(msg) {
   const drawHero = () => { $('#heroAv').innerHTML = avatarHTML(myAvatar(), 84, { idle: true, id: 7 }); };
   drawHero();
   $('#heroBtn').onclick = () => openProfile(() => { drawHero(); if (ME.name) lobbyStep(); });
-  $('#helpBtn').onclick = () => { Snd.tap(); openGuide(); };
+  $('#helpBtn').onclick = () => { Snd.tap(); openGuide(null, true); };
 
   // Browser guests pick a name first; Telegram players already have one
   const nameStep = () => {
@@ -1560,12 +1794,13 @@ function showHome(msg) {
     const section = (label, list, make) => {
       if (!list.some((x) => !gone.has(x.code))) return;
       items.push({ key: `L:${label}`, sig: label, make: () => el(`<div class="label">${label}</div>`) });
-      for (const r of list.filter((x) => !gone.has(x.code))) items.push({ key: `${label}:${r.code}`, sig: JSON.stringify([r.seats.map((x) => [x.name, x.avatar]), r.mine, r.practice]), make: () => make(r) });
+      for (const r of list.filter((x) => !gone.has(x.code))) items.push({ key: `${label}:${r.code}`, sig: JSON.stringify([r.seats.map((x) => [x.name, x.avatar]), r.mine, r.practice, r.set]), make: () => make(r) });
     };
+    const withSet = (text, r) => `${text}<small>${esc(SETS[setId(r.set)].name)}</small>`;
     const waiting = (r) => (r.mine
-      ? row(r.seats, 'Your pond', 'Resume', () => rejoin(r.code), endFromList(r.code), 'Cancel')
-      : row(r.seats, `${esc(r.seats[0].name)}’s pond`, 'Join', () => join(r.code)));
-    section('In progress', lobby.active, (r) => row(r.seats, r.practice ? 'Practice' : r.seats.map((x) => esc(x.name)).join(' & '), 'Resume', () => rejoin(r.code), endFromList(r.code), 'End'));
+      ? row(r.seats, withSet('Your pond', r), 'Resume', () => rejoin(r.code), endFromList(r.code), 'Cancel')
+      : row(r.seats, withSet(`${esc(r.seats[0].name)}’s pond`, r), 'Join', () => join(r.code)));
+    section('In progress', lobby.active, (r) => row(r.seats, withSet(r.practice ? 'Practice' : r.seats.map((x) => esc(x.name)).join(' & '), r), 'Resume', () => rejoin(r.code), endFromList(r.code), 'End'));
     // Nearby = ponds started on the same home network (other people's ponds are joined by invite)
     section('Nearby', lobby.nearby, waiting);
     const old = new Map([...box.children].filter((n) => !n.classList.contains('leaving')).map((n) => [n.dataset.key, n]));
@@ -1610,8 +1845,8 @@ function showHome(msg) {
       <button class="btn ghost wide" id="practice">Practice</button>
       <div id="lists" class="lists"></div>
       <div class="code-join" id="codeJoin"><button class="link" id="showCode">Join with a code</button></div>`;
-    $('#create').onclick = () => call('/api/create', {}, () => Snd.plop());
-    $('#practice').onclick = () => call('/api/practice', {}, () => Snd.plop());
+    $('#create').onclick = () => { Snd.tap(); pickSet('New pond', (set) => call('/api/create', { set }, () => Snd.plop())); };
+    $('#practice').onclick = () => { Snd.tap(); pickSet('Practice', (set) => call('/api/practice', { set }, () => Snd.plop())); };
     $('#showCode').onclick = () => { Snd.tap(); codeStep(); };
     quiet = true;
     if (lobbyCache) { lobby = lobbyCache; last = JSON.stringify(lobbyCache); render(true); } else last = '';
@@ -1663,6 +1898,7 @@ function showWaiting() {
     <div class="hero"><div class="moon"></div><div class="leafbig"></div>${avatarHTML(S.me.avatar, 84, { idle: true, id: 7 })}</div>
     <h1 class="h-sm">Waiting for your partner</h1>
     <div class="code-tiles">${S.code.split('').map((c) => `<span>${c}</span>`).join('')}</div>
+    <button class="me-chip" id="wset"><b>${esc(SETS[setId(S.set)].name)}</b> frogs ${ICON.chev}</button>
     <div class="panel">
       <button class="btn water wide" id="share">Send invite</button>
       <button class="btn ghost wide" id="leave">Cancel pond</button>
@@ -1688,6 +1924,7 @@ function showWaiting() {
     } catch {}
   };
   $('#leave').onclick = () => endGame(S.code, true);
+  $('#wset').onclick = () => { Snd.tap(); openSetInfo(S.set); };
 }
 // Swipe a lobby row left to reveal its End button, or all the way (past half the row) to end it right away.
 // A tap on an open row just closes it.
@@ -1959,10 +2196,10 @@ function updateButtons() {
   // One contextual action: Buy by default, Sell for your own frog, Feed for a bug
   let label = 'Buy', amt = '', cls = 'btn buy', off = true;
   const dragging = drag && drag.started;
-  if (dragging && drag.kind === 'team') { label = 'Sell'; amt = me.team[drag.i].lvl; cls = 'btn blossom'; off = false; }
+  if (dragging && drag.kind === 'team') { label = 'Sell'; amt = sellGold(me.team[drag.i]); cls = 'btn blossom'; off = false; }
   else if (!dragging && sel && !me.ready) {
     if (sel.kind === 'shop') off = me.gold < costOf(me.shop.frogs[sel.i]) || buySlot(sel.i) < 0;
-    if (sel.kind === 'team') { label = 'Sell'; amt = me.team[sel.i].lvl; cls = 'btn blossom'; off = false; }
+    if (sel.kind === 'team') { label = 'Sell'; amt = sellGold(me.team[sel.i]); cls = 'btn blossom'; off = false; }
     if (sel.kind === 'food') { label = FOODS[me.shop.food].gear ? 'Give' : 'Feed'; off = sel.target == null || me.gold < foodCost(); }
   }
   if (mb.className !== cls) mb.className = cls;
@@ -2000,7 +2237,7 @@ function updateBubble() {
     anchor = $('.item[data-tap="food"] .occ');
     html = f.gear
       ? `<div class="bt">${f.name}</div><div class="bd">Wrap a frog in a bubble. It ${GEAR_TEXT[f.gear]}.</div>`
-      : `<div class="bt">${f.name}</div><div class="bd">Give a frog ${statText(f.atk, f.hp)}.</div>`;
+      : `<div class="bt">${f.name}</div><div class="bd">Give a frog ${itemText(me.shop.food)}.</div>`;
     if (!me.ready && me.gold < foodCost()) hint = 'Not enough gold';
     else if (f.gear && !me.ready && me.team.some(Boolean) && me.team.every((t) => !t || t.gear)) hint = 'Every frog is already in a bubble';
   } else {
@@ -2064,7 +2301,14 @@ function placeBubble(b) {
 window.addEventListener('resize', () => { if (screen === 'game' && S) updateBubble(); });
 
 // Bugs go to any frog; gear only to a frog that isn't wearing any
-const canTakeItem = (t) => !!t && !!S.me.shop.food && !(FOODS[S.me.shop.food].gear && t.gear);
+// Same rules as the server: one piece of gear per frog, a Cricket only below level 3, no stat bugs for fixed stats
+const itemBlock = (t) => {
+  const f = FOODS[S.me.shop.food];
+  if (f.gear) return t.gear ? 'Already in a bubble' : '';
+  if (f.xp) return t.lvl >= 3 ? 'Already at the top level' : '';
+  return CATALOG[t.type].fixed === 'both' ? `${NAMES[t.type]}’s stats never change` : '';
+};
+const canTakeItem = (t) => !!t && !!S.me.shop.food && !itemBlock(t);
 function validDrop(kind, i, tkind, ti) {
   if (!S || S.me.ready) return false;
   const me = S.me;
@@ -2168,7 +2412,7 @@ function tap(kind, i) {
   if (!S) return;
   const me = S.me;
   if (kind === 'team' && sel && sel.kind === 'food' && !me.ready && me.team[i]) {
-    if (!canTakeItem(me.team[i])) { toast('Already in a bubble'); Snd.nope(); return; }
+    if (!canTakeItem(me.team[i])) { toast(itemBlock(me.team[i])); Snd.nope(); return; }
     sel.target = sel.target === i ? null : i; Snd.tap(); return updateGame();
   }
   const has = kind === 'team' ? me.team[i] : kind === 'shop' ? me.shop.frogs[i] : me.shop.food;
@@ -2195,6 +2439,8 @@ function frogRect(container) { const f = container && $('.occ > *', container); 
 function padEl(i) { return $(`.pad[data-i="${i}"]`); }
 function notEnoughGold() { toast('Not enough gold'); Snd.nope(); }
 const costOf = (f) => (f && f.cost) || COST;
+// Selling gives the frog's level in gold (a Merchant Frog twice that)
+const sellGold = (f) => f.lvl * (f.type === 'merchant' ? 2 : 1);
 const foodCost = () => (S && S.me.shop.foodCost) || COST;
 const levelOf = (xp) => (xp >= 5 ? 3 : xp >= 2 ? 2 : 1);
 async function run(fn) { busy++; try { await fn(); } finally { busy--; } if (!busy) route(); }
@@ -2203,6 +2449,7 @@ function merge(into, from, extraXp) {
   into.atk = Math.max(into.atk, from.atk) + 1; into.hp = Math.max(into.hp, from.hp) + 1;
   into.xp += extraXp; into.lvl = levelOf(into.xp);
   into.gear = into.gear || from.gear;
+  fixStats(into);
 }
 // Glide a dragged ghost onto a target and fade it (used for merges and feeding)
 function settleGhost(g, to) {
@@ -2263,11 +2510,12 @@ function sell(i, ghost) {
     const r = node.getBoundingClientRect();
     Snd.coin();
     if (f.type === 'glass') setTimeout(() => Snd.sparkle(), 350);
-    floatAt(r.left + r.width / 2, r.top, `<span class="g">+${f.lvl}</span>`);
+    const gold = sellGold(f);
+    floatAt(r.left + r.width / 2, r.top, `<span class="g">+${gold}</span>`);
     const base = ghost ? ghost.style.transform : 'none';
     await anim(node, [{ transform: base, opacity: 1 }, { transform: `${base === 'none' ? '' : base} scale(0)`, opacity: 0 }], { duration: 220, easing: 'ease-in', fill: 'forwards' });
     if (ghost) ghost.remove(); else node.style.visibility = 'hidden';
-    applyLocal((m) => { m.gold += f.lvl; m.team[i] = null; });
+    applyLocal((m) => { m.gold += gold; m.team[i] = null; });
     await act({ type: 'sell', slot: i });
   });
 }
@@ -2281,7 +2529,11 @@ function feed(slot, ghost) {
     if (ghost) await settleGhost(ghost, toR);
     else { const vis = $('.occ > *', item); vis.style.visibility = 'hidden'; await flyGhost(vis.getBoundingClientRect(), toR, foodHTML(me.shop.food), 280); }
     if (food.gear) Snd.summon(); else Snd.munch();
-    applyLocal((m) => { const t = m.team[slot]; t.atk += food.atk; t.hp += food.hp; if (food.gear) t.gear = food.gear; m.gold -= cost; m.shop.food = null; });
+    applyLocal((m) => {
+      const t = m.team[slot]; t.atk += food.atk; t.hp += food.hp; if (food.gear) t.gear = food.gear; m.gold -= cost; m.shop.food = null;
+      if (food.xp) { t.xp += food.xp; t.lvl = levelOf(t.xp); }
+      fixStats(t);
+    });
     setTimeout(() => Snd.sparkle(), 120);
     await act({ type: 'food', slot });
   });
@@ -2344,8 +2596,8 @@ async function flyGhost(from, to, html, dur = 360) {
 }
 // Your frog: name, then one option wheel per tab. The option in the middle of the wheel is the picked one;
 // scroll or tap to change it and the big preview follows.
-const BODY_NAMES = { classic: 'Classic', slim: 'Slim', tall: 'Big eyes', round: 'Round', toad: 'Toad', bull: 'Bullfrog', tadpole: 'Tadpole' };
-const COLOR_NAMES = ['Leaf green', 'Mint', 'Teal', 'Sky blue', 'Lavender', 'Pink', 'Red', 'Orange', 'Sunny yellow', 'Brown'];
+const BODY_NAMES = { classic: 'Classic', slim: 'Slim', tall: 'Big eyes', round: 'Round', toad: 'Toad', bull: 'Bullfrog', flat: 'Flat', tadpole: 'Tadpole' };
+const COLOR_NAMES = ['Leaf green', 'Mint', 'Teal', 'Sky blue', 'Lavender', 'Pink', 'Red', 'Orange', 'Sunny yellow', 'Brown', 'Burgundy', 'Coral', 'Plum'];
 const AV_TABS = [
   { key: 'b', label: 'Body', opts: BODIES.map((id) => ({ id, name: BODY_NAMES[id] || id })) },
   { key: 'c', label: 'Color', opts: AV_COLORS.map((_, i) => ({ id: i, name: COLOR_NAMES[i] })) },
@@ -2441,9 +2693,17 @@ function openMenu() {
     if (m === 'end') { s.close(); setTimeout(() => endGame(), 200); }
   });
 }
-function openGuide() {
+// A set's frogs, by the round they start showing up in the shop
+function setFrogsHTML(set) {
   const row = (t) => `<div class="guide-row"><div class="gfrog">${frogHTML({ id: 0, type: t, atk: BASE[t][0], hp: BASE[t][1], lvl: 1 }, { size: 46, idle: false })}</div><div class="txt"><span class="gname">${NAMES[t]} ${coinBadge(CATALOG[t].cost)}</span>${descHTML(t, 1)}</div></div>`;
   const tiers = [[1, 'From round 1'], [3, 'From round 3'], [5, 'From round 5'], [7, 'From round 7']];
+  const frogs = SETS[setId(set)].frogs;
+  return tiers.map(([n, lbl]) => `<div class="guide-sec">${lbl}</div>` + frogs.filter((t) => TIER[t] === n).map(row).join('')).join('');
+}
+// How to play: the rules, then the frogs of a set. In a game it's that game's set; from the landing page
+// (pick = true) tabs switch between the sets.
+function openGuide(set, pick = false) {
+  set = setId(set || (S && S.set) || localStorage.frogSet);
   const s = sheet(`<h2>How to play</h2>
     <ul class="rules">
       <li>You get <b>10 gold</b> each round. Prices are on each frog and item.</li>
@@ -2451,11 +2711,41 @@ function openGuide() {
       <li>Drop a frog on a matching one to <b>level it up</b>.</li>
       <li><b>Lock</b> the shop (1 gold) to keep it for the next round.</li>
       <li>Lose a round and you lose a <b>heart</b>. Whoever still has hearts at the end wins.</li>
+      <li>Each pond plays one <b>set</b> of frogs, picked when it starts.</li>
     </ul>
-    ${tiers.map(([n, lbl]) => `<div class="guide-sec">${lbl}</div>` + Object.keys(TIER).filter((t) => TIER[t] === n).map(row).join('')).join('')}
+    ${pick ? `<div class="av-tabs set-tabs">${SET_IDS.map((id) => `<button class="av-tab${id === set ? ' on' : ''}" data-set="${id}">${esc(SETS[id].name)}</button>`).join('')}</div>`
+    : `<div class="guide-set">${esc(SETS[set].name)} frogs</div>`}
+    <div class="set-list">${setFrogsHTML(set)}</div>
     <div class="guide-sec">Items</div>
     ${Object.keys(FOODS).map((k) => `<div class="guide-row"><div class="gfrog"><div style="width:44px;height:44px">${bugArt(k)}</div></div><div class="txt"><span class="gname">${FOODS[k].name} ${coinBadge(FOODS[k].cost)}</span>${itemText(k)}</div></div>`).join('')}
     <div class="btns"><button class="btn" data-a="close">Got it</button></div>`);
+  $('[data-a="close"]', s.el).onclick = s.close;
+  s.el.addEventListener('click', (e) => {
+    const t = e.target.closest('[data-set]'); if (!t) return;
+    Snd.tap(); $$('.set-tabs .av-tab', s.el).forEach((x) => x.classList.toggle('on', x === t));
+    $('.set-list', s.el).innerHTML = setFrogsHTML(t.dataset.set);
+  });
+}
+// Starting a pond (or a practice game): pick the set of frogs it plays; (i) on a set lists its frogs
+function pickSet(title, go) {
+  let set = setId(localStorage.frogSet);
+  const card = (id) => `<div class="set-card${id === set ? ' on' : ''}" data-pick="${id}" role="button" tabindex="0">
+      <span class="set-cover">${(SETS[id].cover || SETS[id].frogs.slice(0, 4)).map((t, k) => `<span class="sc">${frogHTML({ id: 300 + k, type: t, atk: 0, hp: 0, lvl: 1 }, { size: 42, idle: false, stats: false })}</span>`).join('')}</span>
+      <span class="set-name">${esc(SETS[id].name)}<small>${SETS[id].frogs.length} frogs</small></span>
+      <button class="set-info" data-info="${id}" aria-label="Frogs in ${esc(SETS[id].name)}">i</button>
+    </div>`;
+  const s = sheet(`<h2>${esc(title)}</h2><p>Which frogs will be in the shop?</p><div class="set-cards">${SET_IDS.map(card).join('')}</div>
+    <div class="btns"><button class="btn" data-a="go">Start</button></div>`);
+  s.el.addEventListener('click', (e) => {
+    const info = e.target.closest('[data-info]');
+    if (info) { Snd.tap(); openSetInfo(info.dataset.info); return; }
+    const c = e.target.closest('[data-pick]');
+    if (c) { set = c.dataset.pick; Snd.tap(); $$('.set-card', s.el).forEach((x) => x.classList.toggle('on', x === c)); return; }
+    if (e.target.closest('[data-a="go"]')) { localStorage.frogSet = set; s.close(); go(set); }
+  });
+}
+function openSetInfo(id) {
+  const s = sheet(`<h2>${esc(SETS[setId(id)].name)}</h2>${setFrogsHTML(id)}<div class="btns"><button class="btn" data-a="close">Close</button></div>`);
   $('[data-a="close"]', s.el).onclick = s.close;
 }
 
@@ -2476,13 +2766,13 @@ function battleLog(frames, upto = frames.length - 1) {
   for (let k = 1; k <= upto && k < frames.length; k++) {
     const fr = frames[k], pv = frames[k - 1];
     if (fr.kind === 'hit') {
-      const [a, b] = fr.ids, leaps = new Map(fr.leaps || []);
+      const [a, b] = fr.ids, leaps = new Map(fr.leaps || []), wide = new Map(fr.wide || []);
       for (const [x, other] of [[a, b], [b, a]]) {
         const u = find(pv, x); if (!u) continue;
-        for (const id of leaps.get(x) || [other]) {
+        for (const id of leaps.get(x) || wide.get(x) || [other]) {
           const t0 = find(pv, id), t1 = find(fr, id); if (!t0) continue;
           const dmg = t0.hp - (t1 ? t1.hp : 0);
-          if (dmg > 0) rows.push({ side: sideOf(pv, x), text: `${nm(u)} ${leaps.has(x) ? 'leaps over and hits' : 'hits'} ${nm(t0)} for ${dmg}` });
+          if (dmg > 0) rows.push({ side: sideOf(pv, x), text: `${nm(u)} ${leaps.has(x) ? 'leaps over and hits' : wide.has(x) ? 'rolls into' : 'hits'} ${nm(t0)} for ${dmg}` });
           else if (t0.gear === 'bubble' && t1 && t1.gear === 'used') rows.push({ side: sideOf(pv, id), text: `${nm(t0)}’s bubble blocks ${nm(u)}` });
         }
       }
@@ -2491,7 +2781,8 @@ function battleLog(frames, upto = frames.length - 1) {
       const u = find(pv, fr.actor), t0 = find(pv, fr.target), t1 = find(fr, fr.target);
       if (!u || !t0) continue;
       const dmg = t0.hp - (t1 ? t1.hp : 0);
-      if (dmg > 0) rows.push({ side: sideOf(pv, u.id), text: `${nm(u)} spits at ${nm(t0)} for ${dmg}` });
+      if (dmg > 0) rows.push({ side: sideOf(pv, u.id), text: `${nm(u)} ${fr.arrow ? 'shoots' : 'spits at'} ${nm(t0)} for ${dmg}` });
+      else if ((fr.immune || []).includes(t0.id)) rows.push({ side: sideOf(pv, u.id), text: `${nm(u)} ${fr.arrow ? 'shoots at' : 'spits at'} ${nm(t0)}, but it’s immune` });
       else if (t0.gear === 'bubble' && t1 && t1.gear === 'used') rows.push({ side: sideOf(pv, t0.id), text: `${nm(t0)}’s bubble blocks ${nm(u)}` });
     } else if (fr.kind === 'faint') {
       for (const u of [...pv.mine, ...pv.theirs]) if (!find(fr, u.id)) rows.push({ side: sideOf(pv, u.id), text: `${nm(u)} faints` });
@@ -2499,6 +2790,8 @@ function battleLog(frames, upto = frames.length - 1) {
       const id = fr.actor ?? fr.target;
       rows.push({ side: fr.kind === 'splash' ? (fr.side === 0 ? 'them' : 'me') : sideOf(pv, id) || sideOf(fr, id), text: fr.text });
     }
+    // Hits that didn't touch a Rogue, or frogs guarded by a Frog King
+    if (fr.kind !== 'spit') for (const id of fr.immune || []) { const u = find(pv, id); if (u) rows.push({ side: sideOf(pv, id), text: `${nm(u)} is immune` }); }
   }
   return rows;
 }
@@ -2668,6 +2961,13 @@ async function playBattle(lb) {
     const b = $('.fbody', rec.el).getBoundingClientRect();
     floatAt(b.left + b.width / 2, b.top, '<span class="blk">Blocked</span>');
   };
+  // A Cleric's blessing: a bubble grows around the frog
+  const bless = (rec, animate) => {
+    const fr = $('.frog', rec.el);
+    if ($('.gear', fr)) return;
+    fr.insertAdjacentHTML('beforeend', gearHTML('bubble'));
+    if (animate) anim($('.gear', fr), [{ transform: 'scale(.2)', opacity: 0 }, { transform: 'scale(1.12)', opacity: 1, offset: .7 }, { transform: 'scale(1)', opacity: 1 }], { duration: dur(420), easing: 'ease-out' });
+  };
   const apply = (fr, animate, poof) => {
     const live = new Set();
     [[0, fr.mine], [1, fr.theirs]].forEach(([side, arr]) => arr.forEach((u, i) => {
@@ -2682,12 +2982,18 @@ async function playBattle(lb) {
         }
       } else {
         if (rec.u.type !== u.type) morph(rec, u, animate && !skipping);
+        if (!rec.u.gear && u.gear === 'bubble') bless(rec, animate && !skipping);
         if (rec.u.gear === 'bubble' && u.gear === 'used') block(rec);
         if (rec.x !== x || rec.y !== y) hopTo(rec, x, y);
         setStats(rec, u, animate && !skipping);
       }
     }));
     for (const rec of [...units.values()]) if (!live.has(rec.u.id)) faint(rec, poof);
+    if (animate && !skipping) for (const id of fr.immune || []) {
+      const rec = byId(id); if (!rec) continue;
+      const b = $('.fbody', rec.el).getBoundingClientRect();
+      floatAt(b.left + b.width / 2, b.top, '<span class="blk">Immune</span>');
+    }
   };
   const caption = (text) => {
     if (!text) { cap.style.opacity = 0; return; }
@@ -2750,6 +3056,8 @@ async function playBattle(lb) {
       }
       // A Leapfrog is only hit once it's back on its pad: the frog ahead attacks it after the landing
       if (leaps.size) await wait(820);
+      // Pebble Toad: rolls into the whole line, every frog it reaches gets a ring
+      for (const [, ids] of fr.wide || []) setTimeout(() => ids.forEach((id) => ring(byId(id))), dur(260));
       for (const r of [ra, rb]) if (r && !leaps.has(r.u.id)) anim(r.move, [{ transform: 'translate(0,0)' }, { transform: `translate(${(r.side ? 1 : -1) * 6 * s}px, ${-4 * s}px) rotate(${r.side ? 6 : -6}deg)`, offset: .3 }, { transform: `translate(${(r.side ? -1 : 1) * 12 * s}px, ${-10 * s}px) rotate(${r.side ? -8 : 8}deg)`, offset: .55 }, { transform: `translate(${(r.side ? -1 : 1) * 10 * s}px, 0)`, offset: .66 }, { transform: 'translate(0,0)' }], { duration: dur(500), easing: 'ease-out' });
       await wait(320);
       Snd.hit(); apply(fr, true);
@@ -2762,9 +3070,11 @@ async function playBattle(lb) {
       if (a && t) {
         Snd.spit();
         anim(a.move, [{ transform: 'scale(1)' }, { transform: 'scale(1.15,.9)' }, { transform: 'scale(1)' }], { duration: dur(250) });
-        const ball = el('<div class="fx-ball"></div>'); arena.appendChild(ball);
-        const y0 = a.y - U * .2, y1 = t.y - U * .2;
-        await anim(ball, [{ transform: `translate(${a.x - 7}px,${y0}px)` }, { transform: `translate(${(a.x + t.x) / 2 - 7}px,${Math.min(y0, y1) - 50 * s}px)` }, { transform: `translate(${t.x - 7}px,${y1}px)` }], { duration: dur(420), easing: 'ease-in-out' });
+        // Dart Frog spits a ball; an Archer's arrow turns along its arc
+        const ball = el(`<div class="${fr.arrow ? 'fx-arrow' : 'fx-ball'}"></div>`); arena.appendChild(ball);
+        const y0 = a.y - U * .2, y1 = t.y - U * .2, mx = (a.x + t.x) / 2, my = Math.min(y0, y1) - 50 * s;
+        const deg = (dx, dy) => (fr.arrow ? ` rotate(${(Math.atan2(dy, dx) * 180 / Math.PI).toFixed(1)}deg)` : '');
+        await anim(ball, [{ transform: `translate(${a.x - 7}px,${y0}px)${deg(mx - a.x, my - y0)}` }, { transform: `translate(${mx - 7}px,${my}px)${deg(t.x - a.x, 0)}` }, { transform: `translate(${t.x - 7}px,${y1}px)${deg(t.x - mx, y1 - my)}` }], { duration: dur(420), easing: 'ease-in-out' });
         ball.remove(); Snd.hit();
       }
       apply(fr, true); await wait(560);
@@ -2803,8 +3113,9 @@ async function playBattle(lb) {
     } else if (fr.kind === 'summon') {
       caption(fr.text); Snd.summon(); apply(fr, true); ring(byId(fr.actor)); await wait(620);
     } else if (fr.kind === 'splash') {
-      caption(fr.text); Snd.splash();
-      const w = el('<div class="fx-wave"></div>'), size = 150 * s, [cx, cy] = pos(fr.side, 2);
+      // Mossy Frog's splash, a Dragon's fire or Budgett's Frog's scream: one wave over the other pond
+      caption(fr.text); if (fr.scream) Snd.magic(); else Snd.splash();
+      const w = el(`<div class="fx-wave${fr.fire ? ' fire' : fr.scream ? ' scream' : ''}"></div>`), size = 150 * s, [cx, cy] = pos(fr.side, 2);
       Object.assign(w.style, { width: size + 'px', height: size * .5 + 'px', left: cx - size / 2 + 'px', top: cy - size * .15 + 'px' });
       arena.appendChild(w);
       anim(w, [{ transform: 'scale(.3)', opacity: 1 }, { transform: 'scale(2.2)', opacity: 0 }], { duration: dur(700), easing: 'ease-out' }).then(() => w.remove());

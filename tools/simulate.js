@@ -2,8 +2,10 @@
 // Frog simulation report (tools/simulate.js) — plays lots of full games with every frog in the pool and reports how each
 // frog and item does. It changes nothing: the numbers are for a person to read and decide on.
 //
-//   node tools/simulate.js [--games N]      (default 120000 full games, spread over all CPU cores)
+//   node tools/simulate.js [--games N] [--set ID]   (default 120000 full games per set, spread over all CPU cores;
+//                                                    every set in sets.json, or just the one given)
 //
+// Each set is its own game (its shop only sells that set's frogs), so each set gets its own report.
 // How it works: two identical simulated players play complete games (seeded, fast). They buy
 // frogs without looking at which frog it is (so every frog gets picked about as often), merge
 // copies, feed, sell to make room for higher tiers and arrange by each frog's preferred spot.
@@ -21,13 +23,15 @@ const os = require('os');
 const path = require('path');
 const { Worker, isMainThread, parentPort } = require('worker_threads');
 const G = require('../engine.js'); // game rules only; never touches rooms or game history
-const { FROGS, FOODS } = G;
+const { FROGS, FOODS, SETS } = G;
 const ITEMS = Object.keys(FOODS);
 const args = process.argv.slice(2);
-const flag = (name, dflt) => { const i = args.indexOf(`--${name}`); return i >= 0 ? Number(args[i + 1]) : dflt; };
-const GAMES = flag('games', 120000);
+const flag = (name, dflt) => { const i = args.indexOf(`--${name}`); return i >= 0 ? args[i + 1] : dflt; };
+const GAMES = Number(flag('games', 120000));
+const ONLY = flag('set', null);
 const BAND = 0.03;       // more than 3 points from its tier's typical frog is worth a look
-const REAL = () => Object.keys(FROGS).filter((k) => FROGS[k].tier >= 1);
+let SET = Object.keys(SETS)[0]; // the set being simulated
+const REAL = () => SETS[SET].frogs;
 function mulberry32(a) { return () => { a |= 0; a = (a + 0x6D2B79F5) | 0; let t = Math.imul(a ^ (a >>> 15), 1 | a); t = (t + Math.imul(t ^ (t >>> 7), 61 | t)) ^ t; return ((t ^ (t >>> 14)) >>> 0) / 4294967296; }; }
 
 // ---------- one simulated game ----------
@@ -62,9 +66,9 @@ function botTurn(room, p, tier) {
       G.act(room, p, { type: 'buy', shopIdx: o.i, slot });
     }
     if (p.shop.food && p.gold >= (p.shop.foodCost ?? 3)) {
-      // Any frog for a bug; gear only goes to a frog that has none
-      const gear = FOODS[p.shop.food].gear, item = p.shop.food;
-      const idx = p.team.map((t, j) => (t && !(gear && t.gear) ? j : -1)).filter((j) => j >= 0);
+      // Any frog that can use it (gear only for a frog without any, a Cricket below level 3)
+      const item = p.shop.food;
+      const idx = p.team.map((t, j) => (G.canTake(t, FOODS[item]) ? j : -1)).filter((j) => j >= 0);
       if (idx.length) { G.act(room, p, { type: 'food', slot: idx[Math.floor(r() * idx.length)] }); room.buys.push([room.round, room.players.indexOf(p), item]); }
     }
     if (p.gold < G.ROLL_COST + 3) break;
@@ -79,7 +83,7 @@ function botTurn(room, p, tier) {
 // One full game; returns the per-round log (both boards and who won)
 function playGame(seed) {
   Math.random = mulberry32(seed * 2654435761);
-  const room = { code: 'SIM', sim: true, v: 0, players: [G.newPlayerState(), G.newPlayerState()], buys: [] };
+  const room = { code: 'SIM', sim: true, set: SET, v: 0, players: [G.newPlayerState(), G.newPlayerState()], buys: [] };
   room.players.forEach((p, i) => { p.rng = mulberry32(seed * 31 + i); });
   G.resetGame(room);
   for (let guard = 0; guard < 40 && room.phase === 'shop'; guard++) {
@@ -120,7 +124,8 @@ function count(from, to) {
   return { frog, items, rounds };
 }
 if (!isMainThread) {
-  parentPort.on('message', ({ frogs, foods, from, to }) => {
+  parentPort.on('message', ({ frogs, foods, set, from, to }) => {
+    SET = set;
     for (const k in frogs) FROGS[k] = frogs[k];
     for (const k in foods) FOODS[k] = foods[k];
     parentPort.postMessage(count(from, to));
@@ -135,7 +140,7 @@ async function simulate() {
   const per = Math.ceil(GAMES / pool.length);
   const parts = await Promise.all(pool.map((w, i) => new Promise((res, rej) => {
     w.once('error', rej); w.once('message', (m) => { w.off('error', rej); res(m); });
-    w.postMessage({ frogs: FROGS, foods: FOODS, from: i * per, to: Math.min(GAMES, (i + 1) * per) });
+    w.postMessage({ frogs: FROGS, foods: FOODS, set: SET, from: i * per, to: Math.min(GAMES, (i + 1) * per) });
   })));
   const sum = (a, b) => (b ? [a[0] + b[0], a[1] + b[1]] : a);
   const frog = {}, items = {};
@@ -188,9 +193,12 @@ function table(res, avg) {
 
 async function main() {
   const t0 = Date.now();
-  console.log(`${GAMES.toLocaleString('en')} full games on ${os.cpus().length} cores`);
-  const res = await simulate();
-  table(res, tierAverages(res));
+  for (const set of ONLY ? [ONLY] : Object.keys(SETS)) {
+    SET = set;
+    console.log(`\n=== ${SETS[set].name}: ${GAMES.toLocaleString('en')} full games on ${os.cpus().length} cores`);
+    const res = await simulate();
+    table(res, tierAverages(res));
+  }
   console.error(`done in ${((Date.now() - t0) / 1000).toFixed(0)}s`);
   for (const w of pool || []) w.terminate();
 }
