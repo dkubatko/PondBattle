@@ -231,6 +231,8 @@ function runBattle(teamA, teamB, opts = {}) {
   // two of one pond's never go in a row while the other pond still has one waiting, however many frogs stand
   // before them. opts.first says which pond starts; fight() switches it every round, so neither seat always acts first.
   const first = opts.first ? 1 : 0, order = [first, 1 - first];
+  // Each frog's effect is settled right away (knockouts, hurt reactions, babies), before the next frog acts; frogs
+  // that turn up during start of battle (babies, raised frogs) don't get a turn of their own
   const lines = T.map((t) => t.filter((u) => START_OF_BATTLE.has(u.type)));
   // L random enemies from a list (fewer if there aren't that many)
   const some = (pool, L) => { const out = []; pool = [...pool]; while (out.length < L && pool.length) out.push(pool.splice(rand(pool.length), 1)[0]); return out; };
@@ -297,9 +299,9 @@ function runBattle(teamA, teamB, opts = {}) {
           snap?.('ability', { actor: u.bid, text: `${nm(u)} blesses ${friends.length === 1 ? nm(friends[0]) : 'its friends'}` });
         }
       }
+      settle();
     }
   }
-  settle();
 
   let turns = 0;
   while (T[0].length && T[1].length && turns++ < 60) {
