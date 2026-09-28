@@ -1,7 +1,7 @@
 # Pond Battle (Frog Pond Brawl): zero-dependency Node server + Telegram bot in one small image
 FROM node:22-alpine
 WORKDIR /app
-COPY engine.js server.js telegram.js index.html frogs.json items.json ./
+COPY engine.js server.js telegram.js index.html frogs.json items.json sets.json ./
 COPY static ./static
 COPY tools ./tools
 ENV NODE_ENV=production PORT=8420 DATA_DIR=/data
