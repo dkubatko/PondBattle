@@ -70,8 +70,10 @@ function runBattle(teamA, teamB, opts = {}) {
   // Simulations skip the animation frames for speed
   // snap?.(…) skips building the caption and frame data entirely when frames are off
   // immune: frogs a hit didn't touch since the last frame (a Rogue, or frogs guarded by a Frog King), so the page can say so
-  const immune = [];
-  const snap = opts.frames === false ? null : (kind, extra = {}) => frames.push({ kind, a: T[0].map(pub), b: T[1].map(pub), ...extra, ...(immune.length ? { immune: immune.splice(0) } : {}) });
+  // gold: frogs a Golden Frog's touch knocked out; shell: [frog, damage its shell kept off] for Turtle Frogs
+  const immune = [], gold = [], shell = [];
+  const snap = opts.frames === false ? null : (kind, extra = {}) => frames.push({ kind, a: T[0].map(pub), b: T[1].map(pub), ...extra,
+    ...(immune.length ? { immune: immune.splice(0) } : {}), ...(gold.length ? { gold: gold.splice(0) } : {}), ...(shell.length ? { shell: shell.splice(0) } : {}) });
   const alive = (s) => T[s].filter((u) => u.hp > 0);
   const hurts = [];
   const nm = (u) => FROGS[u.type].name;
@@ -89,9 +91,9 @@ function runBattle(teamA, teamB, opts = {}) {
     if (n <= 0 || u.hp <= 0) return;
     if ((u.type === 'rogue' && !(src && T[s][0] === u)) || (!checked && guarded(s, u))) { if (snap) immune.push(u.bid); return; }
     if (u.gear === 'bubble' && !u.blocked) { u.blocked = true; return; } // the next frame shows the bubble as popped
-    if (u.type === 'turtle') n = Math.max(1, n - u.lvl);
-    // Golden Frog: its first L hits that land knock the frog out
-    if (src && src.type === 'golden' && src.uses < src.lvl) { src.uses++; n = Math.max(n, u.hp); }
+    // Golden Frog: its first L hits that land turn the frog to gold (knocked out, whatever shell it has)
+    if (src && src.type === 'golden' && src.uses < src.lvl) { src.uses++; n = Math.max(n, u.hp); if (snap) gold.push(u.bid); }
+    else if (u.type === 'turtle') { const m = Math.max(1, n - u.lvl); if (snap && m < n) shell.push([u.bid, n - m]); n = m; }
     u.hp -= n;
     if (u.hp > 0) hurts.push([s, u]);
   };
@@ -108,11 +110,23 @@ function runBattle(teamA, teamB, opts = {}) {
     return false;
   });
   const blast = (s, n) => unguarded(s, alive(s), true).forEach((e) => damage(s, e, n, null, true));
-  // A frog joins the pond mid-battle (hatched or raised); every Mama Frog there gives it +L/+L
+  // A frog joins the pond mid-battle (hatched or raised); every Mama Frog there gives it +L/+L. The hug comes as its
+  // own step right after the hatching is shown (hugs()), so you can see who gave what.
+  const newborn = [];
   const hatch = (s, i, f) => {
     T[s].splice(i, 0, f);
-    for (const m of T[s]) if (m.type === 'mama' && m.hp > 0 && m !== f) buff(f, m.lvl, m.lvl);
+    newborn.push([s, f]);
     auras();
+  };
+  const hugs = () => {
+    const born = newborn.splice(0);
+    for (const s of [0, 1]) for (const m of T[s]) {
+      if (m.type !== 'mama' || m.hp <= 0) continue;
+      const kids = born.filter(([side, f]) => side === s && f !== m && f.hp > 0).map(([, f]) => f);
+      if (!kids.length) continue;
+      for (const f of kids) buff(f, m.lvl, m.lvl);
+      snap?.('ability', { actor: m.bid, targets: kids.map((f) => f.bid), text: `${nm(m)} hugs ${kids.length === 1 ? `the ${nm(kids[0])}` : 'the babies'}` });
+    }
   };
 
   function onHurt(s, u) {
@@ -121,6 +135,7 @@ function runBattle(teamA, teamB, opts = {}) {
       const f = unit('froglet', u.lvl, u.lvl, 1, null, ++bid);
       hatch(s, T[s].indexOf(u) + 1, f);
       snap?.('summon', { actor: f.bid, text: `A baby hatches from ${nm(u)}` });
+      hugs();
     }
     if (u.type === 'rain') {
       const t = T[s][T[s].indexOf(u) + 1];
@@ -139,12 +154,14 @@ function runBattle(teamA, teamB, opts = {}) {
       const f = unit('froglet', L, L, 1, null, ++bid);
       hatch(s, i, f);
       snap?.('summon', { actor: f.bid, text: `${nm(u)} hatches into a Froglet` });
+      hugs();
     }
     if (u.type === 'surinam') {
       // Lays as many L/L Froglets as there's room for in the pond
       let n = 0;
       while (T[s].length < TEAM_SIZE) { hatch(s, i, unit('froglet', L, L, 1, null, ++bid)); n++; }
       if (n) snap?.('summon', { actor: T[s][i].bid, text: `${nm(u)}’s babies hatch` });
+      hugs();
     }
     if (u.type === 'tree') {
       const f = alive(s);
@@ -162,7 +179,8 @@ function runBattle(teamA, teamB, opts = {}) {
         const f = unit(u.type, 1, 1, u.lvl, null, ++bid);
         if (fixed(f)) fixUnit(f);
         hatch(s, i, f);
-        snap?.('summon', { actor: f.bid, text: `${nm(n)} raises ${nm(f)}` });
+        snap?.('summon', { actor: f.bid, by: n.bid, text: `${nm(n)} raises ${nm(f)}` });
+        hugs();
       }
     }
   }
@@ -299,6 +317,8 @@ function runBattle(teamA, teamB, opts = {}) {
     }
   }
 
+  // frames from here on are the fighting itself (the page's log starts its "Battle" section here)
+  const fightAt = frames.length;
   let turns = 0;
   while (T[0].length && T[1].length && turns++ < 60) {
     // Hypno Frog: before attacking, sends the enemy ahead to the back (L times per battle); same pond first
@@ -326,7 +346,7 @@ function runBattle(teamA, teamB, opts = {}) {
   }
   const winner = T[0].length && !T[1].length ? 0 : T[1].length && !T[0].length ? 1 : -1;
   snap?.('end');
-  return { frames, winner };
+  return { frames, winner, fightAt };
 }
 
 // ---------- Players and rounds ----------
@@ -378,6 +398,12 @@ function canTake(t, food) {
   if (food.xp) return t.lvl < 3;
   return FROGS[t.type].fixed !== 'both';
 }
+// Shop-side ability effects for the page to play (who gave, who got it, how much): a Peeper's or Bard's buy.
+// Numbered, so each plays once; only the last few are kept. (End-of-round gifts go with the battle: lastBattle.before)
+function shopFx(p, kind, from, to, atk = 0, hp = 0) {
+  p.fxN = (p.fxN || 0) + 1;
+  p.fx = [...(p.fx || []).slice(-5), { n: p.fxN, kind, from: from.id, to: to.map((t) => t.id), atk, hp }];
+}
 function afterMerge(t) { t.lvl = levelOf(t.xp); fixStats(t); }
 
 function act(room, p, a) {
@@ -401,8 +427,12 @@ function act(room, p, a) {
       if (t) { t.atk = Math.max(t.atk, f.atk) + 1; t.hp = Math.max(t.hp, f.hp) + 1; t.xp += 1; afterMerge(t); target = t; }
       else team[slot] = f;
       const others = team.filter((x) => x && x !== target);
-      if (target.type === 'peeper' && others.length) { const o = pick(others); o.atk += target.lvl; fixStats(o); }
-      if (target.type === 'bard') for (let k = 0; k < 2 && others.length; k++) others.splice(rand(others.length), 1)[0].hp += target.lvl;
+      if (target.type === 'peeper' && others.length) { const o = pick(others); o.atk += target.lvl; fixStats(o); shopFx(p, 'buy', target, [o]); }
+      if (target.type === 'bard') {
+        const got = [];
+        for (let k = 0; k < 2 && others.length; k++) { const o = others.splice(rand(others.length), 1)[0]; o.hp += target.lvl; got.push(o); }
+        if (got.length) shopFx(p, 'buy', target, got);
+      }
       team.forEach((x) => x && fixStats(x));
       break;
     }
@@ -459,23 +489,26 @@ function act(room, p, a) {
 const teamSummary = (team) => team.map((f) => f && { type: f.type, atk: f.atk, hp: f.hp, lvl: f.lvl, ...(f.gear ? { gear: f.gear } : {}) });
 function fight(room) {
   const [A, B] = room.players;
-  // End-of-turn abilities (permanent)
-  for (const p of room.players) {
+  // End-of-turn abilities (permanent). before: what they did, per seat: the page plays it on your pond right before
+  // the battle (from/to are frog ids) and lists it in the battle log
+  const before = room.players.map(() => []);
+  room.players.forEach((p, seat) => {
     p.team.forEach((f, i) => {
       if (f && f.type === 'lily') {
-        for (let j = i - 1; j >= 0; j--) if (p.team[j]) { p.team[j].hp += f.lvl; fixStats(p.team[j]); break; }
+        for (let j = i - 1; j >= 0; j--) if (p.team[j]) { p.team[j].hp += f.lvl; fixStats(p.team[j]); before[seat].push({ from: f.id, to: p.team[j].id, atk: 0, hp: f.lvl, text: `${FROGS.lily.name} gives ${FROGS[p.team[j].type].name} +${f.lvl} health` }); break; }
       }
       if (f && f.type === 'blacksmith') {
-        for (let j = i - 1; j >= 0; j--) if (p.team[j]) { p.team[j].atk += f.lvl; fixStats(p.team[j]); break; }
+        for (let j = i - 1; j >= 0; j--) if (p.team[j]) { p.team[j].atk += f.lvl; fixStats(p.team[j]); before[seat].push({ from: f.id, to: p.team[j].id, atk: f.lvl, hp: 0, text: `${FROGS.blacksmith.name} gives ${FROGS[p.team[j].type].name} +${f.lvl} attack` }); break; }
       }
     });
-  }
+  });
   // simulations skip the animation frames; the pond whose frogs act first switches every round
-  const { frames, winner } = runBattle(A.team, B.team, { frames: !room.sim, first: room.round % 2 === 0 });
+  const { frames, winner, fightAt } = runBattle(A.team, B.team, { frames: !room.sim, first: room.round % 2 === 0 });
   // Bubbles only protect for the battle right after they are given
   for (const p of room.players) for (const f of p.team) if (f && f.gear === 'bubble') delete f.gear;
   if (winner >= 0) { room.players[winner].trophies++; room.players[1 - winner].hearts--; }
-  room.lastBattle = { id: room.sim ? '' : Math.random().toString(36).slice(2, 10), round: room.round, frames, winner };
+  // before / after: per seat, what happened around the battle itself (for the log)
+  room.lastBattle = { id: room.sim ? '' : Math.random().toString(36).slice(2, 10), round: room.round, frames, winner, fightAt, before, after: room.players.map(() => []) };
   (room.log = room.log || []).push({ round: room.round, winner, teams: [teamSummary(A.team), teamSummary(B.team)] });
   const done = room.players.findIndex((p) => p.trophies >= WIN_TROPHIES || p.hearts <= 0);
   if (done >= 0) {
@@ -488,7 +521,9 @@ function fight(room) {
   room.round++;
   for (const p of room.players) {
     p.ready = false;
-    p.gold = START_GOLD + p.team.reduce((g, f) => g + (f && f.type === 'lucky' ? f.lvl : 0), 0);
+    const lucky = p.team.reduce((g, f) => g + (f && f.type === 'lucky' ? f.lvl : 0), 0);
+    p.gold = START_GOLD + lucky;
+    if (lucky) room.lastBattle.after[room.players.indexOf(p)].push(`${FROGS.lucky.name}: +${lucky} gold next round`);
     if (p.shop && p.shop.locked) refillShop(p, room.round, setOf(room)); else rollShop(p, room.round, setOf(room));
   }
 }

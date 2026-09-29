@@ -106,7 +106,7 @@ function view(room, me) {
   const i = room.players.indexOf(me), opp = room.players[1 - i];
   return {
     v: room.v, build: currentPage().build, code: room.code, set: E.setOf(room), round: room.round, phase: room.phase, seat: i, winner: room.winner, game: room.game, ranked: !!room.ranked,
-    me: { name: me.name, avatar: me.avatar || cleanAvatar(), hearts: me.hearts, trophies: me.trophies, gold: me.gold, team: me.team, shop: me.shop, ready: me.ready, ...rankView(room, me) },
+    me: { name: me.name, avatar: me.avatar || cleanAvatar(), hearts: me.hearts, trophies: me.trophies, gold: me.gold, team: me.team, shop: me.shop, ready: me.ready, fx: me.fx || [], ...rankView(room, me) },
     opp: opp ? { name: opp.name, avatar: opp.avatar || cleanAvatar(), bot: !!opp.bot, ...(opp.uid ? { pid: pidOf(opp.uid) } : {}), hearts: opp.hearts, trophies: opp.trophies, ready: opp.ready, online: online(room, opp), ...(room.ranked ? { rank: R.rankOf(opp.uid, profiles) } : {}) } : null,
     lastBattle: room.lastBattle,
   };

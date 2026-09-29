@@ -363,6 +363,8 @@ h1 { margin: 0; text-align: center; font-size: 40px; font-weight: 900; line-heig
 .log-row.them { border-left-color: #f0869f; }
 .log-row.end { color: var(--moon); font-weight: 800; border-left-color: var(--firefly); }
 .log-row.new { animation: logIn .28s ease-out; }
+.log-head { margin: 14px 0 4px; font-size: 13px; font-weight: 900; color: var(--moon-dim); letter-spacing: .02em; }
+.log-head:first-child { margin-top: 2px; }
 @keyframes logIn { from { opacity: 0; transform: translateX(-8px); } }
 .guide-sec .sub { margin-left: 6px; font-size: 13px; font-weight: 700; color: var(--moon-dim); }
 .price { height: 20px; margin-top: 6px; display: flex; justify-content: center; pointer-events: none; }
@@ -386,7 +388,7 @@ h1 { margin: 0; text-align: center; font-size: 40px; font-weight: 900; line-heig
 /* Floating things */
 .flyer { position: fixed; left: 0; top: 0; z-index: 50; pointer-events: none; will-change: transform; margin: 0; }
 .float { position: fixed; z-index: 60; pointer-events: none; font-weight: 900; font-size: 19px; white-space: nowrap; text-shadow: 0 2px 0 rgba(0, 0, 0, .35); display: flex; gap: 6px; transform: translate(-50%, -50%); }
-.float .a { color: #ffab73; } .float .h { color: #ffadc0; } .float .g { color: var(--firefly); } .float .x { color: #ff8a8a; } .float .mix { color: var(--moon); } .float .blk { color: #c4f2c8; font-size: .8em; }
+.float .a { color: #ffab73; } .float .h { color: #ffadc0; } .float .g { color: var(--firefly); } .float .x { color: #ff8a8a; } .float .mix { color: var(--moon); } .float .shl { color: #b9c9c2; font-size: .7em; } .float .blk { color: #c4f2c8; font-size: .8em; }
 /* Notifications (shop messages and news, the battle's play-by-play) share one look: just text, lifted off the
    background by a soft shadow */
 .note { color: var(--moon); font-weight: 800; font-size: 16px; line-height: 1.3; text-align: center; text-shadow: 0 1px 2px rgba(0, 0, 0, .55), 0 0 12px rgba(8, 22, 27, .9); pointer-events: none; }
@@ -548,7 +550,7 @@ h1 { margin: 0; text-align: center; font-size: 40px; font-weight: 900; line-heig
 .fx-wave.fire { border-color: rgba(255, 150, 70, .95); background: radial-gradient(closest-side, rgba(255, 170, 80, .35), transparent); }
 .fx-wave.scream { border: 3px dashed rgba(255, 240, 200, .85); }
 .fx-ring.fire { border-color: rgba(255, 150, 70, .95); box-shadow: 0 0 14px rgba(255, 130, 60, .6); }
-.fx-fire { position: absolute; left: 0; top: 0; width: 28px; height: 28px; border-radius: 50%; z-index: 30; background: radial-gradient(circle at 40% 40%, #fff3c4, #ffb347 40%, #e8522d 75%, rgba(232, 82, 45, 0)); box-shadow: 0 0 18px 6px rgba(255, 120, 50, .55); }
+.fx-fire { position: absolute; left: 0; top: 0; width: 20px; height: 20px; border-radius: 50%; z-index: 30; background: radial-gradient(circle at 40% 40%, #fff3c4, #ffb347 40%, #e8522d 75%, rgba(232, 82, 45, 0)); box-shadow: 0 0 10px 3px rgba(255, 120, 50, .45); }
 .fx-arrow { position: absolute; left: 0; top: 0; width: 24px; height: 4px; margin-top: 5px; border-radius: 2px; background: #c89a62; z-index: 30; transform-origin: 50% 50%; }
 .fx-arrow::after { content: ''; position: absolute; right: -5px; top: -4px; border: 6px solid transparent; border-left: 8px solid #e7eef5; border-right: 0; }
 .fx-arrow::before { content: ''; position: absolute; left: -2px; top: -3px; width: 7px; height: 10px; background: #f0869f; clip-path: polygon(0 0, 100% 30%, 100% 70%, 0 100%); }
@@ -1947,7 +1949,7 @@ function route() {
   if (!sess) return showHome();
   if (!S || busy || playing) return;
   const lb = S.lastBattle;
-  if (lb && lb.id !== localStorage[seenKey()]) return playBattle(lb);
+  if (lb && lb.id !== localStorage[seenKey()]) { const pre = preBattle(lb); return pre ? pre.then(() => playBattle(lb)) : playBattle(lb); }
   if (S.phase === 'over' && overGame == null) overGame = S.game;
   if (overGame != null) return showOver();
   if (S.phase === 'waiting') return showWaiting();
@@ -2469,7 +2471,21 @@ function updatePads() {
     }
   }
   prevTeam = team.map((f) => f && { ...f });
+  playShopFx();
   if (leveled.length) setTimeout(() => leveled.forEach(([fr, f]) => { sparkles(fr, 14); Snd.levelup(); toast(`${NAMES[f.type]} is now level ${f.lvl}`); }), 200);
+}
+// Shop-side abilities the server reports (S.me.fx, numbered): when a Peeper's or Bard's buy gives something, the
+// Peeper or Bard does a small bump (the frogs that got it show their +1 as their stats go up). Each plays once; what
+// was there when the page opened is not replayed. (End-of-round gifts play before the battle, see preBattle.)
+let fxSeen = null;
+function playShopFx() {
+  const list = S.me.fx || [], top = list.reduce((m, x) => Math.max(m, x.n), 0);
+  if (fxSeen === null || top < fxSeen) { fxSeen = top; return; } // first look (or a new game): nothing to replay
+  const fresh = list.filter((x) => x.n > fxSeen); fxSeen = top;
+  const frogEl = (id) => $(`.pad .frog[data-fid="${id}"]`);
+  fresh.forEach((x, k) => setTimeout(() => {
+    const g = frogEl(x.from); if (g) bump(g);
+  }, 450 + k * 350));
 }
 function updateItems() {
   const me = S.me, shop = me.shop, locked = S.round < 5;
@@ -3237,12 +3253,13 @@ function viewFrames(lb, seat) {
 }
 // What happened, line by line, from the frames: hits and faints are read from how the frogs changed,
 // abilities use their own caption. side: 'me' / 'them' (whose frog it was)
-function battleLog(frames, upto = frames.length - 1) {
+// fightAt: the first frame of the fighting itself; rows before it are start of battle (row.phase 'start' / 'battle')
+function battleLog(frames, upto = frames.length - 1, fightAt = Infinity) {
   const rows = [], nm = (u) => NAMES[u.type] || 'Frog';
   const find = (f, id) => f.mine.find((u) => u.id === id) || f.theirs.find((u) => u.id === id);
   const sideOf = (f, id) => (f.mine.some((u) => u.id === id) ? 'me' : f.theirs.some((u) => u.id === id) ? 'them' : '');
   for (let k = 1; k <= upto && k < frames.length; k++) {
-    const fr = frames[k], pv = frames[k - 1];
+    const fr = frames[k], pv = frames[k - 1], from = rows.length;
     if (fr.kind === 'hit') {
       const [a, b] = fr.ids, leaps = new Map(fr.leaps || []), wide = new Map(fr.wide || []);
       for (const [x, other] of [[a, b], [b, a]]) {
@@ -3250,7 +3267,9 @@ function battleLog(frames, upto = frames.length - 1) {
         for (const id of leaps.get(x) || wide.get(x) || [other]) {
           const t0 = find(pv, id), t1 = find(fr, id); if (!t0) continue;
           const dmg = t0.hp - (t1 ? t1.hp : 0);
-          if (dmg > 0) rows.push({ side: sideOf(pv, x), text: `${nm(u)} ${leaps.has(x) ? 'leaps over and hits' : wide.has(x) ? 'rolls into' : 'hits'} ${nm(t0)} for ${dmg}` });
+          const shell = (fr.shell || []).find(([sid]) => sid === id);
+          if ((fr.gold || []).includes(id)) rows.push({ side: sideOf(pv, x), text: `${nm(u)}’s touch turns ${nm(t0)} to gold` });
+          else if (dmg > 0) rows.push({ side: sideOf(pv, x), text: `${nm(u)} ${leaps.has(x) ? 'leaps over and hits' : wide.has(x) ? 'rolls into' : 'hits'} ${nm(t0)} for ${dmg}${shell ? `, but its shell stops ${shell[1]}` : ''}` });
           else if (t0.gear === 'bubble' && t1 && t1.gear === 'used') rows.push({ side: sideOf(pv, id), text: `${nm(t0)}’s bubble blocks ${nm(u)}` });
         }
       }
@@ -3259,7 +3278,8 @@ function battleLog(frames, upto = frames.length - 1) {
       const u = find(pv, fr.actor), t0 = find(pv, fr.target), t1 = find(fr, fr.target);
       if (!u || !t0) continue;
       const dmg = t0.hp - (t1 ? t1.hp : 0);
-      if (dmg > 0) rows.push({ side: sideOf(pv, u.id), text: `${nm(u)} ${fr.arrow ? 'shoots' : 'spits at'} ${nm(t0)} for ${dmg}` });
+      const shell = (fr.shell || []).find(([sid]) => sid === t0.id);
+      if (dmg > 0) rows.push({ side: sideOf(pv, u.id), text: `${nm(u)} ${fr.arrow ? 'shoots' : 'spits at'} ${nm(t0)} for ${dmg}${shell ? `, but its shell stops ${shell[1]}` : ''}` });
       else if ((fr.immune || []).includes(t0.id)) rows.push({ side: sideOf(pv, u.id), text: `${nm(u)} ${fr.arrow ? 'shoots at' : 'spits at'} ${nm(t0)}, but it’s immune` });
       else if (t0.gear === 'bubble' && t1 && t1.gear === 'used') rows.push({ side: sideOf(pv, t0.id), text: `${nm(t0)}’s bubble blocks ${nm(u)}` });
     } else if (fr.kind === 'faint') {
@@ -3270,6 +3290,9 @@ function battleLog(frames, upto = frames.length - 1) {
     }
     // Hits that didn't touch a Rogue, or frogs guarded by a Frog King
     if (fr.kind !== 'spit') for (const id of fr.immune || []) { const u = find(pv, id); if (u) rows.push({ side: sideOf(pv, id), text: `${nm(u)} is immune` }); }
+    // a Turtle Frog's shell during a splash or fire (hits and shots say it in their own line)
+    if (fr.kind !== 'spit' && fr.kind !== 'hit') for (const [id, n] of fr.shell || []) { const u = find(pv, id); if (u) rows.push({ side: sideOf(pv, id), text: `${nm(u)}’s shell stops ${n}` }); }
+    for (let j = from; j < rows.length; j++) rows[j].phase = k >= fightAt ? 'battle' : 'start';
   }
   return rows;
 }
@@ -3285,20 +3308,55 @@ function openBattleSheet(lb, upto) {
     <div class="log-list"></div>`);
   const list = $('.log-list', s.el), box = $('.sheet-body', s.el);
   let shown = 0;
+  // The log in four parts: what happened as the round ended (shown at once), start of battle, the battle, and what
+  // happens after it (once it's over). Sections only grow at the end, so rows are only ever appended.
+  const seatRows = (per) => (per || []).flatMap((list, seat) => list.map((x) => ({ side: seat === S.seat ? 'me' : 'them', text: x.text || x })));
+  const fightAt = lb.fightAt ?? frames.findIndex((f) => f.kind === 'hit');
   const update = (to) => {
     if (!s.el.isConnected) return;
-    const rows = battleLog(frames, to);
-    if (to == null || to >= frames.length - 1) rows.push({ side: 'end', text: lb.winner === -1 ? 'It’s a tie' : lb.winner === S.seat ? 'You won the round' : `${oppName} won the round` });
+    const log = battleLog(frames, to, fightAt < 0 ? Infinity : fightAt), rows = [];
+    const section = (title, list) => { if (list.length) rows.push({ head: title }, ...list); };
+    section('Before the battle', seatRows(lb.before));
+    section('Start of battle', log.filter((r) => r.phase === 'start'));
+    section('Battle', log.filter((r) => r.phase === 'battle'));
+    if (to == null || to >= frames.length - 1) section('After the battle', [{ side: 'end', text: lb.winner === -1 ? 'It’s a tie' : lb.winner === S.seat ? 'You won the round' : `${oppName} won the round` }, ...seatRows(lb.after)]);
     if (!rows.length && !shown) { list.innerHTML = '<div class="log-row wait">The battle is about to start</div>'; return; }
     if (rows.length <= shown) return;
     const follow = box.scrollHeight - box.scrollTop - box.clientHeight < 60; // at (or near) the bottom
     $('.wait', list)?.remove();
-    for (const r of rows.slice(shown)) list.appendChild(el(`<div class="log-row ${r.side}${shown ? ' new' : ''}">${esc(r.text)}</div>`));
+    for (const r of rows.slice(shown)) list.appendChild(el(r.head ? `<div class="log-head">${esc(r.head)}</div>` : `<div class="log-row ${r.side}${shown ? ' new' : ''}">${esc(r.text)}</div>`));
     if (shown && follow) box.scrollTo({ top: box.scrollHeight, behavior: 'smooth' });
     shown = rows.length;
   };
   update(upto);
   return { update, open: () => s.el.isConnected };
+}
+// End-of-round gifts (Lily Frog, Blacksmith) happen as the round ends, so they play on your own pond in the shop
+// right before the battle: the giver bumps and the frog that got it shows its +1. (Your partner's are in the log.)
+// Returns null when there's nothing to show (the battle then starts at once, as before), else a promise; it marks the
+// page as playing straight away so nothing else starts the battle meanwhile.
+function preBattle(lb) {
+  const mine = ((lb.before || [])[S.seat] || []).filter((x) => x && x.from != null);
+  if (screen !== 'game' || !mine.length || lb.id === sessionStorage.frogPre) return null;
+  sessionStorage.frogPre = lb.id; // once per battle, even if the page reloads before the battle is watched
+  playing = true;
+  $('#bubble')?.classList.remove('show');
+  return playGifts(mine);
+}
+async function playGifts(mine) {
+  await sleep(250);
+  for (const x of mine) {
+    const g = $(`.pad .frog[data-fid="${x.from}"]`), t = $(`.pad .frog[data-fid="${x.to}"]`);
+    if (g) bump(g);
+    Snd.sparkle();
+    // the +1 floats up and the frog's number on its pad goes up with it
+    if (t) setTimeout(() => {
+      statFloat($('.fbody', t), x.atk, x.hp);
+      for (const [cls, d] of [['atk', x.atk], ['hp', x.hp]]) { const n = d && $(`.st.${cls}`, t); if (n) { n.textContent = +n.textContent + d; anim(n, [{ transform: 'scale(1.5)' }, { transform: 'scale(1)' }], { duration: 300 }); } }
+    }, 160);
+    await sleep(700);
+  }
+  await sleep(250);
 }
 async function playBattle(lb) {
   playing = true;
@@ -3482,6 +3540,12 @@ async function playBattle(lb) {
       const b = $('.fbody', rec.el).getBoundingClientRect();
       floatAt(b.left + b.width / 2, b.top, '<span class="blk">Immune</span>');
     }
+    // a Turtle Frog's shell: a small, quiet note of what it kept off (from any hit, shot, splash or fire)
+    if (animate && !skipping) for (const [id, n] of fr.shell || []) {
+      const rec = byId(id); if (!rec) continue;
+      const b = $('.fbody', rec.el).getBoundingClientRect();
+      floatAt(b.left + b.width / 2, b.top + b.height * .35, `<span class="shl">shell −${n}</span>`);
+    }
   };
   const caption = (text) => {
     if (!text) { cap.style.opacity = 0; return; }
@@ -3520,7 +3584,10 @@ async function playBattle(lb) {
     if (logView && logView.open()) logView.update(k); // the open log gets this step's line as it plays
     const fr = frames[k];
     if (fr.kind === 'hit') {
-      caption('');
+      // a Pebble Toad or a Golden Frog's touch says what's happening; other hits need no words
+      const roller = (fr.wide || []).map(([id]) => byId(id)).find(Boolean), touched = (fr.gold || []).map(byId).filter(Boolean);
+      const golden = touched.length && fr.ids.map(byId).find((r) => r && r.u.type === 'golden');
+      caption(golden ? `${NAMES.golden}’s touch turns ${NAMES[touched[0].u.type]} to gold` : roller ? `${NAMES[roller.u.type]} rolls into everyone` : '');
       const [ra, rb] = fr.ids.map(byId);
       const leaps = new Map(fr.leaps || []);
       for (const r of [ra, rb]) if (r && leaps.has(r.u.id)) {
@@ -3548,8 +3615,10 @@ async function playBattle(lb) {
       for (const [, ids] of fr.wide || []) setTimeout(() => ids.forEach((id) => ring(byId(id))), dur(260));
       for (const r of [ra, rb]) if (r && !leaps.has(r.u.id)) anim(r.move, [{ transform: 'translate(0,0)' }, { transform: `translate(${(r.side ? 1 : -1) * 6 * s}px, ${-4 * s}px) rotate(${r.side ? 6 : -6}deg)`, offset: .3 }, { transform: `translate(${(r.side ? -1 : 1) * 12 * s}px, ${-10 * s}px) rotate(${r.side ? -8 : 8}deg)`, offset: .55 }, { transform: `translate(${(r.side ? -1 : 1) * 10 * s}px, 0)`, offset: .66 }, { transform: 'translate(0,0)' }], { duration: dur(500), easing: 'ease-out' });
       await wait(320);
+      // Midas touch: the frog flashes gold (with a few gold sparkles) before it goes
+      for (const t of touched) if (!skipping) { anim($('.fbody', t.el), [{ filter: 'none' }, { filter: 'sepia(1) saturate(4) hue-rotate(5deg) brightness(1.25)', offset: .35 }, { filter: 'sepia(1) saturate(4) hue-rotate(5deg) brightness(1.25)' }], { duration: dur(520), fill: 'forwards' }); sparkles($('.fbody', t.el), 6, '#ffd76a'); }
       Snd.hit(); apply(fr, true);
-      await wait(520);
+      await wait(touched.length ? 620 : 520);
     } else if (fr.kind === 'faint') {
       Snd.faint(); apply(fr, true); await wait(560);
     } else if (fr.kind === 'spit') {
@@ -3599,31 +3668,32 @@ async function playBattle(lb) {
       caption(fr.text); Snd.magic(); ring(byId(fr.actor), 'fx-ring magic');
       await wait(200); apply(fr, true); await wait(700);
     } else if (fr.kind === 'summon') {
-      caption(fr.text); Snd.summon(); apply(fr, true); ring(byId(fr.actor)); await wait(620);
+      caption(fr.text); Snd.summon(); apply(fr, true); ring(byId(fr.actor));
+      if (fr.by) ring(byId(fr.by), 'fx-ring magic'); // the Necromancer that raised it
+      await wait(620);
     } else if (fr.kind === 'splash') {
       // Mossy Frog's splash, a Dragon's fire or Budgett's Frog's scream: one wave over the other pond. A Dragon or
       // Budgett's Frog first rears up (so it's clear who's acting) and sends its fire or its scream across.
       caption(fr.text);
       const [cx, cy] = pos(fr.side, 2), src = byId(fr.actor);
       if (src && !skipping) {
-        ring(src, `fx-ring ${fr.fire ? 'fire' : 'magic'}`);
-        anim(src.move, [{ transform: 'translateY(0) scale(1)' }, { transform: `translateY(${-18 * s}px) scale(1.15)`, offset: .5 }, { transform: 'translateY(0) scale(1)' }], { duration: dur(420), easing: 'ease-out' });
-        await wait(260);
+        anim(src.move, [{ transform: 'translateY(0) scale(1)' }, { transform: `translateY(${-12 * s}px) scale(1.08)`, offset: .5 }, { transform: 'translateY(0) scale(1)' }], { duration: dur(360), easing: 'ease-out' });
+        await wait(200);
         const [x0, y0] = [src.x, src.y - U * .25];
         if (fr.fire) {
           Snd.spit();
           const ball = el('<div class="fx-fire"></div>'); arena.appendChild(ball);
-          await anim(ball, [{ transform: `translate(${x0 - 14}px,${y0 - 14}px) scale(.5)` }, { transform: `translate(${(x0 + cx) / 2 - 14}px,${Math.min(y0, cy) - 40 * s}px) scale(1)` }, { transform: `translate(${cx - 14}px,${cy - 14}px) scale(1.6)`, opacity: .8 }], { duration: dur(460), easing: 'ease-in' });
+          await anim(ball, [{ transform: `translate(${x0 - 10}px,${y0 - 10}px) scale(.5)` }, { transform: `translate(${(x0 + cx) / 2 - 10}px,${Math.min(y0, cy) - 30 * s}px) scale(.9)` }, { transform: `translate(${cx - 10}px,${cy - 10}px) scale(1.2)`, opacity: .7 }], { duration: dur(380), easing: 'ease-in' });
           ball.remove();
         } else {
           Snd.magic();
-          for (let k = 0; k < 3; k++) {
+          for (let k = 0; k < 2; k++) {
             const r = el('<div class="fx-wave scream"></div>'), sz = 70 * s;
             Object.assign(r.style, { width: sz + 'px', height: sz * .6 + 'px', left: x0 - sz / 2 + 'px', top: y0 - sz * .3 + 'px' });
             arena.appendChild(r);
             anim(r, [{ transform: 'translate(0,0) scale(.4)', opacity: 1 }, { transform: `translate(${cx - x0}px,${cy - y0}px) scale(1.4)`, opacity: 0 }], { duration: dur(620), delay: dur(k * 120), easing: 'ease-out' }).then(() => r.remove());
           }
-          await wait(420);
+          await wait(360);
         }
       }
       if (!fr.scream) Snd.splash();
