@@ -551,6 +551,7 @@ h1 { margin: 0; text-align: center; font-size: 40px; font-weight: 900; line-heig
 .fx-wave.scream { border: 3px dashed rgba(255, 240, 200, .85); }
 .fx-ring.fire { border-color: rgba(255, 150, 70, .95); box-shadow: 0 0 14px rgba(255, 130, 60, .6); }
 .fx-fire { position: absolute; left: 0; top: 0; width: 20px; height: 20px; border-radius: 50%; z-index: 30; background: radial-gradient(circle at 40% 40%, #fff3c4, #ffb347 40%, #e8522d 75%, rgba(232, 82, 45, 0)); box-shadow: 0 0 10px 3px rgba(255, 120, 50, .45); }
+.fx-note { position: fixed; left: 0; top: 0; z-index: 60; pointer-events: none; filter: drop-shadow(0 1px 1px rgba(0, 0, 0, .35)); }
 .fx-arrow { position: absolute; left: 0; top: 0; width: 24px; height: 4px; margin-top: 5px; border-radius: 2px; background: #c89a62; z-index: 30; transform-origin: 50% 50%; }
 .fx-arrow::after { content: ''; position: absolute; right: -5px; top: -4px; border: 6px solid transparent; border-left: 8px solid #e7eef5; border-right: 0; }
 .fx-arrow::before { content: ''; position: absolute; left: -2px; top: -3px; width: 7px; height: 10px; background: #f0869f; clip-path: polygon(0 0, 100% 30%, 100% 70%, 0 100%); }
@@ -2455,6 +2456,24 @@ function bump(fr) {
   // A small happy hop in place when a frog gets stronger (no squashing)
   anim(fr, [{ transform: 'none', easing: 'ease-out' }, { transform: 'translateY(-7px)', offset: .4, easing: 'ease-in' }, { transform: 'none' }], { duration: 280 });
 }
+// A frog giving something to a friend glows for a moment, in place (it has usually just hopped: landing, or the
+// whole pond hopping on Ready, so a hop here would read as a second jump)
+function glow(fr) {
+  const body = $('.fbody', fr) || fr;
+  anim(body, [{ filter: 'brightness(1)' }, { filter: 'brightness(1.45) drop-shadow(0 0 6px rgba(255, 220, 140, .8))', offset: .4 }, { filter: 'brightness(1)' }], { duration: 520, easing: 'ease-out' });
+}
+// A Bard plays instead: a few music notes drift up from its lute, swaying as they fade
+const NOTE_SVG = (c) => `<svg viewBox="0 0 14 18" width="14" height="18"><path d="M9 1v11.5" stroke="${c}" stroke-width="1.8" stroke-linecap="round"/><path d="M9 1q4 .8 4.5 5" stroke="${c}" stroke-width="1.8" fill="none" stroke-linecap="round"/><ellipse cx="6" cy="13" rx="3.6" ry="2.8" transform="rotate(-20 6 13)" fill="${c}"/></svg>`;
+function playNotes(fr) {
+  const b = ($('.fbody', fr) || fr).getBoundingClientRect(), x0 = b.left + b.width * .72, y0 = b.top + b.height * .55;
+  ['#fff3c4', '#ffd6e6', '#fff3c4'].forEach((c, k) => {
+    const n = el(`<div class="fx-note">${NOTE_SVG(c)}</div>`); document.body.appendChild(n);
+    const dx = (k - 1) * 10, sway = k % 2 ? -6 : 6;
+    anim(n, [{ transform: `translate(${x0}px,${y0}px) scale(.6)`, opacity: 0 }, { transform: `translate(${x0 + dx + sway}px,${y0 - 18}px) scale(1)`, opacity: 1, offset: .3 },
+      { transform: `translate(${x0 + dx - sway}px,${y0 - 34}px) scale(1)`, opacity: .9, offset: .65 }, { transform: `translate(${x0 + dx}px,${y0 - 48}px) scale(.9)`, opacity: 0 }],
+      { duration: 900, delay: k * 140, easing: 'ease-out', fill: 'backwards' }).then(() => n.remove());
+  });
+}
 function patchFrog(fr, f) {
   const a = $('.st.atk', fr), h = $('.st.hp', fr);
   if (a) a.textContent = f.atk;
@@ -2471,6 +2490,10 @@ function patchFrog(fr, f) {
 function updatePads() {
   const team = S.me.team;
   const leveled = [];
+  // a buy's gift that hasn't played yet: its frogs keep their old numbers until the gift plays (playShopFx), so the
+  // giver's glow comes first and their +1 right after it
+  const held = new Map();
+  for (const x of freshFx()) for (const id of x.to) held.set(id, x);
   for (let i = 0; i < 5; i++) {
     const f = team[i], p = prevTeam[i];
     const pad = $(`.pad[data-i="${i}"]`), occ = $('.occ', pad);
@@ -2497,8 +2520,9 @@ function updatePads() {
       fr.style.transformOrigin = '50% 100%';
       anim(fr, [{ transform: 'scale(0)' }, { transform: 'scale(1.08)', offset: .7 }, { transform: 'none' }], { duration: 300, easing: 'ease-out' });
     }
+    if (held.has(f.id)) { const x = held.get(f.id), a = $('.st.atk', fr), h = $('.st.hp', fr); if (a) a.textContent = f.atk - x.atk; if (h) h.textContent = f.hp - x.hp; }
     if (was) {
-      const da = f.atk - was.atk, dh = f.hp - was.hp;
+      const x = held.get(f.id), da = f.atk - was.atk - (x ? x.atk : 0), dh = f.hp - was.hp - (x ? x.hp : 0);
       if (da > 0 || dh > 0) setTimeout(() => { statFloat($('.fbody', fr), da, dh); bump(fr); }, 80);
       if (f.lvl > was.lvl) leveled.push([fr, f]);
     }
@@ -2508,17 +2532,29 @@ function updatePads() {
   if (leveled.length) setTimeout(() => leveled.forEach(([fr, f]) => { sparkles(fr, 14); Snd.levelup(); toast(`${NAMES[f.type]} is now level ${f.lvl}`); }), 200);
 }
 // Shop-side abilities the server reports (S.me.fx, numbered): when a Peeper's or Bard's buy gives something, the
-// Peeper or Bard does a small bump (the frogs that got it show their +1 as their stats go up). Each plays once; what
+// Peeper or Bard glows (the frogs that got it show their +1 as their stats go up). Each plays once; what
 // was there when the page opened is not replayed. (End-of-round gifts play before the battle, see preBattle.)
 let fxSeen = null;
-function playShopFx() {
+// gifts the page hasn't played yet (none on the first look, or after a new game starts)
+function freshFx() {
   const list = S.me.fx || [], top = list.reduce((m, x) => Math.max(m, x.n), 0);
-  if (fxSeen === null || top < fxSeen) { fxSeen = top; return; } // first look (or a new game): nothing to replay
-  const fresh = list.filter((x) => x.n > fxSeen); fxSeen = top;
+  return fxSeen === null || top < fxSeen ? [] : list.filter((x) => x.n > fxSeen);
+}
+function playShopFx() {
+  const fresh = freshFx();
+  fxSeen = (S.me.fx || []).reduce((m, x) => Math.max(m, x.n), 0);
   const frogEl = (id) => $(`.pad .frog[data-fid="${id}"]`);
+  // as soon as the server says what the gift was: the giver glows (a Bard plays), and 200ms later each friend that
+  // got the gift shows its +1 and its number goes up. (Several gifts at once play one after another.)
   fresh.forEach((x, k) => setTimeout(() => {
-    const g = frogEl(x.from); if (g) bump(g);
-  }, 450 + k * 350));
+    const g = frogEl(x.from), giver = S.me.team.find((m) => m && m.id === x.from);
+    if (g) (giver && giver.type === 'bard' ? playNotes : glow)(g);
+    setTimeout(() => x.to.forEach((id) => {
+      const t = frogEl(id), f = S.me.team.find((m) => m && m.id === id); if (!t || !f) return;
+      statFloat($('.fbody', t), x.atk, x.hp); bump(t);
+      for (const [cls, d, v] of [['atk', x.atk, f.atk], ['hp', x.hp, f.hp]]) { const n = d && $(`.st.${cls}`, t); if (n) { n.textContent = v; anim(n, [{ transform: 'scale(1.5)' }, { transform: 'scale(1)' }], { duration: 300 }); } }
+    }), 200);
+  }, k * 500));
 }
 function updateItems() {
   const me = S.me, shop = me.shop, locked = S.round < 5;
@@ -3303,7 +3339,7 @@ function battleLog(frames, upto = frames.length - 1, fightAt = Infinity) {
           const shell = (fr.shell || []).find(([sid]) => sid === id);
           if ((fr.gold || []).includes(id)) rows.push({ side: sideOf(pv, x), text: `${nm(u)}’s touch turns ${nm(t0)} to gold` });
           else if (dmg > 0) rows.push({ side: sideOf(pv, x), text: `${nm(u)} ${leaps.has(x) ? 'leaps over and hits' : wide.has(x) ? 'rolls into' : 'hits'} ${nm(t0)} for ${dmg}${shell ? `, but its shell stops ${shell[1]}` : ''}` });
-          else if (t0.gear === 'bubble' && t1 && t1.gear === 'used') rows.push({ side: sideOf(pv, id), text: `${nm(t0)}’s bubble blocks ${nm(u)}` });
+          else if (t0.gear === 'bubble' && t1 && t1.gear === 'used') rows.push({ side: sideOf(pv, x), text: `${nm(u)} ${leaps.has(x) ? 'leaps over and hits' : wide.has(x) ? 'rolls into' : 'hits'} ${nm(t0)}, but its bubble blocks it` });
         }
       }
     } else if (fr.kind === 'spit') {
@@ -3314,7 +3350,7 @@ function battleLog(frames, upto = frames.length - 1, fightAt = Infinity) {
       const shell = (fr.shell || []).find(([sid]) => sid === t0.id);
       if (dmg > 0) rows.push({ side: sideOf(pv, u.id), text: `${nm(u)} ${fr.arrow ? 'shoots' : 'spits at'} ${nm(t0)} for ${dmg}${shell ? `, but its shell stops ${shell[1]}` : ''}` });
       else if ((fr.immune || []).includes(t0.id)) rows.push({ side: sideOf(pv, u.id), text: `${nm(u)} ${fr.arrow ? 'shoots at' : 'spits at'} ${nm(t0)}, but it’s immune` });
-      else if (t0.gear === 'bubble' && t1 && t1.gear === 'used') rows.push({ side: sideOf(pv, t0.id), text: `${nm(t0)}’s bubble blocks ${nm(u)}` });
+      else if (t0.gear === 'bubble' && t1 && t1.gear === 'used') rows.push({ side: sideOf(pv, u.id), text: `${nm(u)} ${fr.arrow ? 'shoots at' : 'spits at'} ${nm(t0)}, but its bubble blocks it` });
     } else if (fr.kind === 'faint') {
       for (const u of [...pv.mine, ...pv.theirs]) if (!find(fr, u.id)) rows.push({ side: sideOf(pv, u.id), text: `${nm(u)} faints` });
     } else if (fr.text) {
@@ -3365,7 +3401,7 @@ function openBattleSheet(lb, upto) {
   return { update, open: () => s.el.isConnected };
 }
 // End-of-round gifts (Lily Frog, Blacksmith) happen as the round ends, so they play on your own pond in the shop
-// right before the battle: the giver bumps and the frog that got it shows its +1. (Your partner's are in the log.)
+// right before the battle: the giver glows and the frog that got it shows its +1. (Your partner's are in the log.)
 // Returns null when there's nothing to show (the battle then starts at once, as before), else a promise; it marks the
 // page as playing straight away so nothing else starts the battle meanwhile.
 function preBattle(lb) {
@@ -3380,7 +3416,7 @@ async function playGifts(mine) {
   await sleep(250);
   for (const x of mine) {
     const g = $(`.pad .frog[data-fid="${x.from}"]`), t = $(`.pad .frog[data-fid="${x.to}"]`);
-    if (g) bump(g);
+    if (g) glow(g);
     Snd.sparkle();
     // the +1 floats up and the frog's number on its pad goes up with it
     if (t) setTimeout(() => {

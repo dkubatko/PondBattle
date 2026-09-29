@@ -75,6 +75,25 @@ function runBattle(teamA, teamB, opts = {}) {
   const snap = opts.frames === false ? null : (kind, extra = {}) => frames.push({ kind, a: T[0].map(pub), b: T[1].map(pub), ...extra,
     ...(immune.length ? { immune: immune.splice(0) } : {}), ...(gold.length ? { gold: gold.splice(0) } : {}), ...(shell.length ? { shell: shell.splice(0) } : {}) });
   const alive = (s) => T[s].filter((u) => u.hp > 0);
+  // New frogs (babies, raised frogs) arrive once everyone knocked out in the same moment has left, in the spots that
+  // freed up: arrive() queues them, settle() lets them in when nothing else is left to resolve. next: the frog they
+  // line up in front of (the end of the pond if it's gone by then).
+  const arrivals = [];
+  const arrive = (s, next, make, fill, text, by) => arrivals.push({ s, next, make, fill, text, by });
+  function letIn() {
+    for (const a of arrivals.splice(0)) {
+      const s = a.s, space = TEAM_SIZE - T[s].length;
+      if (a.by && !(a.by.hp > 0 && T[s].includes(a.by) && a.by.uses < a.by.lvl)) continue; // its Necromancer is gone or spent
+      const n = a.fill ? space : Math.min(1, space);
+      if (n <= 0) continue;
+      if (a.by) a.by.uses++;
+      let at = a.next && T[s].includes(a.next) ? T[s].indexOf(a.next) : T[s].length, firstNew = null;
+      for (let k = 0; k < n; k++) { const f = a.make(); hatch(s, at, f); firstNew ??= f; }
+      snap?.('summon', { actor: firstNew.bid, ...(a.by ? { by: a.by.bid } : {}), text: a.text(firstNew) });
+      hugs();
+    }
+  }
+  const an = (name) => `${/^[AEIOU]/.test(name) ? 'an' : 'a'} ${name}`;
   const hurts = [];
   const nm = (u) => FROGS[u.type].name;
   const fixed = (u) => FROGS[u.type].fixed;
@@ -131,12 +150,7 @@ function runBattle(teamA, teamB, opts = {}) {
 
   function onHurt(s, u) {
     if (u.type === 'toad') { buff(u, u.lvl, 0); snap?.('ability', { actor: u.bid, text: `${nm(u)} shows its claws` }); }
-    if (u.type === 'midwife' && T[s].length < TEAM_SIZE) {
-      const f = unit('froglet', u.lvl, u.lvl, 1, null, ++bid);
-      hatch(s, T[s].indexOf(u) + 1, f);
-      snap?.('summon', { actor: f.bid, text: `A baby hatches from ${nm(u)}` });
-      hugs();
-    }
+    if (u.type === 'midwife') arrive(s, T[s][T[s].indexOf(u) + 1], () => unit('froglet', u.lvl, u.lvl, 1, null, ++bid), false, () => `A baby hatches from ${nm(u)}`);
     if (u.type === 'rain') {
       const t = T[s][T[s].indexOf(u) + 1];
       if (t && t.hp > 0) { buff(t, u.lvl, u.lvl); snap?.('ability', { actor: u.bid, target: t.bid, text: `${nm(u)} shelters ${nm(t)}` }); }
@@ -150,18 +164,10 @@ function runBattle(teamA, teamB, opts = {}) {
       snap?.('ability', { actor: behind.bid, text: `${nm(behind)} is fired up` });
     }
     // Frogspawn (id 'tadpole'): retired from the shop (tier 0); kept only so ponds saved before still play out
-    if (u.type === 'tadpole' && T[s].length < TEAM_SIZE) {
-      const f = unit('froglet', L, L, 1, null, ++bid);
-      hatch(s, i, f);
-      snap?.('summon', { actor: f.bid, text: `${nm(u)} hatches into a Froglet` });
-      hugs();
-    }
+    if (u.type === 'tadpole') arrive(s, T[s][i], () => unit('froglet', L, L, 1, null, ++bid), false, () => `${nm(u)} hatches into a Froglet`);
     if (u.type === 'surinam') {
       // Lays as many L/L Froglets as there's room for in the pond
-      let n = 0;
-      while (T[s].length < TEAM_SIZE) { hatch(s, i, unit('froglet', L, L, 1, null, ++bid)); n++; }
-      if (n) snap?.('summon', { actor: T[s][i].bid, text: `${nm(u)}’s babies hatch` });
-      hugs();
+      arrive(s, T[s][i], () => unit('froglet', L, L, 1, null, ++bid), true, () => `${nm(u)}’s babies hatch`);
     }
     if (u.type === 'tree') {
       const f = alive(s);
@@ -172,16 +178,11 @@ function runBattle(teamA, teamB, opts = {}) {
       snap?.('splash', { side: 1 - s, text: `${nm(u)} makes a huge splash` });
     }
     // Necromancer: a fainted friend rises again as a 1/1 (L times per battle), in the same spot
-    if (u.type !== 'necro' && T[s].length < TEAM_SIZE) {
-      const n = T[s].find((x) => x.type === 'necro' && x.hp > 0 && x.uses < x.lvl);
-      if (n) {
-        n.uses++;
-        const f = unit(u.type, 1, 1, u.lvl, null, ++bid);
-        if (fixed(f)) fixUnit(f);
-        hatch(s, i, f);
-        snap?.('summon', { actor: f.bid, by: n.bid, text: `${nm(n)} raises ${nm(f)}` });
-        hugs();
-      }
+    if (u.type !== 'necro') {
+      // one raise per Necromancer charge (charges already promised to frogs waiting to come back count as used)
+      const waiting = (n) => arrivals.filter((a) => a.by === n).length;
+      const n = T[s].find((x) => x.type === 'necro' && x.hp > 0 && x.uses + waiting(x) < x.lvl);
+      if (n) arrive(s, T[s][i], () => { const f = unit(u.type, 1, 1, u.lvl, null, ++bid); if (fixed(f)) fixUnit(f); return f; }, false, (f) => `${nm(n)} raises ${nm(f)}`, n);
     }
   }
   const fixUnit = (u) => fixStats(u);
@@ -221,7 +222,10 @@ function runBattle(teamA, teamB, opts = {}) {
           break;
         }
       }
-      if (!found) return auras();
+      if (!found) {
+        if (arrivals.length) { letIn(); continue; } // everyone knocked out has left: babies and raised frogs come in
+        return auras();
+      }
     }
     auras();
   }
@@ -236,7 +240,7 @@ function runBattle(teamA, teamB, opts = {}) {
       if (u.type !== 'chameleon' || b.type === 'chameleon') continue;
       u.type = b.type;
       fixUnit(u);
-      snap?.('morph', { actor: u.bid, text: `Chameleon turns into a ${nm(b)}` });
+      snap?.('morph', { actor: u.bid, text: `Chameleon turns into ${an(nm(b))}` });
     }
   }
   // Paladins and Guards size up the ponds
@@ -427,11 +431,11 @@ function act(room, p, a) {
       if (t) { t.atk = Math.max(t.atk, f.atk) + 1; t.hp = Math.max(t.hp, f.hp) + 1; t.xp += 1; afterMerge(t); target = t; }
       else team[slot] = f;
       const others = team.filter((x) => x && x !== target);
-      if (target.type === 'peeper' && others.length) { const o = pick(others); o.atk += target.lvl; fixStats(o); shopFx(p, 'buy', target, [o]); }
+      if (target.type === 'peeper' && others.length) { const o = pick(others); o.atk += target.lvl; fixStats(o); shopFx(p, 'buy', target, [o], target.lvl, 0); }
       if (target.type === 'bard') {
         const got = [];
         for (let k = 0; k < 2 && others.length; k++) { const o = others.splice(rand(others.length), 1)[0]; o.hp += target.lvl; got.push(o); }
-        if (got.length) shopFx(p, 'buy', target, got);
+        if (got.length) shopFx(p, 'buy', target, got, 0, target.lvl);
       }
       team.forEach((x) => x && fixStats(x));
       break;
