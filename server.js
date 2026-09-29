@@ -89,9 +89,9 @@ function currentPage() {
   if (st.mtimeMs !== page.mtime) {
     const raw = fs.readFileSync(INDEX, 'utf8');
     const catalog = JSON.stringify(Object.fromEntries(Object.entries(FROGS).map(([k, f]) => [k, { name: f.name, tier: f.tier, atk: f.atk, hp: f.hp, cost: frogCost(k), ...(f.fixed ? { fixed: f.fixed } : {}) }])));
-    const items = JSON.stringify(FOODS), sets = JSON.stringify(SETS);
-    const build = crypto.createHash('sha1').update(raw + catalog + items + sets).digest('hex').slice(0, 10);
-    page = { mtime: st.mtimeMs, build, html: raw.replace('__BUILD__', build).replace('__CATALOG__', catalog.replace(/</g, '\\u003c')).replace('__ITEMS__', items.replace(/</g, '\\u003c')).replace('__SETS__', sets.replace(/</g, '\\u003c')) };
+    const items = JSON.stringify(FOODS), sets = JSON.stringify(SETS), unlocks = JSON.stringify(R.UNLOCKS);
+    const build = crypto.createHash('sha1').update(raw + catalog + items + sets + unlocks).digest('hex').slice(0, 10);
+    page = { mtime: st.mtimeMs, build, html: raw.replace('__BUILD__', build).replace('__CATALOG__', catalog.replace(/</g, '\\u003c')).replace('__ITEMS__', items.replace(/</g, '\\u003c')).replace('__SETS__', sets.replace(/</g, '\\u003c')).replace('__UNLOCKS__', unlocks) };
   }
   return page;
 }
@@ -335,7 +335,8 @@ http.createServer(async (req, res) => {
         // New players are called by their first name. Names that were auto-filled with the full name earlier
         // become the first name too; names someone chose themselves are left alone.
         const first = cleanName(tg.user.first_name), full = cleanName([tg.user.first_name, tg.user.last_name].filter(Boolean).join(' '));
-        if (!profiles[uid]) profiles[uid] = { name: first, avatar: cleanAvatar({ b: 'classic', c: tg.user.id % 10 }) };
+        const open = [...Array(AV_COLORS).keys()].filter((c) => !R.needs('c', c)); // a random color new players can wear
+        if (!profiles[uid]) profiles[uid] = { name: first, avatar: cleanAvatar({ b: 'classic', c: open[tg.user.id % open.length] }) };
         else if (tg.user.last_name && profiles[uid].name === full && full !== first) {
           profiles[uid].name = first;
           for (const r of Object.values(rooms)) for (const p of r.players) if (p.uid === uid) { p.name = first; changed(r); }
@@ -344,6 +345,13 @@ http.createServer(async (req, res) => {
       else if (GUESTS) uid = `g${crypto.randomBytes(10).toString('hex')}`;
       else return json(res, 401, { error: 'Open the game from Telegram' });
       const pr = profiles[uid] || (profiles[uid] = { name: '', avatar: cleanAvatar() }); // guests pick a name first
+      // Options your rank hasn't earned go back to the default (avatars made before ranks, or a Frog Legend who
+      // dropped out of the top 10); the games you're in get the new look too
+      const fit = R.fitAvatar(cleanAvatar(pr.avatar), R.rankOf(uid, profiles).id);
+      if (JSON.stringify(fit) !== JSON.stringify(cleanAvatar(pr.avatar))) {
+        pr.avatar = fit;
+        for (const r of Object.values(rooms)) for (const p of r.players) if (p.uid === uid) { p.avatar = fit; changed(r); }
+      }
       pr.ip = clientIp(req); pr.seen = Date.now(); saveProfiles();
       return json(res, 200, { uid, key: keyFor(uid), name: pr.name, avatar: pr.avatar, rank: R.rankOf(uid, profiles), telegram: !!tg, bot: TG.botUsername(), start: tg ? tg.startParam : '' });
     }
@@ -353,7 +361,7 @@ http.createServer(async (req, res) => {
     if (url.pathname === '/api/profile') {
       // Name and frog avatar follow you into every game you're in
       const pr = profiles[uid] || (profiles[uid] = {});
-      pr.name = cleanName(b.name); pr.avatar = cleanAvatar(b.avatar); saveProfiles();
+      pr.name = cleanName(b.name); pr.avatar = R.fitAvatar(cleanAvatar(b.avatar), R.rankOf(uid, profiles).id); saveProfiles(); // only options your rank has earned
       for (const r of Object.values(rooms)) for (const p of r.players) if (p.uid === uid) { p.name = pr.name; p.avatar = pr.avatar; changed(r); }
       return json(res, 200, { name: pr.name, avatar: pr.avatar });
     }

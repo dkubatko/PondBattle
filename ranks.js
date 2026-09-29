@@ -53,4 +53,25 @@ function rankOf(uid, profiles) {
   };
 }
 
-module.exports = { PIPS, TIERS, LEGEND, LEGENDS, GAP, level, points, apply, rankOf, board, forget };
+// Avatar options earned with rank; anything not listed is open to everyone. Keys are the avatar fields: b body,
+// c color (index), e eyes, t pattern, a extra, l lily pad style, lc lily pad color (index). The page gets this table
+// too (it lists each setting's options by the rank that unlocks them); the server enforces it. Every setting
+// has something at every rank.
+const RANK_IDS = [...TIERS.map((t) => t.id), LEGEND.id];
+const UNLOCKS = {
+  froglet: { b: ['tadpole'], c: [4, 11], e: ['lashes', 'brows'], t: ['freckles'], a: ['coin', 'pearls', 'horns', 'umbrella', 'robin', 'turban'], l: ['clover'], lc: [5, 6] },
+  frog: { b: ['tall'], c: [10], e: ['violet'], t: ['bands'], a: ['tiara', 'helmet', 'wizard', 'jester', 'mitre', 'kettle', 'mask'], l: ['dew'], lc: [7, 8] },
+  master: { b: ['flat'], c: [6], e: ['red'], t: ['stripes'], a: ['crown', 'pendulum', 'wings'], l: ['heart'], lc: [11] },
+  legend: { b: ['bull'], c: [12], e: ['spiral'], t: ['glass'], a: ['kingcrown', 'halo', 'cape'], l: ['lotus'], lc: [9] },
+};
+const AVATAR_DEFAULTS = { b: 'classic', c: 0, e: 'dark', t: 'none', a: 'none', l: 'classic', lc: 0 };
+// The rank an option needs, or '' if it's open
+const needs = (key, id) => Object.keys(UNLOCKS).find((tier) => (UNLOCKS[tier][key] || []).includes(id)) || '';
+// An avatar with everything the rank hasn't earned yet put back to the default
+function fitAvatar(av, rankId) {
+  const have = RANK_IDS.indexOf(rankId), out = { ...av };
+  for (const k of Object.keys(AVATAR_DEFAULTS)) { const t = needs(k, out[k]); if (t && RANK_IDS.indexOf(t) > have) out[k] = AVATAR_DEFAULTS[k]; }
+  return out;
+}
+
+module.exports = { PIPS, TIERS, LEGEND, LEGENDS, GAP, level, points, apply, rankOf, board, forget, UNLOCKS, needs, fitAvatar };

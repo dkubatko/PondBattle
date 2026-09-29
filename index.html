@@ -210,6 +210,11 @@ input:focus { border-color: var(--firefly); outline: none; }
   opacity: .5; transform: scale(.84); transition: opacity .18s, transform .18s, background-color .18s, box-shadow .18s; }
 .wheel-item.on { opacity: 1; transform: none; background: rgba(255, 205, 102, .12); box-shadow: inset 0 0 0 2px var(--firefly); }
 .wheel-item.face .fbody { transform: scale(1.75) translateY(20%); } /* eyes tab: zoom in on the face */
+/* options not earned yet: faded, with the badge of the rank that unlocks them */
+.wheel-item { position: relative; }
+.wheel-item.locked > :not(.wheel-lock) { opacity: .35; filter: grayscale(.5); }
+.wheel-lock { position: absolute; top: 4px; right: 4px; line-height: 0; }
+.wheel-need { color: var(--firefly); font-weight: 800; }
 .wheel-name { margin-top: -6px; min-height: 20px; text-align: center; font-size: 15px; font-weight: 800; color: var(--moon); }
 .me-chip { display: flex; align-items: center; justify-content: center; gap: 6px; margin: 0 auto; border: 0; background: none; color: var(--moon-dim); font-size: 16px; font-weight: 700; padding: 4px 8px; }
 .me-chip b { color: var(--moon); }
@@ -460,6 +465,7 @@ h1 { margin: 0; text-align: center; font-size: 40px; font-weight: 900; line-heig
 .lb-gap { text-align: center; color: var(--moon-dim); line-height: 1; padding: 2px 0 6px; }
 .hist-row.tap { cursor: pointer; }
 .card-rank { border: 0; background: none; color: inherit; padding: 0; }
+.home-music { position: absolute; top: calc(env(safe-area-inset-top) + 10px); right: 64px; color: var(--moon-dim); } /* left of the ? */
 .board-btn { position: absolute; top: calc(env(safe-area-inset-top) + 10px); left: 14px; color: var(--moon-dim); }
 .board-btn svg { width: 20px; height: 20px; }
 .count { display: inline-grid; place-items: center; min-width: 22px; height: 22px; padding: 0 6px; margin-left: 2px; border-radius: 11px; background: var(--firefly); color: #4a3505; font-size: 13px; font-weight: 900; vertical-align: 1px; }
@@ -579,6 +585,7 @@ h1 { margin: 0; text-align: center; font-size: 40px; font-weight: 900; line-heig
 <script id="catalog" type="application/json">__CATALOG__</script>
 <script id="items" type="application/json">__ITEMS__</script>
 <script id="sets" type="application/json">__SETS__</script>
+<script id="unlocks" type="application/json">__UNLOCKS__</script>
 <script>
 'use strict';
 // =====================================================================
@@ -1238,8 +1245,15 @@ function frogArt(type) {
 const AV_COLORS = ['#6cc46a', '#86cfa6', '#45b6a8', '#4ea5ee', '#9aa7d8', '#f2a4c1', '#dc5a49', '#f1b13b', '#f2cf5b', '#b88a5c', '#963249', '#f07c6a', '#7a3d6d'];
 // Avatar options: body, color, eyes, pattern and accessory. Each option has an id (what gets saved)
 // and adds to the layers compose() draws. Many borrow the game frogs' signature looks.
-// unlocked() is the hook for making options earnable later; for now everything is open.
-const unlocked = () => true;
+// Some options are earned with rank (the table lives in ranks.js on the server, which also enforces it):
+// { rank: { field: [option ids] } }; anything not listed is open to everyone
+const UNLOCKS = JSON.parse(document.getElementById('unlocks').textContent);
+const RANK_NAME = { tadpole: 'Tadpole', froglet: 'Froglet', frog: 'Frog', master: 'Master Frog', legend: 'Frog Legend' };
+const needs = (key, id) => Object.keys(UNLOCKS).find((t) => (UNLOCKS[t][key] || []).includes(id)) || '';
+// A setting's options in unlock order: open ones first, then Froglet, Frog, Master Frog and Frog Legend (keeping
+// the original order within a rank)
+const byRank = (key, opts) => opts.map((o, i) => [o, i, RANK_ORDER.indexOf(needs(key, o.id) || 'tadpole')]).sort((x, y) => x[2] - y[2] || x[1] - y[1]).map(([o]) => o);
+const unlocked = (key, id) => { const t = needs(key, id); return !t || RANK_ORDER.indexOf((ME && ME.rank && ME.rank.id) || 'tadpole') >= RANK_ORDER.indexOf(t); };
 const AV_EYES = [
   { id: 'dark', name: 'Classic eyes' },
   { id: 'blue', name: 'Blue eyes', x: { eyes: 'iris:#3f86d6' } },
@@ -1923,6 +1937,7 @@ function showHome(msg, page) {
   ME.start = ''; // only once
   const node = el(`<div class="screen home">
     <button class="ib board-btn" id="boardBtn" aria-label="Leaderboard">${ICON.trophy}</button>
+    <button class="ib home-music" id="homeMusic" aria-label="Music"></button>
     <button class="ib help-btn" id="helpBtn" aria-label="How to play">?</button>
     <button class="hero" id="heroBtn" aria-label="Your profile"><div class="moon"></div><span class="nametag" id="heroTag"></span><div class="leafbig" id="heroPad"></div><span id="heroAv"></span></button>
     <h1>Pond Battle</h1>
@@ -1935,7 +1950,7 @@ function showHome(msg, page) {
   const drawHero = () => {
     const av = myAvatar(), slot = $('#heroAv');
     slot.innerHTML = avatarHTML(av, 84, { id: 7 });
-    $('#heroTag').style.bottom = `${Math.round(paintedHeight(slot, $('#heroBtn'))) + 4}px`;
+    $('#heroTag').style.bottom = `${Math.round(paintedHeight(slot, $('#heroBtn'))) + 7}px`;
     slot.innerHTML = avatarHTML(av, 84, { idle: true, id: 7 });
     $('#heroPad').style.setProperty('--leaf', padURL(av));
   };
@@ -1944,6 +1959,10 @@ function showHome(msg, page) {
   // Your frog (and the name tag above it) opens your profile; a guest still picking a name edits the frog right away
   $('#heroBtn').onclick = () => { Snd.tap(); if (ME.name) openCard({ done: () => { drawHero(); chip(); } }); else openProfile(() => drawHero()); };
   $('#boardBtn').onclick = () => { Snd.tap(); openLeaders(); };
+  // Music on/off, the same switch as in a game
+  const drawMusic = () => { const b = $('#homeMusic'); if (!b) return; b.innerHTML = ICON.music(Snd.music()); b.classList.toggle('off', !Snd.music()); };
+  drawMusic();
+  $('#homeMusic').onclick = () => { Snd.setMusic(!Snd.music()); drawMusic(); };
   // Your rank and name; tap for your profile
   // Your rank and name on a tag above your frog
   const chip = () => {
@@ -2865,11 +2884,11 @@ const AV_TABS = [
   { key: 'e', label: 'Eyes', opts: AV_EYES, face: true },
   { key: 't', label: 'Pattern', opts: AV_PATTERNS },
   { key: 'a', label: 'Extras', opts: AV_ACCS },
-];
+].map((t) => ({ ...t, opts: byRank(t.key, t.opts) }));
 const PAD_TABS = [
   { key: 'l', label: 'Style', opts: PAD_STYLES, pad: true },
   { key: 'lc', label: 'Color', opts: PAD_COLORS.map(([name], i) => ({ id: i, name })), pad: true },
-];
+].map((t) => ({ ...t, opts: byRank(t.key, t.opts) }));
 // The editor's two sections, each with its own tabs
 const AV_SECTIONS = [{ label: 'Frog', tabs: AV_TABS }, { label: 'Lily pad', tabs: PAD_TABS }];
 function openProfile(done) {
@@ -2885,6 +2904,11 @@ function openProfile(done) {
       <div class="btns"><button class="btn" id="psave">Save</button></div>
     </div>`);
   const pv = $('#pv', s.el), inp = $('#pname', s.el), save = $('#psave', s.el), track = $('#wt', s.el), label = $('#wn', s.el);
+  // The highest rank needed by anything the frog is trying on (or '' when all of it is earned); until then Save
+  // is greyed out
+  const tryingOn = () => Object.keys(av).filter((k) => !unlocked(k, av[k])).map((k) => needs(k, av[k]))
+    .reduce((top, t) => (RANK_ORDER.indexOf(t) > RANK_ORDER.indexOf(top || 'tadpole') ? t : top), '');
+  const syncSave = () => { const need = tryingOn(); save.disabled = !inp.value.trim() || !!need; };
   // Your frog standing on your lily pad
   const preview = (hop) => {
     pv.innerHTML = `<div class="pv-pad" style='${padStyle(av)}'></div>${avatarHTML(av, 92, { idle: true, id: 7 })}`;
@@ -2895,8 +2919,10 @@ function openProfile(done) {
     current = i;
     [...track.children].forEach((n, k) => n.classList.toggle('on', k === i));
     const o = tab.opts[i];
-    label.textContent = o.name;
-    if (av[tab.key] !== o.id && unlocked(tab.key, o.id)) { av = { ...av, [tab.key]: o.id }; preview(true); haptic(['selection']); }
+    // a locked option says which rank unlocks it (and leaves your frog as it is)
+    label.innerHTML = unlocked(tab.key, o.id) ? esc(o.name) : `${esc(o.name)} <span class="wheel-need">· ${esc(RANK_NAME[needs(tab.key, o.id)])} rank</span>`;
+    // locked options can be tried on too; Save waits until everything on the frog is earned
+    if (av[tab.key] !== o.id) { av = { ...av, [tab.key]: o.id }; preview(true); haptic(['selection']); syncSave(); }
   };
   // A tapped option is picked at once and the wheel glides to it; the options it passes on the way are not
   // picked (the frog changes once, not once per option). Touching the wheel hands control back to you.
@@ -2908,9 +2934,13 @@ function openProfile(done) {
   };
   track.addEventListener('pointerdown', () => { steering = -1; });
   const fill = () => {
-    // lily pad options show just the pad (in your current style or color)
-    track.innerHTML = tab.opts.map((o, i) => `<button class="wheel-item${tab.face ? ' face' : ''}${tab.pad ? ' padopt' : ''}" data-i="${i}" aria-label="${esc(o.name)}">${tab.pad
-      ? `<span class="wheel-pad" style='${padStyle({ ...av, [tab.key]: o.id })}'></span>` : avatarHTML({ ...av, [tab.key]: o.id }, 52, { id: 300 + i })}</button>`).join('');
+    // lily pad options show just the pad (in your current style or color); ones your rank hasn't earned yet are
+    // faded, with the badge of the rank that unlocks them in the corner
+    track.innerHTML = tab.opts.map((o, i) => {
+      const lock = unlocked(tab.key, o.id) ? '' : needs(tab.key, o.id);
+      return `<button class="wheel-item${tab.face ? ' face' : ''}${tab.pad ? ' padopt' : ''}${lock ? ' locked' : ''}" data-i="${i}" aria-label="${esc(o.name)}">${tab.pad
+        ? `<span class="wheel-pad" style='${padStyle({ ...av, [tab.key]: o.id })}'></span>` : avatarHTML({ ...av, [tab.key]: o.id }, 52, { id: 300 + i })}${lock ? `<span class="wheel-lock">${rankBadge({ id: lock, pips: 5 }, 22)}</span>` : ''}</button>`;
+    }).join('');
     current = -1;
     center(Math.max(0, tab.opts.findIndex((o) => o.id === av[tab.key])), false);
   };
@@ -2941,9 +2971,9 @@ function openProfile(done) {
     fill();
   });
   preview(false); fill();
-  inp.addEventListener('input', () => { save.disabled = !inp.value.trim(); });
+  inp.addEventListener('input', syncSave);
   save.onclick = async () => {
-    const name = inp.value.trim(); if (!name) return;
+    const name = inp.value.trim(); if (!name || tryingOn()) return;
     s.close(); Snd.plop();
     await saveProfile(name, av); // also updates you in any game you're in
     if (done) done();
