@@ -1163,12 +1163,15 @@ const hood = (b, fill, edge) => { const [[x1, y1, r1], [x2, y2, r2]] = b.eyes; c
   return `<path d="M${x1 - r1 - 7} ${y1 + r1 + 6}C${x1 - r1 - 9} ${top}, ${x2 + r2 + 9} ${top}, ${x2 + r2 + 7} ${y2 + r2 + 6}C${x2 + r2 + 2} ${y2 - r2 + 2}, ${x1 - r1 - 2} ${y1 - r1 + 2}, ${x1 - r1 - 7} ${y1 + r1 + 6}z" fill="${fill}"/>`
     + `<path d="M${x1 - r1 - 3} ${y1 + r1 + 1}C${x1 - r1 - 1} ${y1 - r1 - 1}, ${x2 + r2 + 1} ${y2 - r2 - 1}, ${x2 + r2 + 3} ${y2 + r2 + 1}" stroke="${edge}" stroke-width="2" fill="none"/>`; };
 // A band across the eyes (drawn behind them, so the eyes show through)
-// A bandit mask over the eyes: a dark band with eye holes (the pupils show through) and knot tails on one side
-const eyeMask = (b) => { const [[x1, y1, r1], [x2, y2, r2]] = b.eyes, mx = (x1 + x2) / 2;
-  const hole = (x, y, r) => { const h = r * .74; return `M${x + h} ${y}a${h} ${h} 0 1 0 ${-2 * h} 0a${h} ${h} 0 1 0 ${2 * h} 0Z`; };
-  const band = `M${x1 - r1 - 5} ${y1 - r1 * .45}Q${mx} ${Math.min(y1, y2) - Math.max(r1, r2) * 1.05} ${x2 + r2 + 5} ${y2 - r2 * .45}L${x2 + r2 + 4} ${y2 + r2 * .5}Q${mx} ${Math.max(y1, y2) + Math.max(r1, r2) * .15} ${x1 - r1 - 4} ${y1 + r1 * .5}Z`;
-  const tails = `<path d="M${x1 - r1 - 4} ${y1}l-7 -5l1 6zM${x1 - r1 - 4} ${y1 + 1}l-6 5l6 1z" fill="#1f2328"/>`;
-  return `${tails}<path d="${band}${hole(x1, y1, r1)}${hole(x2, y2, r2)}" fill="#1f2328" fill-rule="evenodd"/>`; };
+// A bandit mask on the body, under the eyes (the eyes sit on top of it): a rim shows above and below each eye,
+// rounded ends reach past them, it dips over the nose, and knot tails hang off one side
+const eyeMask = (b) => { const [[x1, y1, r1], [x2, y2, r2]] = b.eyes, mx = (x1 + x2) / 2, my = (y1 + y2) / 2, r = Math.max(r1, r2);
+  const L = x1 - r1 - 4, R = x2 + r2 + 4, t1 = y1 - r1 - 2.5, t2 = y2 - r2 - 2.5, b1 = y1 + r1 * .7, b2 = y2 + r2 * .7;
+  const band = `M${L} ${t1 + 3}Q${L} ${t1} ${x1} ${t1}Q${mx} ${t1 + r * .35} ${x2} ${t2}Q${R} ${t2} ${R} ${t2 + 3}`
+    + `Q${R + 4} ${y2} ${R} ${b2 - 2}Q${R - 1} ${b2 + 1.5} ${x2} ${b2 + 1.5}Q${mx + r * .3} ${b2 + 1} ${mx} ${my + r * .3}`
+    + `Q${mx - r * .3} ${b1 + 1} ${x1} ${b1 + 1.5}Q${L + 1} ${b1 + 1.5} ${L} ${b1 - 2}Q${L - 4} ${y1} ${L} ${t1 + 3}Z`;
+  const tails = `<path d="M${L + 1} ${y1 - 1}l-8 -6l1.5 7zM${L + 1} ${y1 + 1}l-7 6l7 .5z" fill="#1f2328"/>`;
+  return `${tails}<path d="${band}" fill="#1f2328"/>`; };
 const ROGUE_HOOD = ['#5a1f2e', '#76303f'];
 // The outline of a body (legs, body and head, measured once per shape), so extras that hang off the body (wings,
 // a cape, a watch in hand) fit every shape
@@ -1233,7 +1236,7 @@ Object.assign(ART, {
   },
   jester: () => { const p = pal('#c9d64f'), b = BODY.classic(p); return compose(b, p, { ...hat(b, JESTER_HAT, 1, 1), mouth: 'open' }); },
   // Rogue: charcoal, hooded, with a mask across its eyes
-  rogue: () => { const p = pal('#56646c'), b = BODY.slim(p); return compose(b, p, { inside: hood(b, ROGUE_HOOD[0], ROGUE_HOOD[1]), face: eyeMask(b), mouth: 'flat' }); },
+  rogue: () => { const p = pal('#56646c'), b = BODY.slim(p); return compose(b, p, { inside: hood(b, ROGUE_HOOD[0], ROGUE_HOOD[1]) + eyeMask(b), mouth: 'flat' }); },
   // Squire: young and sandy, a plain steel cap and a small round shield
   squire: () => {
     const p = pal('#e2bd74'), b = BODY.tall(p);
@@ -1373,7 +1376,7 @@ const AV_ACCS = [
   { id: 'mitre', name: 'Cleric’s mitre', head: true, small: 1.2, x: (b, p, k) => hat(b, MITRE, k, 0) },
   { id: 'cap', name: 'Squire’s cap', head: true, x: (b) => hat(b, STEEL_CAP, 1.05, 1) },
   { id: 'kettle', name: 'Guard’s helmet', head: true, x: (b) => hat(b, KETTLE_HAT, 1.12, 1) },
-  { id: 'mask', name: 'Rogue’s mask', x: (b) => ({ face: eyeMask(b) }) },
+  { id: 'mask', name: 'Rogue’s mask', x: (b) => ({ inside: eyeMask(b) }) },
   { id: 'pendulum', name: 'Hypno’s watch', x: (b) => ({ over: PENDULUM(b) }) },
   { id: 'cape', name: 'King’s cape', x: (b) => ({ behind: KING_CAPE(b) }) },
   { id: 'wings', name: 'Dragon wings', x: (b, p) => ({ behind: DRAGON_WINGS(b, p.dark) }) },
