@@ -77,7 +77,7 @@ function runBattle(teamA, teamB, opts = {}) {
   const nm = (u) => FROGS[u.type].name;
   const fixed = (u) => FROGS[u.type].fixed;
 
-  // Friends behind a living Frog King are immune: no damage, and no enemy ability touches them
+  // Friends behind a living Frog King take no damage (other effects, like a shrink or a swap, still reach them)
   const guarded = (s, u) => {
     for (const k of T[s]) { if (k === u) return false; if (k.type === 'king' && k.hp > 0) return true; }
     return false;
@@ -243,23 +243,20 @@ function runBattle(teamA, teamB, opts = {}) {
       const L = u.lvl;
       if (u.type === 'wizard') {
         // Shrinks L random enemies to 1/1 (skipping ones that already are); they keep their abilities
-        const foes = some(unguarded(1 - s, alive(1 - s)).filter((e) => e.atk + e.hp > 2 && !fixed(e)), L);
-        if (foes.length) {
-          for (const e of foes) { e.atk = 1; e.hp = 1; }
-          snap?.('spell', { actor: u.bid, targets: foes.map((e) => e.bid), text: `${nm(u)} shrinks the enemy` });
-        }
+        const foes = some(alive(1 - s).filter((e) => e.atk + e.hp > 2 && !fixed(e)), L);
+        for (const e of foes) { e.atk = 1; e.hp = 1; }
+        // (it always casts, so it's clear it acted even when there was no one to shrink)
+        snap?.('spell', { actor: u.bid, targets: foes.map((e) => e.bid), text: foes.length ? `${nm(u)} shrinks the enemy` : `${nm(u)}’s spell finds no one to shrink` });
       }
       if (u.type === 'jester') {
         // Swaps attack and health of L random enemies (ones where that changes something)
-        const foes = some(unguarded(1 - s, alive(1 - s)).filter((e) => e.atk !== e.hp && !fixed(e)), L);
-        if (foes.length) {
-          for (const e of foes) { const a = e.atk; e.atk = e.hp; e.hp = a; }
-          snap?.('spell', { actor: u.bid, targets: foes.map((e) => e.bid), text: `${nm(u)} turns the enemy upside down` });
-        }
+        const foes = some(alive(1 - s).filter((e) => e.atk !== e.hp && !fixed(e)), L);
+        for (const e of foes) { const a = e.atk; e.atk = e.hp; e.hp = a; }
+        snap?.('spell', { actor: u.bid, targets: foes.map((e) => e.bid), text: foes.length ? `${nm(u)} turns the enemy upside down` : `${nm(u)}’s trick changes nothing` });
       }
       if (u.type === 'princess') {
         // Charmed by her beauty, the strongest enemies hit themselves
-        const foes = unguarded(1 - s, alive(1 - s)).sort((x, y) => y.atk + y.hp - (x.atk + x.hp)).slice(0, L);
+        const foes = alive(1 - s).sort((x, y) => y.atk + y.hp - (x.atk + x.hp)).slice(0, L);
         if (foes.length) {
           for (const e of foes) damage(1 - s, e, e.atk);
           snap?.('charm', { actor: u.bid, targets: foes.map((e) => e.bid), text: `${nm(u)} charms the enemy` });
@@ -275,13 +272,13 @@ function runBattle(teamA, teamB, opts = {}) {
       }
       if (u.type === 'dragon') {
         blast(1 - s, L);
-        snap?.('splash', { side: 1 - s, fire: true, text: `${nm(u)} breathes fire` });
+        snap?.('splash', { side: 1 - s, actor: u.bid, fire: true, text: `${nm(u)} breathes fire` });
       }
       if (u.type === 'budgett') {
         // A scream so scary that every enemy loses L attack this battle (down to 1)
-        const foes = unguarded(1 - s, alive(1 - s)).filter((e) => !fixed(e) && e.atk > 1);
+        const foes = alive(1 - s).filter((e) => !fixed(e) && e.atk > 1);
         for (const e of foes) e.atk = Math.max(1, e.atk - L);
-        snap?.('splash', { side: 1 - s, scream: true, text: `${nm(u)} screams` });
+        snap?.('splash', { side: 1 - s, actor: u.bid, scream: true, text: `${nm(u)} screams` });
       }
       if (u.type === 'prince') {
         T[s].forEach((f) => f !== u && buff(f, L, L));
@@ -290,14 +287,13 @@ function runBattle(teamA, teamB, opts = {}) {
       if (u.type === 'squire') {
         const t = T[s][T[s].indexOf(u) - 1];
         if (t && t.hp > 0) { buff(t, L, L); snap?.('ability', { actor: u.bid, target: t.bid, text: `${nm(u)} helps ${nm(t)}` }); }
+        else snap?.('ability', { actor: u.bid, text: `${nm(u)} has no one ahead to help` });
       }
       if (u.type === 'cleric') {
         // Blesses the L friends ahead of it with a Bubble (not ones already in one)
         const at = T[s].indexOf(u), friends = T[s].slice(Math.max(0, at - L), at).filter((f) => f.hp > 0 && !f.gear);
-        if (friends.length) {
-          for (const f of friends) { f.gear = 'bubble'; f.blocked = false; }
-          snap?.('ability', { actor: u.bid, text: `${nm(u)} blesses ${friends.length === 1 ? nm(friends[0]) : 'its friends'}` });
-        }
+        for (const f of friends) { f.gear = 'bubble'; f.blocked = false; }
+        snap?.('ability', { actor: u.bid, text: friends.length ? `${nm(u)} blesses ${friends.length === 1 ? nm(friends[0]) : 'its friends'}` : `${nm(u)} has no one ahead to bless` });
       }
       settle();
     }

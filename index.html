@@ -547,6 +547,8 @@ h1 { margin: 0; text-align: center; font-size: 40px; font-weight: 900; line-heig
 .fx-wave { position: absolute; border-radius: 50%; border: 4px solid rgba(160, 220, 255, .8); pointer-events: none; z-index: 25; }
 .fx-wave.fire { border-color: rgba(255, 150, 70, .95); background: radial-gradient(closest-side, rgba(255, 170, 80, .35), transparent); }
 .fx-wave.scream { border: 3px dashed rgba(255, 240, 200, .85); }
+.fx-ring.fire { border-color: rgba(255, 150, 70, .95); box-shadow: 0 0 14px rgba(255, 130, 60, .6); }
+.fx-fire { position: absolute; left: 0; top: 0; width: 28px; height: 28px; border-radius: 50%; z-index: 30; background: radial-gradient(circle at 40% 40%, #fff3c4, #ffb347 40%, #e8522d 75%, rgba(232, 82, 45, 0)); box-shadow: 0 0 18px 6px rgba(255, 120, 50, .55); }
 .fx-arrow { position: absolute; left: 0; top: 0; width: 24px; height: 4px; margin-top: 5px; border-radius: 2px; background: #c89a62; z-index: 30; transform-origin: 50% 50%; }
 .fx-arrow::after { content: ''; position: absolute; right: -5px; top: -4px; border: 6px solid transparent; border-left: 8px solid #e7eef5; border-right: 0; }
 .fx-arrow::before { content: ''; position: absolute; left: -2px; top: -3px; width: 7px; height: 10px; background: #f0869f; clip-path: polygon(0 0, 100% 30%, 100% 70%, 0 100%); }
@@ -657,7 +659,7 @@ const DESC = {
   squire:   (L) => ['Start of battle', `the friend ahead gets ${statText(L, L)} this battle`],
   cleric:   (L) => ['Start of battle', `${L === 1 ? 'the friend ahead gets' : `the ${L} friends ahead get`} a Bubble`],
   necro:    (L) => ['Friend faints', `it comes back as 1/1 (${times(L)} per battle)`],
-  king:     (L) => ['', `Friends behind it are immune to enemies. Stats always ${BASE.king[0] * L}/${BASE.king[1] * L}`],
+  king:     (L) => ['', `Friends behind it take no damage. Stats always ${BASE.king[0] * L}/${BASE.king[1] * L}`],
   paladin:  (L) => ['', `${statText(L, L)} for each living enemy`],
   dragon:   (L) => ['Start of battle', `${L} damage to all enemies`],
   hypno:    (L) => ['Before attack', `send the enemy ahead to the back (${times(L)} per battle)`],
@@ -3599,9 +3601,33 @@ async function playBattle(lb) {
     } else if (fr.kind === 'summon') {
       caption(fr.text); Snd.summon(); apply(fr, true); ring(byId(fr.actor)); await wait(620);
     } else if (fr.kind === 'splash') {
-      // Mossy Frog's splash, a Dragon's fire or Budgett's Frog's scream: one wave over the other pond
-      caption(fr.text); if (fr.scream) Snd.magic(); else Snd.splash();
-      const w = el(`<div class="fx-wave${fr.fire ? ' fire' : fr.scream ? ' scream' : ''}"></div>`), size = 150 * s, [cx, cy] = pos(fr.side, 2);
+      // Mossy Frog's splash, a Dragon's fire or Budgett's Frog's scream: one wave over the other pond. A Dragon or
+      // Budgett's Frog first rears up (so it's clear who's acting) and sends its fire or its scream across.
+      caption(fr.text);
+      const [cx, cy] = pos(fr.side, 2), src = byId(fr.actor);
+      if (src && !skipping) {
+        ring(src, `fx-ring ${fr.fire ? 'fire' : 'magic'}`);
+        anim(src.move, [{ transform: 'translateY(0) scale(1)' }, { transform: `translateY(${-18 * s}px) scale(1.15)`, offset: .5 }, { transform: 'translateY(0) scale(1)' }], { duration: dur(420), easing: 'ease-out' });
+        await wait(260);
+        const [x0, y0] = [src.x, src.y - U * .25];
+        if (fr.fire) {
+          Snd.spit();
+          const ball = el('<div class="fx-fire"></div>'); arena.appendChild(ball);
+          await anim(ball, [{ transform: `translate(${x0 - 14}px,${y0 - 14}px) scale(.5)` }, { transform: `translate(${(x0 + cx) / 2 - 14}px,${Math.min(y0, cy) - 40 * s}px) scale(1)` }, { transform: `translate(${cx - 14}px,${cy - 14}px) scale(1.6)`, opacity: .8 }], { duration: dur(460), easing: 'ease-in' });
+          ball.remove();
+        } else {
+          Snd.magic();
+          for (let k = 0; k < 3; k++) {
+            const r = el('<div class="fx-wave scream"></div>'), sz = 70 * s;
+            Object.assign(r.style, { width: sz + 'px', height: sz * .6 + 'px', left: x0 - sz / 2 + 'px', top: y0 - sz * .3 + 'px' });
+            arena.appendChild(r);
+            anim(r, [{ transform: 'translate(0,0) scale(.4)', opacity: 1 }, { transform: `translate(${cx - x0}px,${cy - y0}px) scale(1.4)`, opacity: 0 }], { duration: dur(620), delay: dur(k * 120), easing: 'ease-out' }).then(() => r.remove());
+          }
+          await wait(420);
+        }
+      }
+      if (!fr.scream) Snd.splash();
+      const w = el(`<div class="fx-wave${fr.fire ? ' fire' : fr.scream ? ' scream' : ''}"></div>`), size = 150 * s;
       Object.assign(w.style, { width: size + 'px', height: size * .5 + 'px', left: cx - size / 2 + 'px', top: cy - size * .15 + 'px' });
       arena.appendChild(w);
       anim(w, [{ transform: 'scale(.3)', opacity: 1 }, { transform: 'scale(2.2)', opacity: 0 }], { duration: dur(700), easing: 'ease-out' }).then(() => w.remove());
