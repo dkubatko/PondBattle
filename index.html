@@ -484,6 +484,7 @@ h1 { margin: 0; text-align: center; font-size: 40px; font-weight: 900; line-heig
 .board-btn svg { width: 20px; height: 20px; }
 .count { display: inline-grid; place-items: center; min-width: 22px; height: 22px; padding: 0 6px; margin-left: 2px; border-radius: 11px; background: var(--firefly); color: #4a3505; font-size: 13px; font-weight: 900; vertical-align: 1px; }
 .count:empty { display: none; }
+.count { overflow: hidden; } /* the number stays inside while the badge eases open or shut */
 .ponds-page .link { align-self: center; }
 /* Create lobby sits in the middle of the room between the title and the lists below */
 .ponds-page h1 { margin-bottom: 14px; }
@@ -2153,7 +2154,29 @@ function showHome(msg, page) {
     }
   };
   // The home page shows how many ponds you have (games in progress + ponds waiting nearby); My ponds lists them
-  const count = () => { const n = $('#pondsCount'); if (n && lobby) n.textContent = (lobby.active.length + lobby.nearby.filter((r) => !gone.has(r.code)).length) || ''; };
+  // The count eases in (it opens its own room beside "My ponds" as it fades and grows in, so the label glides
+  // over instead of jumping), eases out the same way, and gives a small bump when the number changes.
+  // still: set it without animating (coming back to the home page, when it's already known)
+  const count = (still) => {
+    const n = $('#pondsCount'); if (!n || !lobby) return;
+    const v = String((lobby.active.length + lobby.nearby.filter((r) => !gone.has(r.code)).length) || ''), was = n.textContent;
+    if (v === was && !n.classList.contains('leaving')) return;
+    n.getAnimations().forEach((a) => a.cancel()); n.classList.remove('leaving');
+    if (still || REDUCED) { n.textContent = v; return; }
+    const EASE = 'cubic-bezier(.3, 1.3, .5, 1)', closed = { minWidth: '0px', maxWidth: '0px', paddingLeft: '0px', paddingRight: '0px', marginLeft: '0px', opacity: 0, transform: 'scale(.4)' };
+    if (v && !was) {
+      n.textContent = v;
+      const open = { minWidth: '22px', maxWidth: n.offsetWidth + 'px', paddingLeft: '6px', paddingRight: '6px', marginLeft: '2px', opacity: 1, transform: 'none' };
+      n.animate([closed, open], { duration: 420, easing: EASE });
+    } else if (!v && was) {
+      n.classList.add('leaving');
+      n.animate([{ minWidth: '22px', maxWidth: n.offsetWidth + 'px', opacity: 1, transform: 'none' }, closed], { duration: 300, easing: 'ease-in' })
+        .finished.then(() => { if (n.classList.contains('leaving')) { n.classList.remove('leaving'); n.textContent = ''; } }, () => {});
+    } else {
+      n.textContent = v;
+      n.animate([{ transform: 'scale(1)' }, { transform: 'scale(1.25)', offset: .4 }, { transform: 'scale(1)' }], { duration: 320, easing: 'ease-out' });
+    }
+  };
   const load = async (force) => {
     if (!$('#lists') && !$('#pondsCount')) return clearInterval(pondTimer);
     if (!force && $('.swipe.open, .swipe.dragging')) return; // don't redraw under a finger
@@ -2186,7 +2209,7 @@ function showHome(msg, page) {
     $('#pondsBtn').onclick = () => { Snd.tap(); pondsStep(); };
     $('#practice').onclick = () => { Snd.tap(); pickSet('Practice', (set) => call('/api/practice', { set }, () => Snd.plop())); };
     $('#showCode').onclick = () => { Snd.tap(); codeStep(); };
-    if (lobbyCache) { lobby = lobbyCache; last = JSON.stringify(lobbyCache); count(); } else last = '';
+    if (lobbyCache) { lobby = lobbyCache; last = JSON.stringify(lobbyCache); count(true); } else last = '';
     load(); clearInterval(pondTimer); pondTimer = setInterval(load, 2500);
     if (joinCode) join(joinCode); else if (roomCode) rejoin(roomCode);
   };
