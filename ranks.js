@@ -1,4 +1,4 @@
-// Pond Battle — ranked play: rank tiers with 5 points each, and the Frog Legends. No dependencies.
+// Pond Brawl — ranked play: rank tiers with 5 points each, and the Frog Legends. No dependencies.
 // A player's standing is one number, their level: 5 points per tier (Tadpole 0-4, Froglet 5-9, Frog 10-14,
 // Master Frog 15+).
 // Only games found with the Play button count.
@@ -54,15 +54,15 @@ function rankOf(uid, profiles) {
 }
 
 // Avatar options earned with rank; anything not listed is open to everyone. Keys are the avatar fields: b body,
-// c color (index), e eyes, t pattern, a extra, l lily pad style, lc lily pad color (index). The page gets this table
+// c color (index; 13-17 are the gradients), e eyes, t pattern, a extra, l lily pad style, lc lily pad color (index). The page gets this table
 // too (it lists each setting's options by the rank that unlocks them); the server enforces it. Every setting
 // has something at every rank.
 const RANK_IDS = [...TIERS.map((t) => t.id), LEGEND.id];
 const UNLOCKS = {
-  froglet: { b: ['tadpole'], c: [4, 11], e: ['lashes', 'brows'], t: ['freckles'], a: ['coin', 'pearls', 'horns', 'umbrella', 'robin', 'turban'], l: ['clover'], lc: [5, 6] },
-  frog: { b: ['tall'], c: [10], e: ['violet'], t: ['bands'], a: ['tiara', 'helmet', 'wizard', 'jester', 'mitre', 'kettle', 'mask'], l: ['dew'], lc: [7, 8] },
-  master: { b: ['flat'], c: [6], e: ['red'], t: ['stripes'], a: ['crown', 'pendulum', 'wings'], l: ['heart'], lc: [11] },
-  legend: { b: ['bull'], c: [12], e: ['spiral'], t: ['glass'], a: ['kingcrown', 'halo', 'cape'], l: ['lotus'], lc: [9] },
+  froglet: { b: ['tadpole'], c: [13], e: ['lashes', 'brows'], t: ['freckles'], a: ['coin', 'pearls', 'horns', 'umbrella', 'robin', 'turban'], l: ['clover'], lc: [5, 6] },
+  frog: { b: ['tall'], c: [15], e: ['violet'], t: ['bands'], a: ['tiara', 'helmet', 'wizard', 'jester', 'mitre', 'kettle', 'mask'], l: ['dew'], lc: [7, 8] },
+  master: { b: ['flat'], c: [14, 16], e: ['red'], t: ['stripes'], a: ['crown', 'pendulum', 'wings'], l: ['heart'], lc: [11] },
+  legend: { b: ['bull'], c: [17], e: ['spiral'], t: ['glass'], a: ['kingcrown', 'halo', 'cape'], l: ['lotus'], lc: [9] },
 };
 const AVATAR_DEFAULTS = { b: 'classic', c: 0, e: 'dark', t: 'none', a: 'none', l: 'classic', lc: 0 };
 // The rank an option needs, or '' if it's open

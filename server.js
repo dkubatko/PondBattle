@@ -1,4 +1,4 @@
-// Pond Battle — web server: players, lobbies, rooms, live updates and the page.
+// Pond Brawl — web server: players, lobbies, rooms, live updates and the page.
 // Game rules are in engine.js, Telegram (launch data + bot) in telegram.js. No dependencies.
 'use strict';
 const http = require('http');
@@ -60,8 +60,8 @@ let saveTimer = null;
 const save = () => { clearTimeout(saveTimer); saveTimer = setTimeout(() => fs.writeFile(SAVE, JSON.stringify(rooms), () => {}), 500); };
 
 const cleanName = (n) => String(n || '').replace(/\s+/g, ' ').trim().slice(0, 14) || 'Frog';
-// Avatar: a frog body shape in one of 13 colors, plus eyes, pattern, accessory and a lily pad (the page draws them)
-const PAD_COLORS = 12, AV_COLORS = 13, AV_BODIES = ['classic', 'slim', 'tall', 'round', 'toad', 'bull', 'flat', 'tadpole'];
+// Avatar: a frog body shape in one of 13 colors or 5 gradients, plus eyes, pattern, accessory and a lily pad (the page draws them)
+const PAD_COLORS = 12, AV_COLORS = 18, AV_BODIES = ['classic', 'slim', 'tall', 'round', 'toad', 'bull', 'flat', 'tadpole'];
 // Eyes, pattern and accessory are short option ids; the page owns the art and falls back to the default for unknown ids
 const optId = (v, dflt) => (/^[a-z]{1,12}$/.test(String(v || '')) ? v : dflt);
 const cleanAvatar = (a) => ({
@@ -461,7 +461,7 @@ http.createServer(async (req, res) => {
     console.error(e);
     json(res, 500, { error: 'server error' });
   }
-}).listen(PORT, () => console.log(`🐸 Pond Battle on :${PORT}`));
+}).listen(PORT, () => console.log(`🐸 Pond Brawl on :${PORT}`));
 TG.start().catch((e) => console.error('telegram:', e.message));
 
 setTimeout(() => Object.values(rooms).forEach(scheduleBot), 1000);

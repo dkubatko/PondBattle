@@ -1,4 +1,4 @@
-// Telegram side of Pond Battle: checks Mini App launch data and runs the bot (long polling, no webhook).
+// Telegram side of Pond Brawl: checks Mini App launch data and runs the bot (long polling, no webhook).
 // No dependencies: uses Node's built-in fetch and crypto.
 'use strict';
 const crypto = require('crypto');
@@ -41,7 +41,7 @@ async function onMessage(m) {
   const code = (text.match(/^\/start\s+join_([A-Z]{4})$/i) || [])[1];
   await api('sendMessage', code
     ? { chat_id: m.chat.id, text: `You're invited to pond ${code.toUpperCase()} 🐸`, reply_markup: playButton('Join the pond', `?join=${code.toUpperCase()}`) }
-    : { chat_id: m.chat.id, text: 'Pond Battle: a cozy frog battler for two. 🐸', reply_markup: playButton('Play') });
+    : { chat_id: m.chat.id, text: 'Pond Brawl: a cozy frog battler for two. 🐸', reply_markup: playButton('Play') });
 }
 
 async function poll() {
@@ -86,8 +86,8 @@ async function prepareInvite(tgId, code) {
   const r = await api('savePreparedInlineMessage', {
     user_id: Number(tgId), allow_user_chats: true, allow_group_chats: true,
     result: {
-      type: 'article', id: `invite-${code}-${Date.now()}`, title: 'Pond Battle invite',
-      input_message_content: { message_text: 'Let’s play Pond Battle! 🐸' },
+      type: 'article', id: `invite-${code}-${Date.now()}`, title: 'Pond Brawl invite',
+      input_message_content: { message_text: 'Let’s play Pond Brawl! 🐸' },
       reply_markup: { inline_keyboard: [[{ text: 'Join the pond', url: `https://t.me/${username}?startapp=join_${code}` }]] },
     },
   }).catch((e) => ({ ok: false, description: e.message }));

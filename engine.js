@@ -1,4 +1,4 @@
-// Pond Battle — game rules: frogs, items, shop, merging, battles and rounds.
+// Pond Brawl — game rules: frogs, items, shop, merging, battles and rounds.
 // No web code here: server.js runs rooms on top of it, tools/simulate.js simulates games with it.
 'use strict';
 const fs = require('fs');

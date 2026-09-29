@@ -1,5 +1,5 @@
-# Pond Battle on Tower. Lives in /mnt/cache/appdata/pondbattle with a .env and icon.svg (static/icon.svg) next to it.
-# It's registered as the "Pond Battle" stack in Unraid's Compose Manager (projects/pondbattle points here).
+# Pond Brawl on Tower. Lives in /mnt/cache/appdata/pondbattle with a .env and icon.svg (static/icon.svg) next to it.
+# It's registered as the "Pond Brawl" stack in Unraid's Compose Manager (projects/pondbattle points here).
 #   docker compose up -d        start / apply changes to this file
 # New images come from GitHub Actions (public package on ghcr.io); Watchtower pulls them automatically.
 name: pondbattle
@@ -14,13 +14,13 @@ services:
       - "18420:8420"         # Nginx Proxy Manager forwards the public hostname here
     labels:
       - com.centurylinklabs.watchtower.enable=true
-      # Unraid's Docker page: part of the Pond Battle stack in Compose Manager, with the app icon
+      # Unraid's Docker page: part of the Pond Brawl stack in Compose Manager, with the app icon
       - net.unraid.docker.managed=composeman
       - net.unraid.docker.icon=/mnt/cache/appdata/pondbattle/icon.svg
       - net.unraid.docker.webui=https://pondbattle.3rdplacelounge.com/
     restart: unless-stopped
 
-  # Checks GitHub's registry every minute and restarts Pond Battle on a new image.
+  # Checks GitHub's registry every minute and restarts Pond Brawl on a new image.
   # --label-enable: it only ever touches containers labelled like the one above.
   # (nickfedor's fork: the original containrrr/watchtower no longer works with Docker 29.)
   watchtower:
