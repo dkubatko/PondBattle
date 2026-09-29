@@ -522,7 +522,18 @@ h1 { margin: 0; text-align: center; font-size: 40px; font-weight: 900; line-heig
 /* Finding a match: ripples spread from your lily pad */
 .search .hero .ripple { position: absolute; bottom: 0; left: 50%; width: 132px; height: 52px; margin-left: -66px; border: 2px solid rgba(168, 212, 236, .55); border-radius: 50%; opacity: 0; animation: ripple 2.6s ease-out infinite; }
 .search .hero .ripple.r2 { animation-delay: 1.3s; }
+.search .hero.found .ripple { animation: none; opacity: 0; }
+.search .found-ring { position: absolute; bottom: 0; left: 50%; width: 132px; height: 52px; margin-left: -66px; border: 3px solid var(--firefly); border-radius: 50%; box-shadow: 0 0 14px rgba(255, 205, 102, .5); pointer-events: none; }
 @keyframes ripple { 0% { transform: scale(.85); opacity: .9; } 100% { transform: scale(2); opacity: 0; } }
+/* the opponent's card: the game's player-plate look (no gold): round portrait on the left, name and rank stacked
+   beside it on one left edge, the two centred on each other; even padding around the portrait */
+.found-card { display: flex; align-items: center; gap: 14px; margin: 4px auto 0; width: max-content; max-width: 100%; padding: 12px 24px 12px 12px; border-radius: 24px; background: rgba(5, 15, 18, .28); box-shadow: inset 0 0 0 1.5px var(--moon-faint); }
+.found-card .portrait { width: 64px; height: 64px; }
+.found-card .fc-info { display: flex; flex-direction: column; align-items: flex-start; gap: 5px; min-width: 0; }
+.found-card .fc-name { font-size: 22px; font-weight: 900; line-height: 1.05; max-width: 190px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.found-card .fc-rank { display: flex; align-items: center; gap: 6px; height: 22px; font-size: 14px; font-weight: 800; line-height: 1; color: var(--moon-dim); }
+.found-card .fc-rank > :first-child { margin-left: -1px; }
+.search-q { margin-top: -4px; min-height: 20px; font-size: 14px; }
 .search-vs { display: flex; align-items: center; justify-content: center; gap: 8px; font-size: 18px; font-weight: 900; min-height: 44px; }
 .search-vs .mini { box-shadow: none; flex: none; }
 .search-vs .nm { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
@@ -3241,6 +3252,7 @@ function startSearch(pref) {
     <div class="hero"><div class="moon"></div><span class="ripple"></span><span class="ripple r2"></span><div class="leafbig" style='${padStyle(myAvatar())}'></div>${avatarHTML(myAvatar(), 84, { idle: true, id: 7 })}</div>
     <h1 class="h-sm" id="stitle">Finding a match</h1>
     <div class="lede" id="ssub">${esc(pref === 'any' ? 'Any set' : SETS[setId(pref)].name)} · <span id="sclock">0:00</span></div>
+    <div class="lede search-q" id="squeue"></div>
     <div class="panel"><button class="btn ghost wide" id="scancel">Cancel</button></div>
   </div>`);
   mount('search', node);
@@ -3259,6 +3271,9 @@ async function pollSearch() {
   try { r = await api('/api/play', { set: mine.pref }); } catch {}
   if (searching !== mine) return;
   if (r && r.room) return matchFound(r);
+  // how many others are looking right now (any set)
+  const q = $('#squeue');
+  if (q && r && r.others != null) q.textContent = r.others ? `${r.others} other player${r.others === 1 ? '' : 's'} searching` : 'No one else is searching yet';
   searchTimer = setTimeout(pollSearch, 1500);
 }
 async function cancelSearch() {
@@ -3269,15 +3284,35 @@ async function cancelSearch() {
 // Found someone: a moment to see who it is, then into the game
 async function matchFound(r) {
   searching = null; clearTimeout(searchTimer);
-  Snd.ribbit(); haptic(['notification', 'success']);
+  // Hard to miss: a "ba-dum" of haptics (a short buzz outside Telegram, where phones allow it), and on screen the
+  // searching ripples give way to a gold burst around your frog, the title pops, your opponent bounces in
+  Snd.ribbit();
+  haptic(['notification', 'success']); setTimeout(() => haptic(['impact', 'heavy']), 180); setTimeout(() => haptic(['impact', 'medium']), 330);
+  if (!TG) try { navigator.vibrate?.([70, 50, 120]); } catch {}
+  const hero = $('.search .hero');
+  if (hero) {
+    hero.classList.add('found');
+    for (const k of [0, 1]) {
+      const ring = el('<span class="found-ring"></span>'), pad = $('.leafbig', hero);
+      hero.insertBefore(ring, pad || hero.firstChild); // under the lily pad (and the frog): it spreads out from beneath it
+      anim(ring, [{ transform: 'scale(.5)', opacity: 1 }, { transform: 'scale(2.3)', opacity: 0 }], { duration: 900, delay: k * 260, easing: 'ease-out', fill: 'backwards' }).then(() => ring.remove());
+    }
+    sparkles($('.frog', hero) || hero, 16, '#ffcd66');
+  }
+  const title = $('#stitle');
+  if (title) { title.textContent = 'Match found!'; anim(title, [{ transform: 'scale(.8)' }, { transform: 'scale(1.12)', offset: .6 }, { transform: 'scale(1)' }], { duration: 420, easing: 'ease-out' }); }
   try {
     const v = await api(`/api/state?room=${r.room}&token=${r.token}`);
     if (screen === 'search' && v.opp) {
-      $('#stitle').textContent = 'Match found';
-      $('#ssub').outerHTML = `<div class="search-vs"><span class="mini">${avatarHTML(v.opp.avatar, 30, { id: 21, centered: true })}</span><span class="nm">${esc(v.opp.name)}</span>${rankBadge(v.opp.rank, 28)}</div>
+      // your opponent as a player card, like the plates in the game: their frog in a round portrait, name, rank
+      const rk = v.opp.rank;
+      $('#ssub').outerHTML = `<div class="found-card"><span class="portrait">${avatarHTML(v.opp.avatar, 50, { idle: true, id: 21, centered: true })}</span>
+          <span class="fc-info"><span class="fc-name">${esc(v.opp.name)}</span>${rk ? `<span class="fc-rank">${rankBadge(rk, 22)}${esc(RANK_NAME[rk.id] || '')}</span>` : ''}</span></div>
         <div class="lede">${esc(SETS[setId(v.set)].name)}</div>`;
+      const fc = $('.found-card'); if (fc) anim(fc, [{ transform: 'scale(.6)', opacity: 0 }, { transform: 'scale(1.06)', opacity: 1, offset: .65 }, { transform: 'scale(1)', opacity: 1 }], { duration: 480, easing: 'cubic-bezier(.3, 1.4, .5, 1)' });
       $('#scancel').style.visibility = 'hidden';
-      await sleep(1400);
+      $('#squeue')?.remove();
+      await sleep(1800);
     }
   } catch {}
   enterRoom(r);
@@ -3481,13 +3516,24 @@ function openBattleSheet(lb, upto) {
 // right before the battle: the giver glows and the frog that got it shows its +1. (Your partner's are in the log.)
 // Returns null when there's nothing to show (the battle then starts at once, as before), else a promise; it marks the
 // page as playing straight away so nothing else starts the battle meanwhile.
+// Also first: both players' cards light up ready. The battle starts the moment the second player is ready, so the
+// state that arrives is already the next round's; any card that isn't green yet (your partner's, or yours if you were
+// last) turns green for a moment before the battle.
 function preBattle(lb) {
+  if (screen !== 'game' || lb.id === sessionStorage.frogPre) return null;
   const mine = ((lb.before || [])[S.seat] || []).filter((x) => x && x.from != null);
-  if (screen !== 'game' || !mine.length || lb.id === sessionStorage.frogPre) return null;
+  const unlit = ['#meCard', '#oppCard'].map((id) => $(id)).filter((c) => c && !c.classList.contains('is-ready'));
+  if (!mine.length && !unlit.length) return null;
   sessionStorage.frogPre = lb.id; // once per battle, even if the page reloads before the battle is watched
   playing = true;
   $('#bubble')?.classList.remove('show');
-  return playGifts(mine);
+  return (async () => {
+    if (unlit.length) {
+      for (const c of unlit) { c.classList.add('is-ready'); c.classList.remove('is-away'); const b = $('.pbadge', c); if (b) b.innerHTML = `<span class="badge ready" title="Ready">${ICON.check}</span>`; }
+      await sleep(700);
+    }
+    if (mine.length) await playGifts(mine);
+  })();
 }
 async function playGifts(mine) {
   await sleep(250);

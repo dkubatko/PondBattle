@@ -388,7 +388,8 @@ http.createServer(async (req, res) => {
       const found = matched.get(uid);
       if (found) { matched.delete(uid); return json(res, 200, found); }
       const m = findMatch(uid, b.set === 'any' ? 'any' : cleanSet(b.set));
-      return json(res, 200, m || { waiting: true });
+      // others: how many other players are looking for a game right now (any set), shown while you wait
+      return json(res, 200, m || { waiting: true, others: [...queue.keys()].filter((u) => u !== uid).length });
     }
     if (url.pathname === '/api/play/cancel') {
       // Too late if a game was found meanwhile: then you get it (the page goes straight in)
