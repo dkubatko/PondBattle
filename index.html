@@ -748,6 +748,21 @@ const pips = (n, on, fn) => `<span class="pips">${Array.from({ length: n }, (_, 
 // built from a few shared helpers so the style stays consistent.
 // Avatars are one of the plain body shapes in a chosen color.
 // =====================================================================
+// A gradient body (avatars with a gradient color, and a few top-tier frogs): one gradient over the whole frog in its own
+// coordinates, so body and head read as one; shading comes from the middle stop, and the belly is a see-through cream
+// so the gradient shows through. The id names its colors, so two different gradients never share one.
+// Each gradient is defined once, in an always-present invisible <svg> at the end of the page, so frogs that are
+// hidden, dragged or removed never take the gradient away from the others
+function gradPal(stops, x = {}) {
+  const id = `grad-${stops.join('').replace(/#/g, '')}`, mid = stops[Math.floor(stops.length / 2)];
+  const p = pal(mid, { c: `url(#${id})`, belly: 'rgba(255,251,232,.5)', light: 'rgba(255,255,255,.3)', ...x });
+  if (!document.getElementById(id)) {
+    let lib = document.getElementById('grad-lib');
+    if (!lib) { lib = document.createElementNS('http://www.w3.org/2000/svg', 'svg'); lib.id = 'grad-lib'; lib.setAttribute('aria-hidden', 'true'); lib.style.cssText = 'position:absolute;width:0;height:0;overflow:hidden'; document.documentElement.appendChild(lib); }
+    lib.insertAdjacentHTML('beforeend', `<linearGradient id="${id}" gradientUnits="userSpaceOnUse" x1="18" y1="24" x2="82" y2="96">${stops.map((c, i) => `<stop offset="${(i / (stops.length - 1)).toFixed(2)}" stop-color="${c}"/>`).join('')}</linearGradient>`);
+  }
+  return { p, defs: '' };
+}
 const pal = (c, x = {}) => ({
   c, dark: mix(c, '#1b2a22', .32), deep: mix(c, '#1b2a22', .5), foot: mix(c, '#1b2a22', .14),
   belly: mix(c, '#fffbe8', .5), line: mix(c, '#1b1410', .72), light: mix(c, '#ffffff', .3), ...x,
@@ -821,6 +836,8 @@ const BODY = {
     torso: E(57, 60, 31, 27, p.c) + E(59, 70, 18, 12, p.belly),
     head: '', front: '',
     eyes: [[45, 48, 8.5], [69, 48, 8.5]], cheeks: [[35, 62], [79, 62]], mouth: [57, 63, 12], top: [57, 33], crown: [57, 37], neck: [57, 70, 16], heart: [59, 70], hat: [57, 35],
+    // the round body without its tail (wings, cape and watch hang off this), and where its hand holds an umbrella
+    core: { x: 26, y: 33, w: 62, h: 57 }, grip: [22, 8],
   }),
 };
 const BODIES = Object.keys(BODY);
@@ -947,7 +964,12 @@ const ART = {
     return compose(b, p, { inside: ear(16) + ear(84) });
   },
   knight: () => { const p = pal('#9aa7d8'), b = BODY.classic(p); return compose(b, p, hat(b, HELMET, 1.3, 5)); },
-  prince: () => { const p = pal('#f1b13b'), b = BODY.classic(p); return compose(b, p, hat(b, CROWN, 1, 0)); },
+  // Prince: crown and a royal blue sash with a gold medal
+  prince: () => {
+    const p = pal('#f1b13b'), b = BODY.classic(p);
+    const sash = '<path d="M28 50L72 92" stroke="#3f6fd0" stroke-width="8"/><path d="M28 50L72 92" stroke="#6f97ea" stroke-width="2" opacity=".6"/>' + C(59, 79, 4.6, '#f6c343', ' stroke="#b9861f" stroke-width="1.4"') + C(59, 79, 1.8, '#fff1b8');
+    return compose(b, p, { ...hat(b, CROWN, 1, 0), inside: `<g clip-path="url(#prince-clip)">${sash}</g><defs><clipPath id="prince-clip">${b.torso}</clipPath></defs>` });
+  },
   // Glass frog: see-through, with its little heart showing
   glass: () => { const p = pal('#cdeee2'), b = BODY.tall(p); return compose(b, p, { glass: true, inside: heartSVG(b.heart, .9) + dotsSVG([[36, 56, 1.3], [63, 54, 1.2], [58, 80, 1.1], [42, 82, 1.1], [70, 68, 1]], '#f4fff9') }); },
   // Pac-man frog: a round mouth on legs, horned eyelids, mottled back
@@ -969,7 +991,8 @@ const ART = {
   // Lucky toad: red and gold with a coin in its mouth
   lucky: () => { const p = pal('#dc5a49'), b = BODY.toad(p); return compose(b, p, { under: dotsSVG(b.dots, '#f4c653'), inside: COIN(b.heart[0], b.heart[1]) }); },
   mama: () => { const p = pal('#f3a77c'), b = BODY.round(p); return compose(b, p, { lashes: true, face: PEARLS([b.neck[0], neckY(b), b.neck[2]]) }); },
-  wizard: () => { const p = pal('#45b6a8'), b = BODY.classic(p); return compose(b, p, hat(b, WIZARD_HAT, 1.12, 3)); },
+  // Wizard: arcane teal fading into indigo
+  wizard: () => { const { p, defs } = gradPal(['#4fcdb5', '#3f97bf', '#5a5cc4']), b = BODY.classic(p); return defs + compose(b, p, hat(b, WIZARD_HAT, 1.12, 3)); },
   froglet: () => { const p = pal('#a9e29a'), b = BODY.classic(p); return compose(b, p); },
 };
 // Bugs from the shop, drawn in the same style
@@ -1026,11 +1049,13 @@ Object.assign(ART, {
     const egg = (x, y, r) => C(x, y + 1.2, r, p.dark, ' opacity=".35"') + C(x, y, r, '#f6eecd') + C(x - r * .35, y - r * .35, r * .28, '#fff');
     const baby = (x, y, r) => egg(x, y, r) + C(x - r * .32, y + r * .1, r * .16, '#2a211c') + C(x + r * .32, y + r * .1, r * .16, '#2a211c')
       + `<path d="M${x - r * .25} ${y + r * .45}q${r * .25} ${r * .2} ${r * .5} 0" stroke="#2a211c" stroke-width="${(r * .12).toFixed(2)}" fill="none" stroke-linecap="round"/>`;
-    const eggs = [[23, 42, 6], [32, 34, 6.5], [68, 34, 6.5], [77, 42, 6]].map(([x, y, r]) => egg(x, y, r)).join('') + baby(43, 28, 7) + baby(57, 28, 7);
+    // sunk into her back (the head's outline cuts across them), only their tops and the babies' faces peeking out
+    const eggs = [[22, 45, 6], [32, 38.5, 6.5], [68, 38.5, 6.5], [78, 45, 6]].map(([x, y, r]) => egg(x, y, r)).join('') + baby(42.5, 31.5, 7) + baby(57.5, 31.5, 7);
     return compose(b, p, { behind: eggs });
   },
   hypno: () => { const p = pal('#a97fdc'), b = BODY.classic(p); return compose(b, p, { eyes: 'spiral', over: PENDULUM(b) }); },
-  princess: () => { const p = pal('#8fcbf2'), b = BODY.classic(p); return compose(b, p, { lashes: true, ...hat(b, TIARA, .95, 0) }); },
+  // Princess: sky blue blushing into lilac and pink
+  princess: () => { const { p, defs } = gradPal(['#96d3f6', '#b8b2f0', '#f4b0d0']), b = BODY.classic(p); return defs + compose(b, p, { lashes: true, ...hat(b, TIARA, .95, 0) }); },
   // Leapfrog: a spotted leopard frog, always looking back the other way (it leaps over the line)
   leapfrog: () => {
     const p = pal('#9bd46f'), b = BODY.slim(p);
@@ -1038,9 +1063,9 @@ Object.assign(ART, {
   },
   // Chameleon: curly tail, turret eyes and color-shifting spots
   chameleon: () => {
-    const p = pal('#7cc84e'), b = BODY.classic(p);
+    const { p, defs } = gradPal(['#7cd35a', '#3dbba5', '#f0b43e']), b = BODY.classic(p); // mid-change: green into teal into amber
     const tail = (w, c) => `<path d="M24 76C10 80 3 68 8 59 12 52 22 53 23 60 24 66 16 68 14 63" stroke="${c}" stroke-width="${w}" fill="none" stroke-linecap="round"/>`;
-    return compose(b, p, {
+    return defs + compose(b, p, {
       behind: tail(9, p.dark) + tail(6, p.c),
       under: dotsSVG([[24, 62, 3.4], [76, 62, 3.4]], '#f2a93b') + dotsSVG([[30, 71, 2.8], [70, 71, 2.8]], '#ec6f8f') + dotsSVG([[22, 70, 2.2], [78, 70, 2.2]], '#5ab8d8'),
       inside: b.eyes.map(([x, y, r]) => C(x, y, r + 4, p.c, ` stroke="${p.dark}" stroke-width="1.6"`)).join(''),
@@ -1104,13 +1129,15 @@ Object.assign(ART, {
   },
   // Budgett's frog: a wide, flat frog that's mostly mouth, screaming, with small eyes on top
   budgett: () => {
-    const p = pal('#8e8a58', { belly: '#d6cf9a' }), b = { ...BODY.flat(p), eyes: [[36, 42, 7], [64, 42, 7]], mouth: [50, 57, 44] };
-    return compose(b, p, { under: dotsSVG([[20, 72, 2.4], [80, 72, 2.4], [28, 81, 2], [72, 81, 2], [12, 64, 1.8], [88, 64, 1.8]], '#d8d08a'), mouth: 'open', noCheeks: true });
+    const p = pal('#7e6a50', { belly: '#dcc9a0' }), b = { ...BODY.flat(p), eyes: [[36, 42, 7], [64, 42, 7]], mouth: [50, 57, 44] }; // muddy brown
+    return compose(b, p, { under: dotsSVG([[20, 72, 2.4], [80, 72, 2.4], [28, 81, 2], [72, 81, 2], [12, 64, 1.8], [88, 64, 1.8]], '#d9c48c'), mouth: 'open', noCheeks: true });
   },
   // Golden poison frog: small, glossy and golden, with dark eyes and toes
   golden: () => {
-    const p = pal('#f4ad22', { toe: '#2d2620', light: '#ffd878' }), b = BODY.tall(p);
-    return compose(b, p, { inside: E(38, 55, 7, 3.4, '#fff3c6', ' opacity=".75" transform="rotate(-24 38 55)"') + E(22, 26, 4, 2.2, '#fff6d8', ' opacity=".7" transform="rotate(-30 22 26)"') });
+    // molten gold, glossy, with a sparkle on its head
+    const { p, defs } = gradPal(['#ffe58f', '#f0b43c', '#c07a18'], { toe: '#2d2620', light: '#ffd878' }), b = BODY.tall(p);
+    const spark = (x, y, r) => `<path d="M${x} ${y - r}Q${x} ${y} ${x + r} ${y}Q${x} ${y} ${x} ${y + r}Q${x} ${y} ${x - r} ${y}Q${x} ${y} ${x} ${y - r}Z" fill="#fffbe6"/>`;
+    return defs + compose(b, p, { over: spark(80, 22, 5) + spark(88, 33, 2.8), inside: E(38, 55, 7, 3.4, '#fff3c6', ' opacity=".75" transform="rotate(-24 38 55)"') + E(22, 26, 4, 2.2, '#fff6d8', ' opacity=".7" transform="rotate(-30 22 26)"') });
   },
 });
 // ----- Might & Magic: new frogs, told apart by color and what they wear or carry -----
@@ -1128,19 +1155,26 @@ const MITRE = '<path d="M-12 0V-15Q0-32 12-15V0z" fill="#fbf7ee" stroke="#d9c89a
 const BIG_CROWN = '<path d="M-19 0V-17l9.5 8L0-22l9.5 13L19-17V0z" fill="#f6c343"/><path d="M-19 0h38v-5.5h-38z" fill="#dea02a"/>'
   + '<circle cx="-19" cy="-18" r="2.8" fill="#ffe08a"/><circle cy="-23" r="3" fill="#ffe08a"/><circle cx="19" cy="-18" r="2.8" fill="#ffe08a"/>'
   + '<circle cy="-10" r="3.2" fill="#3f86d6"/><circle cx="-11" cy="-7" r="2.2" fill="#e5533d"/><circle cx="11" cy="-7" r="2.2" fill="#e5533d"/>';
-const HALO = '<ellipse cy="-16" rx="15" ry="4.4" fill="none" stroke="#ffd76a" stroke-width="3.2"/><ellipse cy="-16" rx="15" ry="4.4" fill="none" stroke="#fff3c4" stroke-width="1.1"/>';
+const HALO = '<ellipse rx="15" ry="4.4" fill="none" stroke="#ffd76a" stroke-width="3.2"/><ellipse rx="15" ry="4.4" fill="none" stroke="#fff3c4" stroke-width="1.1"/>';
+// The halo floats a little above the tops of the eyes, whatever the body (on big-eyed frogs it would sit on them otherwise)
+const halo = (b, s) => ({ over: at([50, Math.min(...b.eyes.map(([, y, r]) => y - r)) - 7 * s], s, HALO) });
 // A hood over the head (drawn behind the eyes; eyes and face stay visible)
 const hood = (b, fill, edge) => { const [[x1, y1, r1], [x2, y2, r2]] = b.eyes; const top = Math.min(y1 - r1, y2 - r2) - 9;
   return `<path d="M${x1 - r1 - 7} ${y1 + r1 + 6}C${x1 - r1 - 9} ${top}, ${x2 + r2 + 9} ${top}, ${x2 + r2 + 7} ${y2 + r2 + 6}C${x2 + r2 + 2} ${y2 - r2 + 2}, ${x1 - r1 - 2} ${y1 - r1 + 2}, ${x1 - r1 - 7} ${y1 + r1 + 6}z" fill="${fill}"/>`
     + `<path d="M${x1 - r1 - 3} ${y1 + r1 + 1}C${x1 - r1 - 1} ${y1 - r1 - 1}, ${x2 + r2 + 1} ${y2 - r2 - 1}, ${x2 + r2 + 3} ${y2 + r2 + 1}" stroke="${edge}" stroke-width="2" fill="none"/>`; };
 // A band across the eyes (drawn behind them, so the eyes show through)
-const eyeMask = (b) => { const [[x1, y1, r1], [x2, y2, r2]] = b.eyes;
-  return `<path d="M${x1 - r1 - 4} ${y1 - 3}Q${(x1 + x2) / 2} ${y1 - 8} ${x2 + r2 + 4} ${y2 - 3}L${x2 + r2 + 3} ${y2 + 4}Q${(x1 + x2) / 2} ${y1 + 2} ${x1 - r1 - 3} ${y1 + 4}z" fill="#1f2328"/>`; };
+// A bandit mask over the eyes: a dark band with eye holes (the pupils show through) and knot tails on one side
+const eyeMask = (b) => { const [[x1, y1, r1], [x2, y2, r2]] = b.eyes, mx = (x1 + x2) / 2;
+  const hole = (x, y, r) => { const h = r * .74; return `M${x + h} ${y}a${h} ${h} 0 1 0 ${-2 * h} 0a${h} ${h} 0 1 0 ${2 * h} 0Z`; };
+  const band = `M${x1 - r1 - 5} ${y1 - r1 * .45}Q${mx} ${Math.min(y1, y2) - Math.max(r1, r2) * 1.05} ${x2 + r2 + 5} ${y2 - r2 * .45}L${x2 + r2 + 4} ${y2 + r2 * .5}Q${mx} ${Math.max(y1, y2) + Math.max(r1, r2) * .15} ${x1 - r1 - 4} ${y1 + r1 * .5}Z`;
+  const tails = `<path d="M${x1 - r1 - 4} ${y1}l-7 -5l1 6zM${x1 - r1 - 4} ${y1 + 1}l-6 5l6 1z" fill="#1f2328"/>`;
+  return `${tails}<path d="${band}${hole(x1, y1, r1)}${hole(x2, y2, r2)}" fill="#1f2328" fill-rule="evenodd"/>`; };
 const ROGUE_HOOD = ['#5a1f2e', '#76303f'];
 // The outline of a body (legs, body and head, measured once per shape), so extras that hang off the body (wings,
 // a cape, a watch in hand) fit every shape
 const boxCache = new Map();
 function bodyBox(b) {
+  if (b.core) return b.core; // a body that says where its core is (the tadpole: its tail isn't body)
   const key = b.back + b.torso + b.head + b.front;
   if (!boxCache.has(key)) {
     const svg = document.createElementNS('http://www.w3.org/2000/svg', 'svg');
@@ -1199,7 +1233,7 @@ Object.assign(ART, {
   },
   jester: () => { const p = pal('#c9d64f'), b = BODY.classic(p); return compose(b, p, { ...hat(b, JESTER_HAT, 1, 1), mouth: 'open' }); },
   // Rogue: charcoal, hooded, with a mask across its eyes
-  rogue: () => { const p = pal('#56646c'), b = BODY.slim(p); return compose(b, p, { inside: hood(b, ROGUE_HOOD[0], ROGUE_HOOD[1]) + eyeMask(b), mouth: 'flat' }); },
+  rogue: () => { const p = pal('#56646c'), b = BODY.slim(p); return compose(b, p, { inside: hood(b, ROGUE_HOOD[0], ROGUE_HOOD[1]), face: eyeMask(b), mouth: 'flat' }); },
   // Squire: young and sandy, a plain steel cap and a small round shield
   squire: () => {
     const p = pal('#e2bd74'), b = BODY.tall(p);
@@ -1233,7 +1267,7 @@ Object.assign(ART, {
   paladin: () => {
     const p = pal('#eee7d4'), b = BODY.bull(p);
     const tabard = '<path d="M39 64h22l2 25q-13 4-26 0z" fill="#3f73c4"/><path d="M50 68v17M44 74h12" stroke="#f6c343" stroke-width="3" stroke-linecap="round"/>';
-    return compose(b, p, { ...hat(b, HALO, 1.15, -2), face: tabard, brows: true });
+    return compose(b, p, { ...halo(b, 1.15), face: tabard, brows: true });
   },
 });
 BUG_ART.cricket = '<g transform="translate(-8 -12) scale(1.18)"><path d="M30 60L18 80M44 64l-4 18M58 64l5 18" stroke="#5b4326" stroke-width="3" stroke-linecap="round"/>'
@@ -1306,7 +1340,7 @@ const AV_PATTERNS = [
 // Accessories hang off the body's anchor points (see hat/eyeCorner/cheek/neckY), so they fit every body.
 // head: true = hidden while the winner's crown is on. small: how much bigger it's drawn on small avatars (player
 // plates, lobby rows, the picker wheel), where the finer extras would otherwise shrink to a few pixels. x gets that as k.
-const umbrella = (b, p) => `<g transform="translate(${b.cheeks[0][0] - 21} ${b.top[1] - 23})">`
+const umbrella = (b, p) => `<g transform="translate(${b.grip ? b.grip.join(' ') : `${b.cheeks[0][0] - 21} ${b.top[1] - 23}`})">`
   + `<g transform="translate(24 12) rotate(-12) scale(1.18)">${UMBRELLA_CANOPY}</g><path d="M11.5 75L22 13" stroke="#6b5a4c" stroke-width="2.4" stroke-linecap="round"/>`
   + `<path d="M11.5 75c-.6 3.6 3.6 4.8 4.8 1.6" stroke="#6b5a4c" stroke-width="2.4" fill="none" stroke-linecap="round"/>`
   + `<path d="M20 62C14 62 10 64 9.5 68" stroke="${p.c}" stroke-width="7" stroke-linecap="round" fill="none"/>${C(11, 68.5, 4.6, p.c)}</g>`;
@@ -1330,7 +1364,7 @@ const AV_ACCS = [
   { id: 'umbrella', name: 'Rain umbrella', x: (b, p) => ({ over: umbrella(b, p) }) },
   // from the Might & Magic frogs
   { id: 'kingcrown', name: 'King’s crown', head: true, small: 1.2, x: (b, p, k) => hat(b, BIG_CROWN, 1.05 * k, 0) },
-  { id: 'halo', name: 'Paladin’s halo', head: true, small: 1.2, x: (b, p, k) => hat(b, HALO, 1.15 * k, -2) },
+  { id: 'halo', name: 'Paladin’s halo', head: true, small: 1.2, x: (b, p, k) => halo(b, 1.15 * k) },
   { id: 'jester', name: 'Jester’s hat', head: true, x: (b) => hat(b, JESTER_HAT, 1, 1) },
   { id: 'straw', name: 'Straw hat', head: true, x: (b) => hat(b, STRAW_HAT, 1.3, 5) },
   { id: 'robin', name: 'Archer’s cap', head: true, x: (b) => hat(b, ROBIN_HAT, 1.05, 1) },
@@ -1339,7 +1373,7 @@ const AV_ACCS = [
   { id: 'mitre', name: 'Cleric’s mitre', head: true, small: 1.2, x: (b, p, k) => hat(b, MITRE, k, 0) },
   { id: 'cap', name: 'Squire’s cap', head: true, x: (b) => hat(b, STEEL_CAP, 1.05, 1) },
   { id: 'kettle', name: 'Guard’s helmet', head: true, x: (b) => hat(b, KETTLE_HAT, 1.12, 1) },
-  { id: 'mask', name: 'Rogue’s mask', x: (b) => ({ inside: eyeMask(b) }) },
+  { id: 'mask', name: 'Rogue’s mask', x: (b) => ({ face: eyeMask(b) }) },
   { id: 'pendulum', name: 'Hypno’s watch', x: (b) => ({ over: PENDULUM(b) }) },
   { id: 'cape', name: 'King’s cape', x: (b) => ({ behind: KING_CAPE(b) }) },
   { id: 'wings', name: 'Dragon wings', x: (b, p) => ({ behind: DRAGON_WINGS(b, p.dark) }) },
@@ -1420,11 +1454,7 @@ function bodyCenter(bd) {
 // see-through cream so the gradient shows through it
 function avatarPal(ci) {
   const col = AV_COLORS[ci] ?? AV_COLORS[0];
-  if (!Array.isArray(col)) return { p: pal(col), defs: '' };
-  const id = `avg-${ci}-${col.join('').replace(/#/g, '')}`, mid = col[Math.floor(col.length / 2)]; // the id names its colors, so two gradients never share one
-  const p = pal(mid, { c: `url(#${id})`, belly: 'rgba(255,251,232,.5)', light: 'rgba(255,255,255,.3)' });
-  const defs = `<defs><linearGradient id="${id}" gradientUnits="userSpaceOnUse" x1="18" y1="24" x2="82" y2="96">${col.map((c, i) => `<stop offset="${(i / (col.length - 1)).toFixed(2)}" stop-color="${c}"/>`).join('')}</linearGradient></defs>`;
-  return { p, defs };
+  return Array.isArray(col) ? gradPal(col) : { p: pal(col), defs: '' };
 }
 function avatarArt(av, crown, centered, small) {
   av = cleanAv(av);
