@@ -18,6 +18,7 @@ const HISTORY = process.env.HISTORY_FILE || path.join(DATA, 'games.jsonl');
 const GUESTS = process.env.ALLOW_GUESTS !== '0';
 const E = require('./engine');
 const TG = require('./telegram');
+const R = require('./ranks');
 const { FROGS, FOODS, SETS, rand, frogCost, botShop } = E;
 // The set a new pond plays (sent by the page); unknown ids get the first set
 const cleanSet = (v) => (SETS[v] ? v : E.DEFAULT_SET);
@@ -30,6 +31,10 @@ if (!fs.existsSync(SECRET_FILE)) fs.writeFileSync(SECRET_FILE, crypto.randomByte
 const SECRET = fs.readFileSync(SECRET_FILE, 'utf8').trim();
 const keyFor = (uid) => crypto.createHmac('sha256', SECRET).update(uid).digest('hex').slice(0, 32);
 const cleanUid = (u) => String(u || '').replace(/[^a-z0-9]/gi, '').slice(0, 40);
+// Other players are shown by a public id (pid), never by their Telegram id
+const pids = new Map(); // pid -> uid
+const pidOf = (uid) => { const pid = crypto.createHmac('sha256', SECRET).update('pid:' + uid).digest('hex').slice(0, 12); pids.set(pid, uid); return pid; };
+const uidOf = (pid) => pids.get(pid) || Object.keys(profiles).find((u) => pidOf(u) === pid) || '';
 // The verified player id behind a request, or '' if the key doesn't match
 function who(q) {
   const uid = cleanUid(q.uid), key = String(q.key || '');
@@ -95,12 +100,14 @@ function currentPage() {
 const subs = new Map(); // room code -> Set<{ p, res }>
 const online = (room, p) => !!p.bot || [...(subs.get(room.code) || [])].some((s) => s.p === p);
 
+// Ranked games show both players' ranks, and after the game how many rank points you won or lost
+const rankView = (room, p) => (room.ranked ? { rank: R.rankOf(p.uid, profiles), ...(p.delta != null ? { delta: p.delta, prev: p.prevRank } : {}) } : {});
 function view(room, me) {
   const i = room.players.indexOf(me), opp = room.players[1 - i];
   return {
-    v: room.v, build: currentPage().build, code: room.code, set: E.setOf(room), round: room.round, phase: room.phase, seat: i, winner: room.winner, game: room.game,
-    me: { name: me.name, avatar: me.avatar || cleanAvatar(), hearts: me.hearts, trophies: me.trophies, gold: me.gold, team: me.team, shop: me.shop, ready: me.ready },
-    opp: opp ? { name: opp.name, avatar: opp.avatar || cleanAvatar(), bot: !!opp.bot, hearts: opp.hearts, trophies: opp.trophies, ready: opp.ready, online: online(room, opp) } : null,
+    v: room.v, build: currentPage().build, code: room.code, set: E.setOf(room), round: room.round, phase: room.phase, seat: i, winner: room.winner, game: room.game, ranked: !!room.ranked,
+    me: { name: me.name, avatar: me.avatar || cleanAvatar(), hearts: me.hearts, trophies: me.trophies, gold: me.gold, team: me.team, shop: me.shop, ready: me.ready, ...rankView(room, me) },
+    opp: opp ? { name: opp.name, avatar: opp.avatar || cleanAvatar(), bot: !!opp.bot, ...(opp.uid ? { pid: pidOf(opp.uid) } : {}), hearts: opp.hearts, trophies: opp.trophies, ready: opp.ready, online: online(room, opp), ...(room.ranked ? { rank: R.rankOf(opp.uid, profiles) } : {}) } : null,
     lastBattle: room.lastBattle,
   };
 }
@@ -108,8 +115,8 @@ function broadcast(room) {
   for (const s of subs.get(room.code) || []) s.res.write(`data: ${JSON.stringify(view(room, s.p))}\n\n`);
 }
 // Ending a game removes it for both players; open phones get told and go back to the lobby
-function endRoom(room, byName) {
-  const msg = `data: ${JSON.stringify({ ended: true, by: byName })}\n\n`;
+function endRoom(room, byName, extra) {
+  const msg = `data: ${JSON.stringify({ ended: true, by: byName, ...extra })}\n\n`;
   const list = [...(subs.get(room.code) || [])];
   subs.delete(room.code);
   delete rooms[room.code];
@@ -149,8 +156,23 @@ function scheduleBot(room) {
 }
 const act = (room, p, a) => E.act(room, p, a);
 
-// Finished games go to the history file (one JSON line each)
+// A ranked game gives or takes rank points once (p.delta and p.prevRank are shown on the game-over screen)
+function rateGame(room) {
+  if (!room.ranked || room.rated || room.winner == null || room.winner < 0) return;
+  room.rated = true;
+  const pr = room.players.map((p) => profiles[p.uid] || (profiles[p.uid] = { name: p.name, avatar: p.avatar }));
+  const lv = pr.map(R.level);
+  room.players.forEach((p) => { p.prevRank = R.rankOf(p.uid, profiles).id; });
+  room.players.forEach((p, i) => {
+    const now = R.apply(lv[i], R.points(lv[i], lv[1 - i], room.winner === i));
+    p.delta = now - lv[i];
+    Object.assign(pr[i], { level: now, rgames: (pr[i].rgames | 0) + 1, rwins: (pr[i].rwins | 0) + (room.winner === i ? 1 : 0) }, p.delta ? { levelAt: Date.now() } : {});
+  });
+  R.forget(); saveProfiles();
+}
+// Finished games go to the history file (one JSON line each); the profile's match history is read from it
 function recordGame(room) {
+  rateGame(room);
   if (HISTORY === 'off') return; // simulations
   const entry = {
     v: 1,
@@ -158,16 +180,71 @@ function recordGame(room) {
     room: room.code,
     set: E.setOf(room),
     practice: !!room.practice,
+    ...(room.ranked ? { ranked: true } : {}),
+    ...(room.forfeit != null ? { forfeit: room.forfeit } : {}), // the seat that left the game
     startedAt: room.gameStarted ? new Date(room.gameStarted).toISOString() : null,
     endedAt: new Date().toISOString(),
     rounds: room.round,
     winner: room.winner,
-    players: room.players.map((p, i) => ({ uid: p.uid || null, name: p.name, avatar: p.avatar || null, bot: !!p.bot, won: room.winner === i, hearts: p.hearts, wins: p.trophies })),
+    players: room.players.map((p, i) => ({ uid: p.uid || null, name: p.name, avatar: p.avatar || null, bot: !!p.bot, won: room.winner === i, hearts: p.hearts, wins: p.trophies,
+      ...(p.delta != null ? { level: R.level(profiles[p.uid]), delta: p.delta } : {}) })),
     log: room.log || [],
   };
+  indexGame(entry);
   fs.appendFile(HISTORY, JSON.stringify(entry) + '\n', (err) => { if (err) console.error('history write failed:', err.message); });
 }
 E.hooks.gameOver = recordGame;
+// Each player's past games, newest last: uid -> [{ at, set, ranked, won, hearts, rounds, delta, left, opp }]
+const played = new Map();
+function indexGame(e) {
+  if (e.practice) return; // practice games against Pond Bot aren't part of your record
+  e.players.forEach((p, i) => {
+    if (!p.uid) return;
+    const o = e.players[1 - i] || {};
+    if (!played.has(p.uid)) played.set(p.uid, []);
+    played.get(p.uid).push({ at: e.endedAt, set: e.set, ranked: !!e.ranked, won: !!p.won, hearts: p.hearts, rounds: e.rounds,
+      ...(p.delta != null ? { delta: p.delta } : {}), ...(e.forfeit != null ? { left: e.forfeit === i ? 'me' : 'opp' } : {}),
+      opp: { name: o.name || 'Frog', avatar: o.avatar || cleanAvatar(), uid: o.uid || '' } });
+  });
+}
+// Leaving a ranked game early is a loss (a forfeit), once the other player has shown up in it
+function forfeit(room, p) {
+  const i = room.players.indexOf(p);
+  if (!room.ranked || room.phase === 'over' || room.players.length < 2 || !(room.came || [])[1 - i]) return null;
+  room.phase = 'over'; room.winner = 1 - i; room.forfeit = i;
+  recordGame(room);
+  return { forfeit: true, delta: room.players[1 - i].delta };
+}
+
+// ---------- Matchmaking: "Play" finds another player looking for a game in the same set (or any set) ----------
+// Players stay in the queue while their page keeps asking (every ~1.5 s). The closest level is picked; the
+// allowed gap grows the longer either player has been waiting, so after half a minute or so anyone will do.
+const queue = new Map(); // uid -> { set: set id or 'any', since, seen }
+const matched = new Map(); // uid -> { room, token }: a game found for someone whose page hasn't asked since
+const QUEUE_STALE = 8000, reach = (ms) => 2 + ms / 1000 / 2; // levels apart
+function findMatch(uid, pref) {
+  const now = Date.now();
+  for (const [u, q] of queue) if (now - q.seen > QUEUE_STALE) queue.delete(u);
+  let me = queue.get(uid);
+  if (!me || me.set !== pref) me = { set: pref, since: now };
+  me.seen = now; queue.set(uid, me);
+  const r = R.level(profiles[uid]);
+  let best = null, gap = Infinity;
+  for (const [u, q] of queue) {
+    if (u === uid || !(q.set === pref || q.set === 'any' || pref === 'any')) continue;
+    const g = Math.abs(R.level(profiles[u]) - r);
+    if (g <= reach(now - Math.min(q.since, me.since)) && g < gap) { best = u; gap = g; }
+  }
+  if (!best) return null;
+  const other = queue.get(best);
+  queue.delete(uid); queue.delete(best);
+  const set = pref !== 'any' ? pref : other.set !== 'any' ? other.set : Object.keys(SETS)[rand(Object.keys(SETS).length)];
+  const c = code(), a = newPlayer(best), b = newPlayer(uid); // whoever waited longer takes the first seat
+  rooms[c] = { code: c, created: now, v: 1, set, ranked: true, players: [a, b] };
+  resetGame(rooms[c]); changed(rooms[c]);
+  matched.set(best, { room: c, token: a.token });
+  return { room: c, token: b.token };
+}
 
 // ---------- HTTP ----------
 const STATIC = path.join(__dirname, 'static');
@@ -194,6 +271,7 @@ function find(q) {
 
 function main() {
 try { rooms = JSON.parse(fs.readFileSync(SAVE, 'utf8')); } catch {}
+try { for (const line of fs.readFileSync(HISTORY, 'utf8').split('\n')) if (line.trim()) try { indexGame(JSON.parse(line)); } catch {} } catch {}
 for (const r of Object.values(rooms)) for (const p of r.players) {
   for (const f of [...p.team, ...(p.shop?.frogs || [])]) if (f) E.bumpId(f.id + 1);
 }
@@ -212,7 +290,7 @@ http.createServer(async (req, res) => {
     if (url.pathname === '/api/health') return json(res, 200, { ok: true });
     if (url.pathname === '/api/lobby') {
       // Your own games, then ponds waiting on the same network as you ("nearby"). Ponds from other networks are
-      // not listed; those are joined by invite (a Play button that matches strangers will come with ratings)
+      // not listed; those are joined by invite, and strangers meet through Play (matchmaking)
       const uid = who(Object.fromEntries(url.searchParams)), ip = clientIp(req), now = Date.now(), list = Object.values(rooms);
       const mine = (r) => !!uid && r.players.some((p) => p.uid === uid);
       const seat = (r, p) => ({ name: p.name, avatar: p.avatar || cleanAvatar(), online: online(r, p), bot: !!p.bot });
@@ -222,7 +300,7 @@ http.createServer(async (req, res) => {
         nearby: waiting.filter((r) => mine(r) || r.ip === ip).map(pond),
         active: list.filter((r) => r.players.length === 2 && r.phase !== 'over' && mine(r) && now - (r.touched || r.created) < 24 * 3600e3)
           .sort((x, y) => (y.touched || y.created) - (x.touched || x.created))
-          .map((r) => ({ code: r.code, set: E.setOf(r), round: r.round, mine: true, practice: !!r.practice, seats: r.players.map((p) => seat(r, p)) })),
+          .map((r) => ({ code: r.code, set: E.setOf(r), round: r.round, mine: true, practice: !!r.practice, ranked: !!r.ranked, seats: r.players.map((p) => seat(r, p)) })),
       });
     }
     if (url.pathname === '/api/state') {
@@ -237,6 +315,7 @@ http.createServer(async (req, res) => {
       res.writeHead(200, { 'Content-Type': 'text/event-stream', 'Cache-Control': 'no-store', Connection: 'keep-alive', 'X-Accel-Buffering': 'no' });
       res.write('retry: 1500\n\n');
       const sub = { p, res };
+      (room.came = room.came || [])[room.players.indexOf(p)] = true;
       if (!subs.has(room.code)) subs.set(room.code, new Set());
       subs.get(room.code).add(sub);
       broadcast(room); // sends our state and tells the partner we're here
@@ -266,7 +345,7 @@ http.createServer(async (req, res) => {
       else return json(res, 401, { error: 'Open the game from Telegram' });
       const pr = profiles[uid] || (profiles[uid] = { name: '', avatar: cleanAvatar() }); // guests pick a name first
       pr.ip = clientIp(req); pr.seen = Date.now(); saveProfiles();
-      return json(res, 200, { uid, key: keyFor(uid), name: pr.name, avatar: pr.avatar, telegram: !!tg, bot: TG.botUsername(), start: tg ? tg.startParam : '' });
+      return json(res, 200, { uid, key: keyFor(uid), name: pr.name, avatar: pr.avatar, rank: R.rankOf(uid, profiles), telegram: !!tg, bot: TG.botUsername(), start: tg ? tg.startParam : '' });
     }
     // Everything below needs to know who is asking
     const uid = who(b);
@@ -277,6 +356,38 @@ http.createServer(async (req, res) => {
       pr.name = cleanName(b.name); pr.avatar = cleanAvatar(b.avatar); saveProfiles();
       for (const r of Object.values(rooms)) for (const p of r.players) if (p.uid === uid) { p.name = pr.name; p.avatar = pr.avatar; changed(r); }
       return json(res, 200, { name: pr.name, avatar: pr.avatar });
+    }
+    if (url.pathname === '/api/card') {
+      // A profile (yours, or another player's by pid): rank, a few numbers and recent games (practice doesn't count)
+      const of = b.of ? uidOf(String(b.of)) : uid, pr = profiles[of];
+      if (!of || !pr) return json(res, 404, { error: 'No such player' });
+      const games = played.get(of) || [];
+      return json(res, 200, {
+        pid: pidOf(of), mine: of === uid, name: pr.name || 'Frog', avatar: cleanAvatar(pr.avatar),
+        rank: R.rankOf(of, profiles),
+        stats: { played: games.length, won: games.filter((g) => g.won).length },
+        history: games.slice(-30).reverse().map(({ opp: { uid: ou, ...o }, ...g }) => ({ ...g, opp: { ...o, ...(ou ? { pid: pidOf(ou) } : {}) } })),
+      });
+    }
+    if (url.pathname === '/api/leaders') {
+      // The global leaderboard: the top 50 ranked players, and where you are if you're further down
+      const all = R.board(profiles), row = (u, i) => ({ pos: i + 1, pid: pidOf(u), name: profiles[u].name || 'Frog', avatar: cleanAvatar(profiles[u].avatar), rank: R.rankOf(u, profiles), me: u === uid });
+      const at = all.indexOf(uid);
+      return json(res, 200, { top: all.slice(0, 50).map(row), ...(at >= 50 ? { me: row(uid, at) } : {}) });
+    }
+    if (url.pathname === '/api/play') {
+      // Looking for a game: { room, token } once matched, else { waiting: true } (ask again in a moment)
+      const found = matched.get(uid);
+      if (found) { matched.delete(uid); return json(res, 200, found); }
+      const m = findMatch(uid, b.set === 'any' ? 'any' : cleanSet(b.set));
+      return json(res, 200, m || { waiting: true });
+    }
+    if (url.pathname === '/api/play/cancel') {
+      // Too late if a game was found meanwhile: then you get it (the page goes straight in)
+      const found = matched.get(uid);
+      if (found) { matched.delete(uid); return json(res, 200, found); }
+      queue.delete(uid);
+      return json(res, 200, { ok: true });
     }
     if (url.pathname === '/api/create') {
       // One waiting pond per player: starting again just takes you back to it (with the set picked this time)
@@ -323,13 +434,16 @@ http.createServer(async (req, res) => {
     }
     if (url.pathname === '/api/end') {
       // Only a player in the pond can end it
+      // Leaving a ranked game once both of you are in it counts as a loss
       const room = rooms[String(b.room || '').toUpperCase()], p = room && room.players.find((x) => x.uid === uid);
-      if (p) endRoom(room, p.name);
-      return json(res, 200, { ok: true });
+      const left = p ? forfeit(room, p) : null;
+      if (p) endRoom(room, p.name, left);
+      return json(res, 200, { ok: true, ...(left ? { delta: p.delta } : {}) });
     }
     if (url.pathname === '/api/action') {
       const { room, p } = find(b);
       if (!p) return json(res, 404, { error: 'not found' });
+      if (room.ranked && (b.action || {}).type === 'rematch') return json(res, 200, view(room, p)); // ranked: find a new match instead
       act(room, p, b.action || {});
       changed(room);
       return json(res, 200, view(room, p));
@@ -350,8 +464,19 @@ fs.watchFile(INDEX, { interval: 2000 }, () => { for (const r of Object.values(ro
 // Write ponds out before exiting so a restart never loses a move
 for (const sig of ['SIGTERM', 'SIGINT']) process.on(sig, () => { try { fs.writeFileSync(SAVE, JSON.stringify(rooms)); fs.writeFileSync(PROFILES, JSON.stringify(profiles)); } catch (e) { console.error(e); } process.exit(0); });
 
-// Drop rooms older than 2 days
-setInterval(() => { const now = Date.now(); for (const c in rooms) if (now - rooms[c].created > 2 * 86400e3) delete rooms[c]; save(); }, 3600e3);
+// Drop rooms older than 2 days. A ranked game nobody has touched for a day ends: if one player is ready and
+// the other isn't, the one who stopped playing forfeits; otherwise it just ends unrated.
+setInterval(() => {
+  const now = Date.now();
+  for (const c in rooms) {
+    const r = rooms[c];
+    if (r.ranked && r.phase === 'shop' && now - (r.touched || r.created) > 86400e3) {
+      const idle = r.players.filter((p) => !p.ready), gone = idle.length === 1 ? idle[0] : null;
+      endRoom(r, gone ? gone.name : '', gone ? forfeit(r, gone) : null);
+    } else if (now - r.created > 2 * 86400e3) delete rooms[c];
+  }
+  save();
+}, 3600e3);
 }
 
 main();

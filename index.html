@@ -92,10 +92,11 @@ input:focus { border-color: var(--firefly); outline: none; }
 .btn.buy:active:not(:disabled) { box-shadow: 0 2px 0 #c39437; }
 .btn.ready-wait { background-color: rgba(245, 237, 214, .1); box-shadow: inset 0 0 0 2px rgba(245, 237, 214, .14); color: #f5edd6; }
 .btn.ready-wait:active:not(:disabled) { transform: translateY(1px); box-shadow: inset 0 0 0 2px rgba(245, 237, 214, .14); }
-.btn.ghost { background-color: transparent; box-shadow: inset 0 0 0 2px rgba(245, 237, 214, .14); color: #f5edd6; }
-.btn.ghost:active:not(:disabled) { transform: translateY(1px); box-shadow: inset 0 0 0 2px rgba(245, 237, 214, .14); }
+/* Secondary buttons: outlined, with the same raised lip as the solid ones so a stack of buttons lines up */
+.btn.ghost { background-color: rgba(245, 237, 214, .05); box-shadow: inset 0 0 0 2px rgba(245, 237, 214, .14), 0 5px 0 rgba(0, 0, 0, .26); color: #f5edd6; }
+.btn.ghost:active:not(:disabled) { transform: translateY(3px); box-shadow: inset 0 0 0 2px rgba(245, 237, 214, .14), 0 2px 0 rgba(0, 0, 0, .26); }
 .btn:disabled { background-color: #33464a; box-shadow: 0 5px 0 #243437; color: rgba(245, 237, 214, .38); }
-.btn.ghost:disabled { background-color: transparent; box-shadow: inset 0 0 0 2px rgba(245, 237, 214, .08); color: rgba(245, 237, 214, .38); }
+.btn.ghost:disabled { background-color: transparent; box-shadow: inset 0 0 0 2px rgba(245, 237, 214, .08), 0 5px 0 rgba(0, 0, 0, .14); color: rgba(245, 237, 214, .38); }
 .btn.wide { width: 100%; }
 .btn.drop-hover { transform: scale(1.05); }
 .btn .ic { width: 18px; height: 18px; }
@@ -164,10 +165,17 @@ input:focus { border-color: var(--firefly); outline: none; }
   box-shadow: inset -5px -6px 10px rgba(140, 120, 80, .28), 0 0 40px 10px rgba(255, 236, 190, .18); }
 .hero .leafbig { position: absolute; bottom: 0; left: 50%; width: 132px; height: 52px; transform: translateX(-50%); background: var(--leaf) center / contain no-repeat; }
 .hero .frog { margin-bottom: 13px; } /* feet near the middle of the pad */
+/* Home: your rank and name on a little tag just above your frog (the moon moves aside to make room) */
+/* Home: your rank and name on a little tag just above your frog; drawHero() sets its height from the frog's (hats
+   included). The hero is tall enough for the tallest frog (a tall one under an umbrella); the moon moves aside. */
+.hero.tagged { height: 150px; }
+.hero.tagged .moon { right: 9%; }
+.nametag { position: absolute; left: 50%; bottom: 84px; transform: translateX(-50%); display: none; align-items: center; gap: 6px; max-width: calc(100% - 24px);
+  font-size: 17px; font-weight: 800; color: var(--moon); white-space: nowrap; text-shadow: 0 1px 8px rgba(5, 15, 18, .7); }
+.nametag .nm { min-width: 0; overflow: hidden; text-overflow: ellipsis; }
+.hero.tagged .nametag { display: inline-flex; }
 .h-sm { font-size: 30px; }
 .hero { border: 0; background: none; padding: 0; width: 100%; color: inherit; }
-.hero-edit { position: absolute; bottom: 1px; left: calc(50% + 38px); width: 30px; height: 30px; border-radius: 50%; background: rgba(5, 15, 18, .6); box-shadow: 0 2px 6px rgba(0, 0, 0, .25); display: grid; place-items: center; color: var(--moon); }
-.hero-edit .pencil { width: 14px; height: 14px; opacity: .9; }
 .swipe { position: relative; border-radius: 16px; overflow: hidden; }
 .swipe .pond-btn { position: relative; z-index: 1; width: 100%; touch-action: pan-y; background-color: #24473f; will-change: transform; }
 /* The red End layer fills the whole row behind it (so a long drag never runs past it); it's only shown while
@@ -205,6 +213,9 @@ input:focus { border-color: var(--firefly); outline: none; }
 .wheel-name { margin-top: -6px; min-height: 20px; text-align: center; font-size: 15px; font-weight: 800; color: var(--moon); }
 .me-chip { display: flex; align-items: center; justify-content: center; gap: 6px; margin: 0 auto; border: 0; background: none; color: var(--moon-dim); font-size: 16px; font-weight: 700; padding: 4px 8px; }
 .me-chip b { color: var(--moon); }
+.me-chip { max-width: 100%; }
+.me-chip > span:not(.rk) { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.me-chip .ic { flex: none; }
 .help-btn { position: absolute; top: calc(env(safe-area-inset-top) + 10px); right: 14px; font-size: 20px; font-weight: 900; color: var(--moon-dim); }
 .lists { display: flex; flex-direction: column; gap: 8px; }
 .code-join { display: flex; justify-content: center; }
@@ -215,7 +226,7 @@ input:focus { border-color: var(--firefly); outline: none; }
 .code-entry input { position: absolute; inset: 0; opacity: 0; font-size: 16px; caret-color: transparent; }
 .code-err { position: absolute; left: 0; right: 0; top: calc(100% + 8px); font-size: 14px; line-height: 20px; font-weight: 800; color: #ff9e9e; pointer-events: none; }
 .code-tiles span.cur { box-shadow: inset 0 0 0 2px var(--firefly); }
-h1 { margin: 0; text-align: center; font-size: 40px; font-weight: 900; line-height: 1; letter-spacing: -.5px; }
+h1 { margin: 0; text-align: center; font-size: 40px; font-weight: 900; line-height: 1; letter-spacing: -.5px; text-wrap: balance; overflow-wrap: anywhere; }
 .lede { margin: 0 auto; max-width: 30ch; text-align: center; color: var(--moon-dim); font-size: 16px; line-height: 1.4; }
 .panel { display: flex; flex-direction: column; gap: 12px; margin-top: 6px; }
 .label { font-size: 13px; color: var(--moon-dim); margin: 6px 2px -2px; }
@@ -322,14 +333,17 @@ h1 { margin: 0; text-align: center; font-size: 40px; font-weight: 900; line-heig
 @keyframes glow { 50% { opacity: .55; transform: scale(1.12); } }
 
 .actions { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; margin-top: 14px; }
-.roll { display: flex; align-items: center; gap: 6px; height: 32px; padding: 0 6px 0 10px; border: 0; border-radius: 16px; background: rgba(245, 237, 214, .08); color: var(--moon-dim); font-size: 14px; font-weight: 800; }
+/* Lock and Roll: small raised buttons on the bank (a lighter brown with a pressable lip, full-contrast text);
+   flat and faded only when they can't be used */
+.roll { display: flex; align-items: center; gap: 6px; height: 32px; padding: 0 6px 0 10px; border: 0; border-radius: 16px; background: #5d4838; box-shadow: 0 3px 0 #21170f; color: var(--moon); font-size: 14px; font-weight: 800; transition: transform .08s, box-shadow .08s; }
 .roll .ic { width: 14px; height: 14px; }
 .roll .coinb { margin-left: 2px; }
-.roll:active:not(:disabled) { transform: translateY(1px); background: rgba(245, 237, 214, .16); }
-.roll:disabled { opacity: .4; }
+.roll:active:not(:disabled) { transform: translateY(2px); box-shadow: 0 1px 0 #21170f; }
+.roll:disabled { background: rgba(245, 237, 214, .07); box-shadow: none; color: var(--moon-dim); opacity: .55; }
 .shop-acts { display: flex; gap: 6px; }
 /* Lock: the same pill as Roll; gold once the shop is locked */
-.roll.locked { color: var(--firefly); background: rgba(255, 205, 102, .13); box-shadow: inset 0 0 0 1.5px rgba(255, 205, 102, .42); padding-right: 11px; }
+.roll.locked { color: var(--firefly); background: #5f4a2a; box-shadow: inset 0 0 0 1.5px rgba(255, 205, 102, .55), 0 3px 0 #21170f; padding-right: 11px; }
+.roll.locked:active:not(:disabled) { box-shadow: inset 0 0 0 1.5px rgba(255, 205, 102, .55), 0 1px 0 #21170f; }
 /* Upgrade chip on a shop frog that would join one of yours: one chevron = joins (+1/+1),
    two chevrons = levels it up. It floats gently (the float uses `translate`, so it doesn't fight the pop-in `transform`). */
 .upchip { position: absolute; top: 4px; left: calc(50% + 10px); z-index: 3; width: 20px; height: 20px; border-radius: 50%; display: grid; place-items: center; background: #6cc46a; color: #fff; box-shadow: 0 2px 5px rgba(0, 0, 0, .35); opacity: 0; transform: scale(.4); transition: opacity .2s, transform .2s; pointer-events: none; }
@@ -381,9 +395,14 @@ h1 { margin: 0; text-align: center; font-size: 40px; font-weight: 900; line-heig
 /* Sheets */
 .sheet-wrap { position: fixed; inset: 0; z-index: 80; background: rgba(4, 10, 13, .55); display: flex; align-items: flex-end; justify-content: center; opacity: 0; transition: opacity .22s; }
 .sheet-wrap.open { opacity: 1; }
+.sheet-wrap ~ .sheet-wrap { background: rgba(4, 10, 13, .3); } /* a sheet opened from another one: the one below stays visible */
 .sheet { width: 100%; max-width: 480px; max-height: 88dvh; overflow-y: auto; background: #1b363c; border-radius: 26px 26px 0 0; padding: 20px 18px calc(env(safe-area-inset-bottom) + 18px); transform: translateY(100%); transition: transform .3s cubic-bezier(.2, .9, .3, 1); -webkit-user-select: none; }
 .sheet-wrap.open .sheet { transform: none; }
-.sheet h2 { margin: 0 0 6px; font-size: 22px; font-weight: 900; }
+/* Closing plays the opening backwards: the same curve mirrored in time, and the dimming fades out as the sheet
+   finishes leaving (it faded in while the sheet arrived) */
+.sheet-wrap.closing { transition: opacity .22s linear .08s; }
+.sheet-wrap.closing .sheet { transition-timing-function: cubic-bezier(.7, 0, .8, .1); }
+.sheet h2 { margin: 0 0 6px; font-size: 22px; font-weight: 900; overflow-wrap: anywhere; }
 .sheet p { margin: 0 0 14px; color: var(--moon-dim); line-height: 1.45; font-size: 15px; }
 .sheet .btns { display: grid; gap: 10px; margin-top: 16px; }
 .sheet .btns.two { grid-template-columns: 1fr 1fr; }
@@ -394,7 +413,7 @@ h1 { margin: 0; text-align: center; font-size: 40px; font-weight: 900; line-heig
 .switch::after { content: ''; position: absolute; top: 3px; left: 3px; width: 24px; height: 24px; border-radius: 50%; background: #fff; transition: transform .2s; }
 .switch.on { background: #7cc467; }
 .switch.on::after { transform: translateX(20px); }
-.guide-sec { margin: 18px 0 8px; font-size: 15px; color: var(--firefly); font-weight: 900; }
+.guide-sec { margin: 18px 0 8px; font-size: 15px; color: var(--firefly); font-weight: 900; overflow-wrap: anywhere; }
 .guide-row { display: flex; align-items: center; gap: 12px; padding: 6px 0; }
 .guide-row .gfrog { flex: none; width: 60px; display: flex; justify-content: center; }
 .guide-row .gname .coinb { margin-left: 4px; vertical-align: 1px; }
@@ -416,8 +435,70 @@ h1 { margin: 0; text-align: center; font-size: 40px; font-weight: 900; line-heig
 .set-info { flex: none; width: 34px; height: 34px; border: 0; border-radius: 50%; background: rgba(245, 237, 214, .1); color: var(--moon); font: italic 900 17px Georgia, serif; }
 .set-tabs { margin-top: 16px; }
 .guide-set { margin: 18px 0 -6px; font-size: 18px; font-weight: 900; }
+/* Ranks: a round badge per tier (Tadpole, Froglet, Pond Master, Frog Legend) */
+.rk { display: inline-block; flex: none; }
+.rk svg { display: block; width: 100%; height: 100%; }
+/* Profile card */
+.card-top { display: flex; flex-direction: column; align-items: center; gap: 4px; }
+.card-top .pv { width: 100%; position: relative; height: 112px; display: grid; place-items: end center; }
+.card-top .pv .frog { margin-bottom: 12px; }
+.card-top { width: 100%; }
+.card-name { max-width: 100%; font-size: 24px; font-weight: 900; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.card-rank { display: flex; align-items: center; gap: 8px; font-size: 18px; font-weight: 900; }
+.rank-next { font-size: 13px; color: var(--moon-dim); }
+.rk-off { stroke: rgba(245, 237, 214, .26); }
+.rk-on { stroke: #ffd76a; }
+.rk-new { animation: segIn .7s .6s ease-out backwards; }
+@keyframes segIn { from { opacity: 0; stroke-width: 7; } }
+/* Leaderboard */
+.lb-row { width: 100%; display: flex; align-items: center; gap: 10px; padding: 7px 8px; border: 0; border-radius: 14px; background: none; text-align: left; }
+.lb-row.me { background: rgba(255, 205, 102, .1); }
+.lb-pos { flex: none; width: 24px; text-align: center; font-size: 15px; font-weight: 900; color: var(--moon-dim); }
+.lb-row .mini { flex: none; box-shadow: none; }
+.lb-row .ht { flex: 1; min-width: 0; font-size: 16px; font-weight: 800; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.lb-row .ht small { display: block; font-size: 13px; font-weight: 700; color: var(--moon-dim); }
+.lb-gap { text-align: center; color: var(--moon-dim); line-height: 1; padding: 2px 0 6px; }
+.hist-row.tap { cursor: pointer; }
+.card-rank { border: 0; background: none; color: inherit; padding: 0; }
+.board-btn { position: absolute; top: calc(env(safe-area-inset-top) + 10px); left: 14px; color: var(--moon-dim); }
+.board-btn svg { width: 20px; height: 20px; }
+.count { display: inline-grid; place-items: center; min-width: 22px; height: 22px; padding: 0 6px; margin-left: 2px; border-radius: 11px; background: var(--firefly); color: #4a3505; font-size: 13px; font-weight: 900; vertical-align: 1px; }
+.count:empty { display: none; }
+.ponds-page .link { align-self: center; }
+/* Create lobby sits in the middle of the room between the title and the lists below */
+.ponds-page h1 { margin-bottom: 14px; }
+.ponds-page .lists { margin-top: 10px; }
+.pl, .score > div.tap { cursor: pointer; }
+.card-stats { display: grid; grid-template-columns: repeat(3, 1fr); gap: 8px; margin: 16px 0 2px; }
+.card-stats div { background: rgba(245, 237, 214, .05); border-radius: 14px; padding: 10px 4px 8px; text-align: center; }
+.card-stats b { display: block; font-size: 22px; font-weight: 900; line-height: 1.1; }
+.card-stats span { font-size: 12px; color: var(--moon-dim); }
+.hist-row { display: flex; align-items: center; gap: 10px; padding: 8px 0; border-bottom: 1px solid rgba(245, 237, 214, .06); }
+.hist-row:last-child { border-bottom: 0; }
+.hist-row .mini { flex: none; box-shadow: none; }
+.hist-row .ht { flex: 1; min-width: 0; font-size: 16px; font-weight: 800; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.hist-row .ht small { display: block; font-size: 13px; font-weight: 700; color: var(--moon-dim); overflow: hidden; text-overflow: ellipsis; }
+.hist-res { flex: none; text-align: right; font-size: 15px; font-weight: 900; color: var(--moon-dim); }
+.hist-res.won { color: var(--firefly); }
+.hist-res small { display: block; font-size: 13px; font-weight: 800; }
+.delta.up { color: #8fd67a; }
+.delta.down { color: #ff9e9e; }
+.delta.none { color: var(--moon-dim); }
+/* Finding a match: ripples spread from your lily pad */
+.search .hero .ripple { position: absolute; bottom: 0; left: 50%; width: 132px; height: 52px; margin-left: -66px; border: 2px solid rgba(168, 212, 236, .55); border-radius: 50%; opacity: 0; animation: ripple 2.6s ease-out infinite; }
+.search .hero .ripple.r2 { animation-delay: 1.3s; }
+@keyframes ripple { 0% { transform: scale(.85); opacity: .9; } 100% { transform: scale(2); opacity: 0; } }
+.search-vs { display: flex; align-items: center; justify-content: center; gap: 8px; font-size: 18px; font-weight: 900; min-height: 44px; }
+.search-vs .mini { box-shadow: none; flex: none; }
+.search-vs .nm { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.over-rank { display: flex; align-items: center; justify-content: center; gap: 8px; font-size: 18px; font-weight: 900; }
+.over-rank .up-note { color: var(--firefly); }
 .rules { margin: 0; padding-left: 18px; color: var(--moon-dim); line-height: 1.5; font-size: 15px; }
 .rules li { margin-bottom: 4px; }
+/* Ranks sheet: the badges in a row, each ring a little fuller; the profile's own rank highlighted */
+.rank-row { display: grid; grid-template-columns: repeat(5, minmax(0, 1fr)); gap: 4px; margin: 8px 0 14px; }
+.rank-row > div { display: flex; flex-direction: column; align-items: center; gap: 5px; padding: 8px 0 7px; border-radius: 14px; text-align: center; font-size: 12px; font-weight: 800; line-height: 1.2; color: var(--moon-dim); }
+.rank-row > div.on { background: rgba(255, 205, 102, .1); box-shadow: inset 0 0 0 2px var(--firefly); color: var(--moon); }
 .rules b { color: var(--moon); }
 
 /* Battle */
@@ -473,9 +554,9 @@ h1 { margin: 0; text-align: center; font-size: 40px; font-weight: 900; line-heig
 
 /* Game over */
 .over { justify-content: center; align-items: center; text-align: center; gap: 12px; }
-.over .score { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; width: 100%; margin: 10px 0; }
-.over .score > div { border-radius: 16px; background: rgba(5, 15, 18, .3); padding: 12px; display: flex; flex-direction: column; align-items: center; gap: 4px; }
-.over .score b { display: block; font-size: 16px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.over .score { display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); gap: 10px; width: 100%; margin: 10px 0; }
+.over .score > div { min-width: 0; border-radius: 16px; background: rgba(5, 15, 18, .3); padding: 12px; display: flex; flex-direction: column; align-items: center; gap: 4px; }
+.over .score b { display: block; max-width: 100%; font-size: 16px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .over .score .pips { gap: 3px; margin-top: 2px; }
 .over .score .pips .ic { width: 16px; height: auto; }
 .over .btns { display: grid; gap: 12px; width: 100%; }
@@ -609,8 +690,34 @@ const ICON = {
   up2: `<svg class="up2" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3.2" stroke-linecap="round" stroke-linejoin="round"><path d="M6 11.5l6-6 6 6M6 18.5l6-6 6 6"/></svg>`,
   log: `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round"><path d="M9.5 6.5H20M9.5 12H20M9.5 17.5H20"/><circle cx="4.8" cy="6.5" r="1.4" fill="currentColor" stroke="none"/><circle cx="4.8" cy="12" r="1.4" fill="currentColor" stroke="none"/><circle cx="4.8" cy="17.5" r="1.4" fill="currentColor" stroke="none"/></svg>`,
   roll: `<svg class="ic" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.6" stroke-linecap="round" stroke-linejoin="round"><path d="M20 12a8 8 0 1 1-2.4-5.7"/><path d="M20 4v5h-5"/></svg>`,
+  trophy: `<svg viewBox="0 0 24 24" fill="currentColor"><path d="M7 3h10v6a5 5 0 0 1-10 0z"/><path d="M7 5H3.5v1.2A4 4 0 0 0 7.6 10M17 5h3.5v1.2A4 4 0 0 1 16.4 10" fill="none" stroke="currentColor" stroke-width="2"/><rect x="10.7" y="13" width="2.6" height="4.5"/><rect x="7.5" y="17.5" width="9" height="3.2" rx="1.2"/></svg>`,
   pencil: `<svg class="pencil" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><path d="M4 20h4L19 9l-4-4L4 16z"/></svg>`,
 };
+// Rank badges (flat colors only: many copies can be on one page). The art sits inside a ring of 5 segments that
+// fill with your points in the tier; Frog Legends get a full gold ring and their place on the board inside.
+const RANK_ART = {
+  tadpole: `<circle cx="16" cy="16" r="15.5" fill="#2d6f80"/><path d="M17.5 17c3.5-3.5 5.5 2.5 9-1" stroke="#d4f1f8" stroke-width="2.6" fill="none" stroke-linecap="round"/><ellipse cx="13.2" cy="16.6" rx="6" ry="5.2" fill="#d4f1f8"/><circle cx="11.4" cy="15.2" r="1.4" fill="#1d4652"/>`,
+  // a little frog that still has its tail
+  froglet: `<circle cx="16" cy="16" r="15.5" fill="#3b8446"/><path d="M21.5 22.5c2.6.4 4.4-.6 5.4-2.6" stroke="#c6eeb0" stroke-width="2.4" fill="none" stroke-linecap="round"/><ellipse cx="15" cy="19.8" rx="7.6" ry="5.8" fill="#c6eeb0"/><circle cx="11" cy="13.6" r="3.3" fill="#c6eeb0"/><circle cx="19" cy="13.6" r="3.3" fill="#c6eeb0"/><circle cx="11" cy="13.6" r="1.5" fill="#1d3a22"/><circle cx="19" cy="13.6" r="1.5" fill="#1d3a22"/><path d="M12 19.8q3 2.2 6 0" stroke="#1d3a22" stroke-width="1.4" fill="none" stroke-linecap="round"/>`,
+  // a grown frog, legs and all, in burgundy
+  frog: `<circle cx="16" cy="16" r="15.5" fill="#7a2a3c"/><ellipse cx="8" cy="23.4" rx="3.6" ry="2" fill="#dca5b1"/><ellipse cx="24" cy="23.4" rx="3.6" ry="2" fill="#dca5b1"/><ellipse cx="16" cy="18.4" rx="7.8" ry="6.8" fill="#f7d9df"/><circle cx="11.9" cy="11.4" r="3.4" fill="#f7d9df"/><circle cx="20.1" cy="11.4" r="3.4" fill="#f7d9df"/><circle cx="11.9" cy="11.4" r="1.6" fill="#3d0f1b"/><circle cx="20.1" cy="11.4" r="1.6" fill="#3d0f1b"/><path d="M12.7 17.4q3.3 2.4 6.6 0" stroke="#3d0f1b" stroke-width="1.4" fill="none" stroke-linecap="round"/><ellipse cx="12.3" cy="24.6" rx="2.3" ry="1.4" fill="#c98d9b"/><ellipse cx="19.7" cy="24.6" rx="2.3" ry="1.4" fill="#c98d9b"/>`,
+  // a frog on its own lily pad, a flower tucked behind its eye
+  master: `<circle cx="16" cy="16" r="15.5" fill="#b9821f"/><ellipse cx="16" cy="23.2" rx="10.4" ry="4" fill="#74c46a"/><path d="M8.4 23.6l5-1.4M23.6 23.6l-5-1.4" stroke="#3f8747" stroke-width="1.1" stroke-linecap="round"/><ellipse cx="16" cy="18.4" rx="7" ry="5.6" fill="#ffefc2"/><circle cx="12.4" cy="12.4" r="3.1" fill="#ffefc2"/><circle cx="19.6" cy="12.4" r="3.1" fill="#ffefc2"/><circle cx="12.4" cy="12.4" r="1.45" fill="#4a3208"/><circle cx="19.6" cy="12.4" r="1.45" fill="#4a3208"/><path d="M13.3 17.8q2.7 2 5.4 0" stroke="#4a3208" stroke-width="1.3" fill="none" stroke-linecap="round"/><circle cx="22.4" cy="8.6" r="1.5" fill="#f7a3b8"/><circle cx="24.2" cy="9.9" r="1.5" fill="#f7a3b8"/><circle cx="23.5" cy="12" r="1.5" fill="#f7a3b8"/><circle cx="21.3" cy="12" r="1.5" fill="#f7a3b8"/><circle cx="20.6" cy="9.9" r="1.5" fill="#f7a3b8"/><circle cx="22.4" cy="10.5" r="1.1" fill="#ffcd66"/>`,
+  // a crowned frog with its place on the board on its belly
+  legend: (pos) => `<circle cx="16" cy="16" r="15.5" fill="#57368a"/><ellipse cx="16" cy="20" rx="9.6" ry="7.6" fill="#d9c6ff"/><circle cx="10.6" cy="12" r="3.3" fill="#d9c6ff"/><circle cx="21.4" cy="12" r="3.3" fill="#d9c6ff"/><circle cx="10.6" cy="12" r="1.5" fill="#2a1747"/><circle cx="21.4" cy="12" r="1.5" fill="#2a1747"/><path d="M12.6 10.6l-.4-4.4 2.2 1.8L16 5l1.6 3 2.2-1.8-.4 4.4z" fill="#ffcd66" stroke="#8a5a12" stroke-width=".6" stroke-linejoin="round"/><text x="16" y="${pos > 9 ? 24.6 : 25.4}" text-anchor="middle" font-family="Nunito, ui-rounded, system-ui, sans-serif" font-weight="900" font-size="${pos > 9 ? 9.5 : 11.5}" fill="#57368a">${pos || ''}</text>`,
+};
+const RANK_ORDER = ['tadpole', 'froglet', 'frog', 'master', 'legend'];
+// fresh: how many segments were just won (they draw in)
+function rankBadge(rk, size = 24, fresh = 0) {
+  if (!rk) return '';
+  const r = 16.2, c = 2 * Math.PI * r, seg = c / 5, gap = 2.6, legend = rk.id === 'legend';
+  const arc = (i, cls) => `<circle cx="18" cy="18" r="${r}" class="${cls}" stroke-dasharray="${(seg - gap).toFixed(2)} ${c.toFixed(2)}" stroke-dashoffset="${(-(i * seg + gap / 2)).toFixed(2)}"/>`;
+  const ring = legend ? `<circle cx="18" cy="18" r="${r}" class="rk-on"/>`
+    : [0, 1, 2, 3, 4].map((i) => arc(i, i < rk.pips ? `rk-on${i >= rk.pips - fresh ? ' rk-new' : ''}` : 'rk-off')).join('');
+  const art = legend ? RANK_ART.legend(rk.pos) : RANK_ART[rk.id] || RANK_ART.tadpole;
+  return `<span class="rk" style="width:${size}px;height:${size}px"><svg viewBox="0 0 36 36"><circle cx="18" cy="18" r="18" fill="#10222a"/><g transform="rotate(-90 18 18)" fill="none" stroke-width="2.8">${ring}</g><g transform="translate(4.2 4.2) scale(.8625)">${art}</g></svg></span>`;
+}
+const signed = (d) => `<span class="delta ${d > 0 ? 'up' : d < 0 ? 'down' : 'none'}">${d > 0 ? '+' : d < 0 ? '−' : '±'}${Math.abs(d)}</span>`;
 const pips = (n, on, fn) => `<span class="pips">${Array.from({ length: n }, (_, i) => fn(i < on)).join('')}</span>`;
 
 // =====================================================================
@@ -1286,6 +1393,15 @@ function avatarArt(av, crown, centered, small) {
   }
   return artCache.get(key);
 }
+// How far a drawn frog reaches above the bottom of `ref` (hats, umbrellas and all), from what is actually painted
+function paintedHeight(box, ref) {
+  let top = Infinity;
+  for (const n of box.querySelectorAll('svg *')) {
+    if (/^(defs|clipPath|mask|pattern|g|linearGradient|radialGradient|stop|title)$/i.test(n.tagName) || n.closest('defs, clipPath, mask, pattern')) continue;
+    const r = n.getBoundingClientRect(); if (r.width && r.height) top = Math.min(top, r.top);
+  }
+  return top === Infinity ? 0 : ref.getBoundingClientRect().bottom - top;
+}
 function avatarHTML(av, size = 40, o = {}) {
   return `<div class="frog avatar ${o.idle ? 'idle' : ''}" data-fid="${o.id || 0}" style="--fs:${size}px;${idleVars(o.id || 0)}"><div class="fbody">${avatarArt(av, o.crown, o.centered, size <= 52)}</div></div>`;
 }
@@ -1643,7 +1759,11 @@ function sheet(html) {
   const wrap = el(`<div class="sheet-wrap"><div class="sheet" role="dialog">${html}</div></div>`);
   document.body.appendChild(wrap);
   requestAnimationFrame(() => requestAnimationFrame(() => wrap.classList.add('open')));
-  const close = () => { wrap.classList.remove('open'); setTimeout(() => { wrap.remove(); syncBack(); }, 300); };
+  const close = () => {
+    if (wrap.classList.contains('closing')) return;
+    wrap.classList.add('closing'); wrap.classList.remove('open');
+    setTimeout(() => { wrap.remove(); syncBack(); }, 320);
+  };
   wrap.addEventListener('click', (e) => { if (e.target === wrap) close(); });
   syncBack();
   return { el: wrap, close };
@@ -1703,7 +1823,8 @@ if (TG) {
   TG.BackButton.onClick(() => {
     const top = $$('.sheet-wrap').pop();
     if (top) return top.click(); // same as tapping outside the sheet, so dialogs answer "no"
-    if (screen === 'code') return showHome();
+    if (screen === 'code' || screen === 'ponds') return showHome();
+    if (screen === 'search') return cancelSearch();
     if (sess && !playing) toLobby();
   });
 }
@@ -1722,17 +1843,18 @@ async function api(p, body) {
   if (!r.ok) { const e = new Error(j.error || 'Something went wrong. Try again.'); e.status = r.status; throw e; }
   return j;
 }
-function forget(msg) {
+// Leave the current game's screen: to the home page, or (page = 'ponds') straight to My ponds
+function forget(msg, page) {
   if (es) { es.close(); es = null; }
   localStorage.removeItem('frogSess'); sess = null; S = null; overGame = null;
-  showHome(msg);
+  showHome(msg, page);
 }
 function connect() {
   if (es) es.close();
   es = new EventSource(`/api/events?room=${encodeURIComponent(sess.room)}&token=${encodeURIComponent(sess.token)}`);
   es.onmessage = (e) => {
     const v = JSON.parse(e.data);
-    if (v.ended) return forget(S && v.by && v.by !== S.me.name ? `${v.by} ended the game` : '');
+    if (v.ended) return forget(S && v.by && v.by !== S.me.name ? (v.forfeit ? `${v.by} left the game. You win!${v.delta ? ` +${v.delta}` : ''}` : `${v.by} ended the game`) : '');
     onState(v);
   };
   es.onerror = async () => {
@@ -1741,12 +1863,16 @@ function connect() {
     if (es && es.readyState === EventSource.CLOSED) setTimeout(() => sess && connect(), 2000);
   };
 }
-document.addEventListener('visibilitychange', () => { if (!document.hidden && sess && (!es || es.readyState === EventSource.CLOSED)) connect(); });
+document.addEventListener('visibilitychange', () => {
+  if (!document.hidden && sess && (!es || es.readyState === EventSource.CLOSED)) connect();
+  if (!document.hidden && searching) pollSearch(); // back in the queue (it drops you after a few seconds away)
+});
 
 function onState(v) {
   if (v.build && v.build !== BUILD && BUILD.length === 10) staleBuild = v.build;
   if (S && v.v < S.v) return;
   const prev = S; S = v;
+  if (v.me.rank) ME.rank = v.me.rank;
   if (prev && prev.phase === 'waiting' && v.phase === 'shop' && v.opp) { toast(`${v.opp.name} hopped in`); Snd.ribbit(); }
   if (prev && prev.opp && v.opp && !v.opp.bot && !prev.opp.ready && v.opp.ready && v.phase === 'shop' && !v.me.ready && prev.round === v.round) { toast(`${v.opp.name} is ready`); Snd.ribbit(1.15); }
   route();
@@ -1782,7 +1908,13 @@ function mount(name, node) {
 // =====================================================================
 let pondTimer = null;
 let lobbyCache = null; // the last lobby seen, so coming back draws the list at once (no pop-in, no fade)
-function showHome(msg) {
+function enterRoom(r) {
+  clearInterval(pondTimer);
+  sess = r; localStorage.frogSess = JSON.stringify(r); S = null; overGame = null;
+  history.replaceState(null, '', '/');
+  connect();
+}
+function showHome(msg, page) {
   clearInterval(pondTimer);
   // Opened from an invite (?join=ABCD or a Telegram join_ABCD link) or a bot message about a game (?room=ABCD)
   const qs = new URLSearchParams(location.search), start = (ME.start || '').match(/^join_([A-Z]{4})$/i);
@@ -1790,17 +1922,35 @@ function showHome(msg) {
   const roomCode = (qs.get('room') || '').toUpperCase().slice(0, 4);
   ME.start = ''; // only once
   const node = el(`<div class="screen home">
+    <button class="ib board-btn" id="boardBtn" aria-label="Leaderboard">${ICON.trophy}</button>
     <button class="ib help-btn" id="helpBtn" aria-label="How to play">?</button>
-    <button class="hero" id="heroBtn" aria-label="Edit your frog"><div class="moon"></div><div class="leafbig" id="heroPad"></div><span id="heroAv"></span><span class="hero-edit">${ICON.pencil}</span></button>
+    <button class="hero" id="heroBtn" aria-label="Your profile"><div class="moon"></div><span class="nametag" id="heroTag"></span><div class="leafbig" id="heroPad"></div><span id="heroAv"></span></button>
     <h1>Pond Battle</h1>
     <div class="panel" id="panel"></div>
   </div>`);
   mount('home', node);
   if (msg) toast(msg);
   const panel = $('#panel');
-  const drawHero = () => { $('#heroAv').innerHTML = avatarHTML(myAvatar(), 84, { idle: true, id: 7 }); $('#heroPad').style.setProperty('--leaf', padURL(myAvatar())); };
+  // Your frog on its pad; the name tag sits just above whatever your frog is wearing (measured still, before it starts breathing)
+  const drawHero = () => {
+    const av = myAvatar(), slot = $('#heroAv');
+    slot.innerHTML = avatarHTML(av, 84, { id: 7 });
+    $('#heroTag').style.bottom = `${Math.round(paintedHeight(slot, $('#heroBtn'))) + 4}px`;
+    slot.innerHTML = avatarHTML(av, 84, { idle: true, id: 7 });
+    $('#heroPad').style.setProperty('--leaf', padURL(av));
+  };
   drawHero();
-  $('#heroBtn').onclick = () => openProfile(() => { drawHero(); if (ME.name) lobbyStep(); });
+  // Your frog opens your profile (a guest still picking a name edits the frog right away)
+  // Your frog (and the name tag above it) opens your profile; a guest still picking a name edits the frog right away
+  $('#heroBtn').onclick = () => { Snd.tap(); if (ME.name) openCard({ done: () => { drawHero(); chip(); } }); else openProfile(() => drawHero()); };
+  $('#boardBtn').onclick = () => { Snd.tap(); openLeaders(); };
+  // Your rank and name; tap for your profile
+  // Your rank and name on a tag above your frog
+  const chip = () => {
+    const t = $('#heroTag'); if (!t) return;
+    t.innerHTML = ME.name ? `${rankBadge(ME.rank, 22)}<span class="nm">${esc(ME.name)}</span>` : '';
+    $('#heroBtn').classList.toggle('tagged', !!ME.name);
+  };
   $('#helpBtn').onclick = () => { Snd.tap(); openGuide(null, true); };
 
   // Browser guests pick a name first; Telegram players already have one
@@ -1814,12 +1964,7 @@ function showHome(msg) {
     const next = async () => { const n = inp.value.trim(); if (!n) return; await saveProfile(n, myAvatar()); lobbyStep(); };
     go.onclick = next; inp.addEventListener('keydown', (e) => { if (e.key === 'Enter') next(); });
   };
-  const enter = (r) => {
-    clearInterval(pondTimer);
-    sess = r; localStorage.frogSess = JSON.stringify(r); S = null; overGame = null;
-    history.replaceState(null, '', '/');
-    connect();
-  };
+  const enter = enterRoom;
   const call = async (path, extra, sound) => {
     try { enter(await api(path, extra)); sound(); } catch (e) { toast(e.message); Snd.nope(); }
   };
@@ -1828,6 +1973,9 @@ function showHome(msg) {
 
   // Lists: tap a row to resume/join; swipe a row left to end that game.
   let lobby = null, last = '', quiet = true; // quiet: the first refresh after opening only catches up, without animating
+  // A pond's name line and its small line (Ranked · set)
+  const withSet = (text, r) => `${text}<small>${r.ranked ? 'Ranked · ' : ''}${esc(SETS[setId(r.set)].name)}</small>`;
+  const gameText = (r) => withSet(r.practice ? 'Practice' : r.seats.map((x) => esc(x.name)).join(' & '), r);
   const row = (seats, text, cta, onOpen, onEnd, endLabel) => {
     const b = el(`<button class="pond-btn"><span class="avs">${seats.map((x, k) => `<span class="mini">${avatarHTML(x.avatar, 30, { id: 20 + k, centered: true })}</span>`).join('')}</span><span class="pt">${text}</span><em>${cta}</em></button>`);
     b.onclick = onOpen;
@@ -1876,11 +2024,10 @@ function showHome(msg) {
       items.push({ key: `L:${label}`, sig: label, make: () => el(`<div class="label">${label}</div>`) });
       for (const r of list.filter((x) => !gone.has(x.code))) items.push({ key: `${label}:${r.code}`, sig: JSON.stringify([r.seats.map((x) => [x.name, x.avatar]), r.mine, r.practice, r.set]), make: () => make(r) });
     };
-    const withSet = (text, r) => `${text}<small>${esc(SETS[setId(r.set)].name)}</small>`;
     const waiting = (r) => (r.mine
       ? row(r.seats, withSet('Your pond', r), 'Resume', () => rejoin(r.code), endFromList(r.code), 'Cancel')
       : row(r.seats, withSet(`${esc(r.seats[0].name)}’s pond`, r), 'Join', () => join(r.code)));
-    section('In progress', lobby.active, (r) => row(r.seats, withSet(r.practice ? 'Practice' : r.seats.map((x) => esc(x.name)).join(' & '), r), 'Resume', () => rejoin(r.code), endFromList(r.code), 'End'));
+    section('In progress', lobby.active, (r) => row(r.seats, gameText(r), 'Resume', () => rejoin(r.code), endFromList(r.code), r.ranked ? 'Forfeit' : 'End'));
     // Nearby = ponds started on the same home network (other people's ponds are joined by invite)
     section('Nearby', lobby.nearby, waiting);
     const old = new Map([...box.children].filter((n) => !n.classList.contains('leaving')).map((n) => [n.dataset.key, n]));
@@ -1909,29 +2056,58 @@ function showHome(msg) {
       setTimeout(() => anim(first, [{ transform: 'none' }, { transform: 'translateX(-56px)', offset: .35 }, { transform: 'translateX(-56px)', offset: .6 }, { transform: 'none' }], { duration: 1300, easing: 'ease-in-out' }), 700);
     }
   };
+  // The home page shows how many ponds you have (games in progress + ponds waiting nearby); My ponds lists them
+  const count = () => { const n = $('#pondsCount'); if (n && lobby) n.textContent = (lobby.active.length + lobby.nearby.filter((r) => !gone.has(r.code)).length) || ''; };
   const load = async (force) => {
-    if (!$('#lists')) return clearInterval(pondTimer);
+    if (!$('#lists') && !$('#pondsCount')) return clearInterval(pondTimer);
     if (!force && $('.swipe.open, .swipe.dragging')) return; // don't redraw under a finger
     try {
       const l = await api('/api/lobby');
       const sig = JSON.stringify(l); if (sig === last) return; last = sig;
-      lobby = lobbyCache = l; render(quiet); quiet = false; // the catch-up after opening just appears; later changes animate
+      lobby = lobbyCache = l; count(); render(quiet); quiet = false; // the catch-up after opening just appears; later changes animate
     } catch {}
   };
+  // Home: Play (ranked matchmaking), My ponds (games with people you know), Practice, Join with a code
   const lobbyStep = () => {
     panel.innerHTML = `
-      <div class="me-chip">Hi, <b>${esc(ME.name)}</b></div>
-      <button class="btn wide" id="create">Start a new pond</button>
+      <button class="btn wide" id="play">Play</button>
+      <button class="btn ghost wide" id="pondsBtn">My ponds<span class="count" id="pondsCount"></span></button>
       <button class="btn ghost wide" id="practice">Practice</button>
-      <div id="lists" class="lists"></div>
       <div class="code-join" id="codeJoin"><button class="link" id="showCode">Join with a code</button></div>`;
-    $('#create').onclick = () => { Snd.tap(); pickSet('New pond', (set) => call('/api/create', { set }, () => Snd.plop())); };
+    chip();
+    api('/api/card', {}).then((c) => { ME.rank = c.rank; chip(); }).catch(() => {});
+    // Play: if you're still in a game with someone (not practice), offer to pick it up first
+    $('#play').onclick = () => {
+      Snd.tap();
+      const find = () => pickSet('Play', (set) => startSearch(set), { any: true, store: 'frogPlaySet', cta: 'Find a match' });
+      const open = lobby ? lobby.active.filter((r) => !r.practice) : [];
+      if (!open.length) return find();
+      const s = sheet(`<h2>${open.length > 1 ? 'Games' : 'A game'} in progress</h2><p>Pick up where you left off?</p><div class="lists busy-list"></div>
+        <div class="btns"><button class="btn ghost" data-a="new">New match</button></div>`);
+      for (const r of open) $('.busy-list', s.el).appendChild(row(r.seats, gameText(r), 'Resume', () => { s.close(); rejoin(r.code); }));
+      $('[data-a="new"]', s.el).onclick = () => { s.close(); setTimeout(find, 250); };
+    };
+    $('#pondsBtn').onclick = () => { Snd.tap(); pondsStep(); };
     $('#practice').onclick = () => { Snd.tap(); pickSet('Practice', (set) => call('/api/practice', { set }, () => Snd.plop())); };
     $('#showCode').onclick = () => { Snd.tap(); codeStep(); };
+    if (lobbyCache) { lobby = lobbyCache; last = JSON.stringify(lobbyCache); count(); } else last = '';
+    load(); clearInterval(pondTimer); pondTimer = setInterval(load, 2500);
+    if (joinCode) join(joinCode); else if (roomCode) rejoin(roomCode);
+  };
+  // My ponds: start a pond to invite someone, your games in progress, and ponds waiting on your network
+  const pondsStep = () => {
+    const page = el(`<div class="screen home ponds-page fade-in">
+      <h1 class="h-sm">My ponds</h1>
+      <button class="btn wide" id="create">Create lobby</button>
+      <div id="lists" class="lists"></div>
+      <button class="link" id="back">Back</button>
+    </div>`);
+    mount('ponds', page);
+    $('#create').onclick = () => { Snd.tap(); pickSet('Create lobby', (set) => call('/api/create', { set }, () => Snd.plop())); };
+    $('#back').onclick = () => { Snd.tap(); showHome(); };
     quiet = true;
     if (lobbyCache) { lobby = lobbyCache; last = JSON.stringify(lobbyCache); render(true); } else last = '';
     load(); clearInterval(pondTimer); pondTimer = setInterval(load, 2500);
-    if (joinCode) join(joinCode); else if (roomCode) rejoin(roomCode);
   };
   // Join with a code: its own page. Four letter tiles fill in as you type (one real input sits over them).
   const codeStep = () => {
@@ -1965,7 +2141,8 @@ function showHome(msg) {
     $('#back').onclick = () => { Snd.tap(); showHome(); };
     code.focus(); draw();
   };
-  ME.name ? lobbyStep() : nameStep();
+  if (!ME.name) nameStep();
+  else { lobbyStep(); if (page === 'ponds') pondsStep(); }
 }
 
 // =====================================================================
@@ -2054,12 +2231,14 @@ function swipeRow(btn, onEnd, label) {
 }
 document.addEventListener('pointerdown', (e) => { if (!e.target.closest('.swipe')) closeSwipes(); }, true);
 
-// Back to lobby keeps the game so either of you can resume it; ending removes it for both
+// Leaving a game for now (to the main menu) keeps it so either of you can resume it from My ponds; ending removes it for both
 function toLobby() { forget(); }
 async function endGame(code = sess && sess.room, lonely = false) {
-  if (!(await ask(lonely ? 'Cancel this pond?' : 'End this game?', lonely ? '' : 'It ends for both of you.', lonely ? 'Cancel pond' : 'End game', 'Keep it', true))) return false;
+  const ranked = S && S.ranked && S.phase !== 'over' && S.code === code;
+  if (!(await (ranked ? ask('Leave this game?', 'Leaving a ranked game counts as a loss.', 'Leave', 'Keep playing', true)
+    : ask(lonely ? 'Cancel this pond?' : 'End this game?', lonely ? '' : 'It ends for both of you.', lonely ? 'Cancel pond' : 'End game', 'Keep it', true)))) return false;
   try { await api('/api/end', { room: code }); } catch {}
-  if (sess && sess.room === code) forget();
+  if (sess && sess.room === code) forget('', lonely ? 'ponds' : ''); // a cancelled invite pond goes back to My ponds
   return true;
 }
 
@@ -2104,8 +2283,9 @@ function buildGame() {
   $('#menuBtn').onclick = openMenu;
   $('#rollBtn').onclick = roll;
   $('#lockBtn').onclick = lockShop;
-  // Tap your partner's plate to see the last battle: their pond and what happened
-  $('#oppCard').onclick = () => { if (S && S.lastBattle) { Snd.tap(); openBattleSheet(S.lastBattle); } };
+  // Tap a plate for that player's profile (the log button shows the last battle)
+  $('#oppCard').onclick = () => { if (S && S.opp && S.opp.pid) { Snd.tap(); openCard({ of: S.opp.pid }); } };
+  $('#meCard').onclick = () => { Snd.tap(); openCard(); };
   $('#logBtn').onclick = () => { if (S && S.lastBattle) { Snd.tap(); openBattleSheet(S.lastBattle); } };
   $('#mainBtn').onclick = mainAction;
   $('#readyBtn').onclick = toggleReady;
@@ -2773,22 +2953,151 @@ async function saveProfile(name, avatar) {
   try { Object.assign(ME, await api('/api/profile', { name, avatar })); } catch (e) { toast(e.message); }
 }
 
+// ----- Profile: rank, a few numbers, recent games -----
+function ago(iso) {
+  const s = (Date.now() - new Date(iso)) / 1000;
+  if (s < 90) return 'just now';
+  if (s < 3600) return `${Math.round(s / 60)} min ago`;
+  if (s < 86400) return `${Math.round(s / 3600)} h ago`;
+  if (s < 2 * 86400) return 'yesterday';
+  return new Date(iso).toLocaleDateString(undefined, { month: 'short', day: 'numeric' });
+}
+// A profile: yours (o.of unset; Edit frog is here) or another player's by public id (o.of)
+async function openCard(o = {}) {
+  let c;
+  try { c = await api('/api/card', o.of ? { of: o.of } : {}); } catch (e) { return toast(e.message); }
+  if (c.mine) ME.rank = c.rank;
+  const rk = c.rank, st = c.stats;
+  const next = rk.id === 'master' && rk.pips === 5 ? 'The top 10 become Frog Legends' : '';
+  const game = (g) => {
+    const res = g.left === 'me' ? 'Left' : g.won ? 'Won' : 'Lost';
+    return `<div class="hist-row${g.opp.pid ? ' tap' : ''}"${g.opp.pid ? ` data-pid="${esc(g.opp.pid)}"` : ''}><span class="mini">${avatarHTML(g.opp.avatar, 30, { id: 0, centered: true })}</span>
+      <span class="ht">${esc(g.opp.name)}<small>${g.ranked ? 'Ranked · ' : ''}${esc(SETS[setId(g.set)].name)} · ${ago(g.at)}</small></span>
+      <span class="hist-res${g.won ? ' won' : ''}">${res}${g.delta != null ? `<small>${signed(g.delta)}</small>` : g.left === 'opp' ? '<small>they left</small>' : ''}</span></div>`;
+  };
+  const html = (av = c.mine ? myAvatar() : cleanAv(c.avatar)) => `<div class="card-top">
+      <div class="pv"><div class="pv-pad" style='${padStyle(av)}'></div>${avatarHTML(av, 84, { idle: true, id: 7 })}</div>
+      <div class="card-name">${esc(c.mine ? ME.name || 'Frog' : c.name)}</div>
+      <button class="card-rank" data-a="board">${rankBadge(rk, 36)}<span>${esc(rk.name)}</span></button>
+      ${next ? `<div class="rank-next">${esc(next)}</div>` : ''}
+    </div>
+    <div class="card-stats"><div><b>${st.played}</b><span>Played</span></div><div><b>${st.won}</b><span>Won</span></div><div><b>${st.played ? Math.round(st.won / st.played * 100) + '%' : '–'}</b><span>Win rate</span></div></div>
+    ${c.history.length ? `<div class="guide-sec">Recent games</div><div>${c.history.map(game).join('')}</div>` : ''}
+    <div class="btns${c.mine ? ' two' : ''}">${c.mine ? '<button class="btn ghost" data-a="edit">Edit frog</button>' : ''}<button class="btn" data-a="close">Close</button></div>`;
+  const s = sheet(html());
+  s.el.addEventListener('click', (e) => {
+    const a = e.target.closest('[data-a]'), row = e.target.closest('[data-pid]');
+    if (a && a.dataset.a === 'close') s.close();
+    // the editor opens on top; saving (or closing) it comes back to this profile, redrawn with your changes
+    if (a && a.dataset.a === 'edit') { Snd.tap(); openProfile(() => { $('.sheet', s.el).innerHTML = html(); if (o.done) o.done(); }); }
+    if (a && a.dataset.a === 'board') { Snd.tap(); openRanks(rk); }
+    if (row) { Snd.tap(); openCard({ of: row.dataset.pid }); } // stacks on top; closing it comes back here
+  });
+  if (o.done) o.done();
+}
+// How ranks work, opened from a profile's rank: the five badges (the profile's own rank highlighted, with its real
+// progress ring; the others each a little fuller to show the ring filling) and the rules
+function openRanks(rk) {
+  const tiers = [['tadpole', 'Tadpole', 1], ['froglet', 'Froglet', 2], ['frog', 'Frog', 3], ['master', 'Master Frog', 4], ['legend', 'Frog Legend', 5, 1]];
+  const s = sheet(`<h2>Ranks</h2>
+    <div class="rank-row">${tiers.map(([id, name, pips, pos]) => {
+      const mine = rk && rk.id === id;
+      return `<div class="${mine ? 'on' : ''}">${rankBadge(mine ? rk : { id, pips, pos }, 44)}<span>${name}</span></div>`;
+    }).join('')}</div>
+    <ul class="rules">
+      <li><b>Play</b> finds a ranked game against someone near your rank.</li>
+      <li>Win: <b>+1</b> point, or <b>+2</b> against someone 3 or more points above you.</li>
+      <li>Lose: <b>−1</b>. Nothing against someone 3+ points above you, <b>−2</b> against someone 3+ below.</li>
+      <li><b>5 points</b> fill the ring and move you up a rank. You never drop back a rank.</li>
+      <li>The top 10 Master Frogs are <b>Frog Legends</b>.</li>
+    </ul>
+    <div class="btns two"><button class="btn ghost" data-a="board">Leaderboard</button><button class="btn" data-a="close">Got it</button></div>`);
+  $('[data-a="close"]', s.el).onclick = s.close;
+  $('[data-a="board"]', s.el).onclick = () => { Snd.tap(); openLeaders(); };
+}
+// The global leaderboard: the top 50 ranked players (Frog Legends first), and you if you're further down
+async function openLeaders() {
+  let d;
+  try { d = await api('/api/leaders', {}); } catch (e) { return toast(e.message); }
+  const row = (r) => `<button class="lb-row${r.me ? ' me' : ''}" data-pid="${esc(r.pid)}"><span class="lb-pos">${r.pos}</span><span class="mini">${avatarHTML(r.avatar, 30, { id: 0, centered: true })}</span>
+    <span class="ht">${esc(r.name)}<small>${esc(r.rank.name)}</small></span>${rankBadge(r.rank, 32)}</button>`;
+  const s = sheet(`<h2>Leaderboard</h2>
+    ${d.top.length ? `<div>${d.top.map(row).join('')}</div>${d.me ? `<div class="lb-gap">⋮</div>${row(d.me)}` : ''}` : '<p>No ranked games yet. Press Play to be the first.</p>'}
+    <div class="btns"><button class="btn" data-a="close">Close</button></div>`);
+  s.el.addEventListener('click', (e) => {
+    if (e.target.closest('[data-a="close"]')) return s.close();
+    const r = e.target.closest('[data-pid]'); if (!r) return;
+    Snd.tap(); r.classList.contains('me') ? openCard() : openCard({ of: r.dataset.pid });
+  });
+}
+
+// ----- Play: find a ranked game against someone else looking (same set, or any) -----
+let searching = null, searchTimer = 0; // searching: { pref, t0 } while the search screen is up
+function startSearch(pref) {
+  clearInterval(pondTimer); clearTimeout(searchTimer);
+  const mine = searching = { pref, t0: Date.now() };
+  const node = el(`<div class="screen home search fade-in">
+    <div class="hero"><div class="moon"></div><span class="ripple"></span><span class="ripple r2"></span><div class="leafbig" style='${padStyle(myAvatar())}'></div>${avatarHTML(myAvatar(), 84, { idle: true, id: 7 })}</div>
+    <h1 class="h-sm" id="stitle">Finding a match</h1>
+    <div class="lede" id="ssub">${esc(pref === 'any' ? 'Any set' : SETS[setId(pref)].name)} · <span id="sclock">0:00</span></div>
+    <div class="panel"><button class="btn ghost wide" id="scancel">Cancel</button></div>
+  </div>`);
+  mount('search', node);
+  $('#scancel').onclick = () => { Snd.tap(); cancelSearch(); };
+  const tick = setInterval(() => {
+    const c = $('#sclock'); if (!c || searching !== mine) return clearInterval(tick);
+    const t = Math.floor((Date.now() - mine.t0) / 1000); c.textContent = `${Math.floor(t / 60)}:${String(t % 60).padStart(2, '0')}`;
+  }, 500);
+  pollSearch();
+}
+async function pollSearch() {
+  clearTimeout(searchTimer);
+  const mine = searching;
+  if (!mine || screen !== 'search' || document.hidden) return;
+  let r = null;
+  try { r = await api('/api/play', { set: mine.pref }); } catch {}
+  if (searching !== mine) return;
+  if (r && r.room) return matchFound(r);
+  searchTimer = setTimeout(pollSearch, 1500);
+}
+async function cancelSearch() {
+  const was = searching; searching = null; clearTimeout(searchTimer);
+  if (was) try { const r = await api('/api/play/cancel', {}); if (r.room) return matchFound(r); } catch {}
+  showHome();
+}
+// Found someone: a moment to see who it is, then into the game
+async function matchFound(r) {
+  searching = null; clearTimeout(searchTimer);
+  Snd.ribbit(); haptic(['notification', 'success']);
+  try {
+    const v = await api(`/api/state?room=${r.room}&token=${r.token}`);
+    if (screen === 'search' && v.opp) {
+      $('#stitle').textContent = 'Match found';
+      $('#ssub').outerHTML = `<div class="search-vs"><span class="mini">${avatarHTML(v.opp.avatar, 30, { id: 21, centered: true })}</span><span class="nm">${esc(v.opp.name)}</span>${rankBadge(v.opp.rank, 28)}</div>
+        <div class="lede">${esc(SETS[setId(v.set)].name)}</div>`;
+      $('#scancel').style.visibility = 'hidden';
+      await sleep(1400);
+    }
+  } catch {}
+  enterRoom(r);
+}
+
 // ----- Menu & guide -----
 function openMenu() {
   const s = sheet(`<h2>Menu</h2>
     <button class="row-item" data-m="music">Music<span class="switch ${Snd.music() ? 'on' : ''}"></span></button>
     <button class="row-item" data-m="sfx">Sound effects<span class="switch ${Snd.sfxOn() ? 'on' : ''}"></span></button>
     <button class="row-item" data-m="guide">How to play ${ICON.chev}</button>
-    <button class="row-item" data-m="name">Your frog ${ICON.chev}</button>
-    <button class="row-item" data-m="lobby">Back to lobby ${ICON.chev}</button>
+    <button class="row-item" data-m="name">Profile ${ICON.chev}</button>
+    <button class="row-item" data-m="lobby">Main menu ${ICON.chev}</button>
     <button class="row-item danger" data-m="end">End game</button>`);
   s.el.addEventListener('click', (e) => {
     const b = e.target.closest('[data-m]'); if (!b) return;
     const m = b.dataset.m;
     if (m === 'music') { Snd.setMusic(!Snd.music()); $('.switch', b).classList.toggle('on', Snd.music()); if (screen === 'game') updateHeader(); }
     if (m === 'sfx') { Snd.setSfx(!Snd.sfxOn()); $('.switch', b).classList.toggle('on', Snd.sfxOn()); Snd.tap(); }
-    if (m === 'guide') { s.close(); setTimeout(openGuide, 200); }
-    if (m === 'name') { s.close(); setTimeout(() => openProfile(), 200); }
+    if (m === 'guide') { Snd.tap(); openGuide(); } // opens on top of the menu; closing it comes back here
+    if (m === 'name') { Snd.tap(); openCard(); }
     if (m === 'lobby') { s.close(); setTimeout(toLobby, 200); }
     if (m === 'end') { s.close(); setTimeout(() => endGame(), 200); }
   });
@@ -2827,21 +3136,25 @@ function openGuide(set, pick = false) {
   });
 }
 // Starting a pond (or a practice game): pick the set of frogs it plays; (i) on a set lists its frogs
-function pickSet(title, go) {
-  let set = setId(localStorage.frogSet);
+// Play can also take any set (o.any): it finds a match sooner. o.store: where the choice is remembered.
+function pickSet(title, go, o = {}) {
+  const store = o.store || 'frogSet';
+  let set = o.any && (localStorage[store] || 'any') === 'any' ? 'any' : setId(localStorage[store]);
+  const cover = (id) => (id === 'any' ? SET_IDS.flatMap((x) => (SETS[x].cover || SETS[x].frogs).slice(0, 2)) : SETS[id].cover || SETS[id].frogs.slice(0, 4));
   const card = (id) => `<div class="set-card${id === set ? ' on' : ''}" data-pick="${id}" role="button" tabindex="0">
-      <span class="set-cover">${(SETS[id].cover || SETS[id].frogs.slice(0, 4)).map((t, k) => `<span class="sc">${frogHTML({ id: 300 + k, type: t, atk: 0, hp: 0, lvl: 1 }, { size: 42, idle: false, stats: false })}</span>`).join('')}</span>
-      <span class="set-name">${esc(SETS[id].name)}<small>${SETS[id].frogs.length} frogs</small></span>
-      <button class="set-info" data-info="${id}" aria-label="Frogs in ${esc(SETS[id].name)}">i</button>
+      <span class="set-cover">${cover(id).map((t, k) => `<span class="sc">${frogHTML({ id: 300 + k, type: t, atk: 0, hp: 0, lvl: 1 }, { size: 42, idle: false, stats: false })}</span>`).join('')}</span>
+      ${id === 'any' ? '<span class="set-name">Any set<small>Quickest match</small></span>'
+    : `<span class="set-name">${esc(SETS[id].name)}<small>${SETS[id].frogs.length} frogs</small></span>
+      <button class="set-info" data-info="${id}" aria-label="Frogs in ${esc(SETS[id].name)}">i</button>`}
     </div>`;
-  const s = sheet(`<h2>${esc(title)}</h2><p>Which frogs will be in the shop?</p><div class="set-cards">${SET_IDS.map(card).join('')}</div>
-    <div class="btns"><button class="btn" data-a="go">Start</button></div>`);
+  const s = sheet(`<h2>${esc(title)}</h2><p>Which frogs will be in the shop?</p><div class="set-cards">${[...SET_IDS, ...(o.any ? ['any'] : [])].map(card).join('')}</div>
+    <div class="btns"><button class="btn" data-a="go">${esc(o.cta || 'Start')}</button></div>`);
   s.el.addEventListener('click', (e) => {
     const info = e.target.closest('[data-info]');
     if (info) { Snd.tap(); openSetInfo(info.dataset.info); return; }
     const c = e.target.closest('[data-pick]');
     if (c) { set = c.dataset.pick; Snd.tap(); $$('.set-card', s.el).forEach((x) => x.classList.toggle('on', x === c)); return; }
-    if (e.target.closest('[data-a="go"]')) { localStorage.frogSet = set; s.close(); go(set); }
+    if (e.target.closest('[data-a="go"]')) { localStorage[store] = set; s.close(); go(set); }
   });
 }
 function openSetInfo(id) {
@@ -3301,18 +3614,21 @@ function showOver() {
     <div class="hero" style="width:100%"><div class="moon"></div><div class="leafbig" style='${padStyle(wasWin ? me.avatar : opp.avatar)}'></div>${avatarHTML(wasWin ? me.avatar : opp.avatar, 96, { idle: true, crown: true, id: 7 })}</div>
     <h1>${wasWin ? 'You win the pond' : `${esc(opp.name)} wins the pond`}</h1>
     ${restarted ? `<p class="lede">${esc(opp.name)} started a new game</p>` : ''}
-    ${restarted ? '' : `<div class="score"><div>${avatarHTML(me.avatar, 40, { id: 1 })}<b>${esc(me.name)}</b>${pips(5, me.hearts, ICON.heart)}</div><div>${avatarHTML(opp.avatar, 40, { id: 2 })}<b>${esc(opp.name)}</b>${pips(5, opp.hearts, ICON.heart)}</div></div>`}
-    <div class="btns"><button class="btn" id="again">${restarted ? 'Join' : 'Play again'}</button><button class="btn ghost" id="leave">Back to lobby</button></div>
+    ${S.ranked && me.delta != null ? `<div class="over-rank">${rankBadge(me.rank, 40, Math.max(0, me.delta))}<span>${esc(me.rank.name)}</span>${signed(me.delta)}${RANK_ORDER.indexOf(me.rank.id) > RANK_ORDER.indexOf(me.prev) ? '<span class="up-note">New rank!</span>' : ''}</div>` : ''}
+    ${restarted ? '' : `<div class="score"><div>${avatarHTML(me.avatar, 40, { id: 1 })}<b>${esc(me.name)}</b>${pips(5, me.hearts, ICON.heart)}</div><div class="${opp.pid ? 'tap' : ''}" id="overOpp">${avatarHTML(opp.avatar, 40, { id: 2 })}<b>${esc(opp.name)}</b>${pips(5, opp.hearts, ICON.heart)}</div></div>`}
+    <div class="btns"><button class="btn" id="again">${restarted ? 'Join' : 'Play again'}</button><button class="btn ghost" id="leave">Home</button></div>
   </div>`);
   mount('over', node);
   $('#root').dataset.k = key; $('#root').dataset.won = wasWin ? '1' : '0';
   if (!restarted) { if (wasWin) { Snd.fanfare(); petals(34); } else Snd.lose(); }
   $('#again').onclick = async () => {
     Snd.plop();
+    if (S.ranked) { forget(); return startSearch(localStorage.frogPlaySet || 'any'); } // ranked: a new match, not a rematch
     if (S.phase === 'over') await act({ type: 'rematch' });
     overGame = null; shownRound = 0; route();
   };
-  $('#leave').onclick = toLobby;
+  $('#leave').onclick = () => forget(); // the game is over: back to the home page
+  const oc = $('#overOpp'); if (oc && opp.pid) oc.onclick = () => { Snd.tap(); openCard({ of: opp.pid }); };
 }
 
 // =====================================================================

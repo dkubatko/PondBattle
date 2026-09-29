@@ -9,6 +9,7 @@
 |---|---|
 | `engine.js` | Game rules: frogs, items, shop, merging, battles, rounds, Pond Bot's shopping |
 | `server.js` | Web side: players, lobbies, rooms, live updates (SSE), game history, serves the page |
+| `ranks.js` | Ranked play: rank tiers (Tadpole, Froglet, Frog, Master Frog, 5 points each) and the top-10 Frog Legends |
 | `telegram.js` | Checks Mini App launch data; the bot (Play button, invites, "your move" nudges) |
 | `index.html` | The whole client (it only replays battles the server computed) |
 | `frogs.json`, `items.json` | Stats, tiers and prices |
@@ -35,8 +36,16 @@ listening to the bot, for local testing with the real token). See `.env.example`
 
 Inside Telegram the player id is the Telegram user id, taken from the signed launch data. In a plain
 browser it's a guest id kept in the browser. Names and frog avatars are stored on the server.
-Lobby: your games, **Nearby** ponds (started from the same network as you), and **Open ponds** from
-anyone else.
+Home: **Play**, **My ponds** (start a pond to invite someone, your games in progress, and **Nearby** ponds
+started from the same network as you), **Practice**, **Join with a code**. **Play** finds a ranked
+game against anyone else looking, in the same set or any set (closest rank first; the allowed gap grows
+while you wait). Only those games count for rank: +1 for a win and −1 for a loss against a similar player
+(+2 / ±0 against one 3+ points higher, −2 losing to one 3+ lower); 5 points fill a tier, a tier once
+reached is kept, and the top 10 full Master Frogs are Frog Legends. Leaving a ranked game counts as a loss.
+Invite and practice games are unrated. Profiles (your frog or name on the home page; any player's plate in a
+game, a leaderboard row or a recent game) show rank, games played/won and recent games, read from
+`games.jsonl` (practice games aren't listed). Other players are addressed by a public id, never their
+Telegram id. The trophy button opens the global leaderboard (top 50).
 
 ## Deploy
 
