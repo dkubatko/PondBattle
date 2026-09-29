@@ -60,7 +60,7 @@ function refillShop(p, round, set) {
 // what just happened, so the client can animate each step.
 // Battle copies of frogs all have the same fields (keeps the engine fast; abilities keep their per-battle counters here)
 // Frogs with a start-of-battle ability (they take turns, see runBattle)
-const START_OF_BATTLE = new Set(['wizard', 'jester', 'princess', 'spitter', 'archer', 'dragon', 'budgett', 'prince', 'squire', 'cleric']);
+const START_OF_BATTLE = new Set(['wizard', 'jester', 'princess', 'spitter', 'archer', 'dragon', 'budgett', 'prince', 'squire', 'cleric', 'hypno']);
 const unit = (type, atk, hp, lvl, gear, bid) => ({ id: 0, type, atk, hp, xp: 0, lvl, gear: gear || null, bid, blocked: false, bounced: 0, uses: 0, koBy: null, aura: 0 });
 function runBattle(teamA, teamB, opts = {}) {
   let bid = 0;
@@ -263,6 +263,16 @@ function runBattle(teamA, teamB, opts = {}) {
       const u = lines[s][i];
       if (!u || u.hp <= 0 || !T[s].includes(u)) continue;
       const L = u.lvl;
+      if (u.type === 'hypno') {
+        // Sends the enemy's front frog to the back, L times (one step each, so you can follow it)
+        for (let k = 0; k < L; k++) {
+          const line = T[1 - s], e = line.find((x) => x.hp > 0);
+          if (!e || alive(1 - s).length < 2) { if (!k) snap?.('ability', { actor: u.bid, text: `${nm(u)} has no one to send away` }); break; }
+          line.splice(line.indexOf(e), 1); line.push(e);
+          auras();
+          snap?.('ability', { actor: u.bid, target: e.bid, text: `${nm(u)} sends ${nm(e)} to the back` });
+        }
+      }
       if (u.type === 'wizard') {
         // Shrinks L random enemies to 1/1 (skipping ones that already are); they keep their abilities
         const foes = some(alive(1 - s).filter((e) => e.atk + e.hp > 2 && !fixed(e)), L);
@@ -325,16 +335,6 @@ function runBattle(teamA, teamB, opts = {}) {
   const fightAt = frames.length;
   let turns = 0;
   while (T[0].length && T[1].length && turns++ < 60) {
-    // Hypno Frog: before attacking, sends the enemy ahead to the back (L times per battle); same pond first
-    for (const s of order) {
-      const u = T[s][0], line = T[1 - s];
-      if (u.type === 'hypno' && u.uses < u.lvl && line.length > 1) {
-        u.uses++;
-        const e = line.shift(); line.push(e);
-        auras();
-        snap?.('ability', { actor: u.bid, target: e.bid, text: `${nm(u)} sends ${nm(e)} to the back` });
-      }
-    }
     const a = T[0][0], b = T[1][0];
     for (const u of [a, b]) if (u.type === 'knight') { buff(u, u.lvl, 0); snap?.('ability', { actor: u.bid, text: `${nm(u)} raises its sword` }); }
     // Who each front frog hits: the enemy ahead; a Leapfrog the enemy's last L frogs; a Pebble Toad all of them

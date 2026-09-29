@@ -372,9 +372,15 @@ h1 { margin: 0; text-align: center; font-size: 40px; font-weight: 900; line-heig
 .btn .amt { display: flex; }
 .btn .amt:empty { display: none; }
 .btn .amt .coinb { margin-left: 2px; position: relative; top: -1px; }
-.bubble { position: fixed; left: 0; top: 0; z-index: 46; background: #fbf1d6; color: #253021; border-radius: 16px; padding: 10px 13px 11px; box-shadow: 0 10px 28px rgba(0, 0, 0, .38); pointer-events: none; opacity: 0; transform: translateY(6px) scale(.96); transform-origin: var(--ax, 50%) 100%; transition: opacity .16s, transform .16s; }
+/* width: max-content (capped by max-width, set when placed) so where the plaque happens to sit can't squeeze it:
+   a narrower first measurement placed it against the screen edge and the next update shifted it */
+/* width: max-content (capped by max-width, set when placed): the plaque's size never depends on where it happens to
+   sit. Otherwise WebKit (iPhone) squeezed it into the room left of its previous spot, so it measured too narrow and
+   too tall and was placed too high and pushed against the screen edge */
+.bubble { position: fixed; left: 0; top: 0; z-index: 46; width: max-content; width: max-content; background: #fbf1d6; color: #253021; border-radius: 16px; padding: 10px 13px 11px; box-shadow: 0 10px 28px rgba(0, 0, 0, .38); pointer-events: none; opacity: 0; transform: translateY(6px) scale(.96); transform-origin: var(--ax, 50%) 100%; transition: opacity .16s, transform .16s; }
 .bubble.below { transform-origin: var(--ax, 50%) 0; transform: translateY(-6px) scale(.96); }
 .bubble.show { opacity: 1; transform: none; }
+.bubble.glide { transition: opacity .16s, transform .16s, left .2s ease-out, top .2s ease-out; }
 .bubble::after { content: ''; position: absolute; left: var(--ax, 50%); bottom: -6px; width: 14px; height: 14px; background: #fbf1d6; border-radius: 3px; transform: translateX(-50%) rotate(45deg); }
 .bubble.below::after { bottom: auto; top: -6px; }
 .bubble .bt { font-size: 16px; font-weight: 900; display: flex; align-items: center; gap: 6px; }
@@ -666,7 +672,7 @@ const DESC = {
   king:     (L) => ['', `Friends behind it take no damage. Stats always ${BASE.king[0] * L}/${BASE.king[1] * L}`],
   paladin:  (L) => ['', `${statText(L, L)} for each living enemy`],
   dragon:   (L) => ['Start of battle', `${L} damage to all enemies`],
-  hypno:    (L) => ['Before attack', `send the enemy ahead to the back (${times(L)} per battle)`],
+  hypno:    (L) => ['Start of battle', `send the enemy’s front ${L === 1 ? 'frog' : `${L} frogs`} to the back`],
   princess: (L) => ['Start of battle', L === 1 ? 'the strongest enemy hits itself' : `the ${L} strongest enemies hit themselves`],
   chameleon:(L) => ['Start of battle', `copy the ability of the friend behind (at level ${L})`],
   leapfrog: (L) => ['Attack', `leap over and hit the enemy’s last ${L === 1 ? 'frog' : `${L} frogs`}`],
@@ -967,10 +973,16 @@ const ART = {
   },
   knight: () => { const p = pal('#9aa7d8'), b = BODY.classic(p); return compose(b, p, hat(b, HELMET, 1.3, 5)); },
   // Prince: crown and a royal blue sash with a gold medal
+  // Prince: crown and gold epaulettes on the shoulders (the body's outer edges beside the eyes), each pad lying
+  // along the shoulder's slope with its fringe hanging straight down; tucked behind the eyes like the crown
   prince: () => {
     const p = pal('#f1b13b'), b = BODY.classic(p);
-    const sash = '<path d="M28 50L72 92" stroke="#3f6fd0" stroke-width="8"/><path d="M28 50L72 92" stroke="#6f97ea" stroke-width="2" opacity=".6"/>' + C(59, 79, 4.6, '#f6c343', ' stroke="#b9861f" stroke-width="1.4"') + C(59, 79, 1.8, '#fff1b8');
-    return compose(b, p, { ...hat(b, CROWN, 1, 0), inside: `<g clip-path="url(#prince-clip)">${sash}</g><defs><clipPath id="prince-clip">${b.torso}</clipPath></defs>` });
+    const pad = (X, Y, r) => {
+      const c = Math.cos(r * Math.PI / 180), s = Math.sin(r * Math.PI / 180);
+      const fringe = [-6, -3, 0, 3, 6].map((dx) => { const x = X + dx * c - 3.2 * s, y = Y + dx * s + 3.2 * c; return `<path d="M${x.toFixed(1)} ${y.toFixed(1)}v5.5" stroke="#dea02a" stroke-width="1.6" stroke-linecap="round"/>`; }).join('');
+      return fringe + `<ellipse cx="${X}" cy="${Y}" rx="9" ry="4.4" transform="rotate(${r} ${X} ${Y})" fill="#f6c343" stroke="#b9861f" stroke-width="1.2"/>`;
+    };
+    return compose(b, p, { under: hat(b, CROWN, 1, 0).under + pad(15, 49, -32) + pad(85, 49, 32) });
   },
   // Glass frog: see-through, with its little heart showing
   glass: () => { const p = pal('#cdeee2'), b = BODY.tall(p); return compose(b, p, { glass: true, inside: heartSVG(b.heart, .9) + dotsSVG([[36, 56, 1.3], [63, 54, 1.2], [58, 80, 1.1], [42, 82, 1.1], [70, 68, 1]], '#f4fff9') }); },
@@ -1286,7 +1298,7 @@ BUG_ART.cricket = '<g transform="translate(-8 -12) scale(1.18)"><path d="M30 60L
 // size only ever says level; the Froglet, a hatched baby, stays a little smaller
 const ART_SIZE = {
   bouncy: .98, bullfrog: .94, chameleon: .98, froglet: .86, glass: .98, goliath: .93, hungry: .98, knight: .95, leapfrog: 1.12, lucky: 1.05, mama: .98, peeper: 1.11,
-  rain: .94, spitter: 1.13, tadpole: 1.10, toad: 1.03, tree: .97, wizard: .97, midwife: .99, turtle: 1.12, pebble: 1.24, budgett: 1.05, golden: .98,
+  prince: .98, rain: .94, spitter: 1.13, tadpole: 1.10, toad: 1.03, tree: .97, wizard: .97, midwife: .99, turtle: 1.12, pebble: 1.24, budgett: 1.05, golden: .98,
   archer: 1.06, bard: 1.08, blacksmith: .94, cleric: .94, dragon: .90, guard: .99, jester: .97, king: .88, merchant: .95, necro: .96, paladin: .92, peasant: .97, rogue: 1.11, squire: .94,
 };
 
@@ -2685,15 +2697,17 @@ function updateBubble() {
   if (hint) html += `<div class="bh">${hint}</div>`;
   if (!anchor) { b.classList.remove('show'); return; }
   if (b._h !== html) { b.innerHTML = html; b._h = html; }
-  b._anchor = anchor; b._kind = sel.kind; b._pos = '';
-  placeBubble(b);
+  b._pos = ''; b._cand = ''; // measure afresh on every update
+  b._anchor = anchor; b._kind = sel.kind;
+  placeBubble(b, true);
   const key = `${sel.kind}:${sel.i}`;
   if (b._key !== key || !b.classList.contains('show')) { b._key = key; b.classList.remove('show'); void b.offsetWidth; b.classList.add('show'); }
   followBubble();
 }
 // The plaque is anchored to the frog's box (.occ), not the frog drawing, which hops, bumps and pops
 // in animations. While open it re-checks every frame and moves only if that box really moved (the
-// Telegram view resizing, a scroll, the font arriving), so it follows instead of jumping later.
+// Telegram view resizing, a scroll, the font arriving): a new spot has to hold for two frames (a layout
+// caught half-done for one frame is ignored) and the plaque glides there instead of jumping.
 let bubbleRaf = 0;
 function followBubble() {
   if (bubbleRaf) return;
@@ -2705,7 +2719,7 @@ function followBubble() {
   };
   bubbleRaf = requestAnimationFrame(step);
 }
-function placeBubble(b) {
+function placeBubble(b, now = false) {
   const vw = document.documentElement.clientWidth, vh = document.documentElement.clientHeight;
   const ar = b._anchor.getBoundingClientRect();
   // Shop bubbles float above the shop; your own frogs get theirs below, clear of the top bar
@@ -2715,8 +2729,11 @@ function placeBubble(b) {
   const r = bank ? { left: ar.left, width: ar.width, top: bank.getBoundingClientRect().top + 2, bottom: ar.bottom }
     : dots ? { left: ar.left, width: ar.width, top: ar.top, bottom: Math.max(ar.bottom, dots.getBoundingClientRect().bottom) } : ar;
   const pos = `${vw}:${vh}:${Math.round(r.left)}:${Math.round(r.top)}:${Math.round(r.width)}:${Math.round(r.bottom)}:${b._h.length}`;
-  if (pos === b._pos) return; // nothing moved
-  b._pos = pos;
+  if (pos === b._pos) { b._cand = ''; return; } // nothing moved
+  if (!now && b._pos && b._cand !== pos) { b._cand = pos; return; } // wait a frame: is it really there?
+  const glide = !!b._pos && b.classList.contains('show');
+  b._pos = pos; b._cand = '';
+  b.classList.toggle('glide', glide);
   b.style.maxWidth = Math.min(290, vw - 20) + 'px';
   const w = b.offsetWidth, h = b.offsetHeight, cx = r.left + r.width / 2;
   const left = Math.max(10, Math.min(vw - w - 10, cx - w / 2));
