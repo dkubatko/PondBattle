@@ -398,10 +398,18 @@ h1 { margin: 0; text-align: center; font-size: 40px; font-weight: 900; line-heig
 .petal { position: fixed; top: -20px; z-index: 70; width: 10px; height: 14px; border-radius: 60% 60% 60% 60% / 80% 80% 40% 40%; pointer-events: none; }
 
 /* Sheets */
-.sheet-wrap { position: fixed; inset: 0; z-index: 80; background: rgba(4, 10, 13, .55); display: flex; align-items: flex-end; justify-content: center; opacity: 0; transition: opacity .22s; }
+.sheet-wrap { position: fixed; inset: 0; z-index: 80; cursor: pointer; -webkit-tap-highlight-color: transparent; background: rgba(4, 10, 13, .55); display: flex; align-items: flex-end; justify-content: center; opacity: 0; transition: opacity .22s; }
 .sheet-wrap.open { opacity: 1; }
 .sheet-wrap ~ .sheet-wrap { background: rgba(4, 10, 13, .3); } /* a sheet opened from another one: the one below stays visible */
-.sheet { width: 100%; max-width: 480px; max-height: 88dvh; overflow-y: auto; background: #1b363c; border-radius: 26px 26px 0 0; padding: 20px 18px calc(env(safe-area-inset-bottom) + 18px); transform: translateY(100%); transition: transform .3s cubic-bezier(.2, .9, .3, 1); -webkit-user-select: none; }
+.sheet { cursor: auto; position: relative; display: flex; flex-direction: column; width: 100%; max-width: 480px; max-height: 88dvh; background: #1b363c; border-radius: 26px 26px 0 0; transform: translateY(100%); transition: transform .3s cubic-bezier(.2, .9, .3, 1); -webkit-user-select: none; }
+:root { --profile-h: 549px; } /* the frog editor's height (measured each time it opens) */
+.sheet.profile-sheet { max-height: min(88dvh, var(--profile-h)); } /* your profile and the editor on top of it line up */
+.sheet-body { min-height: 0; overflow-y: auto; overscroll-behavior: contain; padding: 20px 18px calc(env(safe-area-inset-bottom) + 18px); }
+/* Close: top-right corner of every sheet, outside the scrolling body so it never scrolls away */
+.sheet-x { position: absolute; top: 12px; right: 12px; z-index: 3; width: 36px; height: 36px; border: 0; border-radius: 50%; background: #2a4449; box-shadow: 0 0 0 4px #1b363c; color: var(--moon-dim); display: grid; place-items: center; }
+.sheet-x svg { width: 18px; height: 18px; }
+.sheet-x:active { background: #34535a; }
+.sheet-body > h2:first-child { padding-right: 44px; } /* titles stay clear of the ✕ */
 .sheet-wrap.open .sheet { transform: none; }
 /* Closing plays the opening backwards: the same curve mirrored in time, and the dimming fades out as the sheet
    finishes leaving (it faded in while the sheet arrived) */
@@ -447,6 +455,10 @@ h1 { margin: 0; text-align: center; font-size: 40px; font-weight: 900; line-heig
 .card-top { display: flex; flex-direction: column; align-items: center; gap: 4px; }
 .card-top .pv { width: 100%; position: relative; height: 112px; display: grid; place-items: end center; }
 .card-top .pv .frog { margin-bottom: 12px; }
+.pv-edit { cursor: pointer; }
+/* the pencil on your own frog in your profile: bottom-right of the frog, where it was on the landing page */
+.hero-edit { position: absolute; bottom: -4px; left: calc(50% + 32px); width: 30px; height: 30px; border-radius: 50%; background: rgba(5, 15, 18, .6); box-shadow: 0 2px 6px rgba(0, 0, 0, .25); display: grid; place-items: center; color: var(--moon); }
+.hero-edit .pencil { width: 14px; height: 14px; opacity: .9; }
 .card-top { width: 100%; }
 .card-name { max-width: 100%; font-size: 24px; font-weight: 900; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .card-rank { display: flex; align-items: center; gap: 8px; font-size: 18px; font-weight: 900; }
@@ -711,7 +723,7 @@ const RANK_ART = {
   // a frog on its own lily pad, a flower tucked behind its eye
   master: `<circle cx="16" cy="16" r="15.5" fill="#b9821f"/><ellipse cx="16" cy="23.2" rx="10.4" ry="4" fill="#74c46a"/><path d="M8.4 23.6l5-1.4M23.6 23.6l-5-1.4" stroke="#3f8747" stroke-width="1.1" stroke-linecap="round"/><ellipse cx="16" cy="18.4" rx="7" ry="5.6" fill="#ffefc2"/><circle cx="12.4" cy="12.4" r="3.1" fill="#ffefc2"/><circle cx="19.6" cy="12.4" r="3.1" fill="#ffefc2"/><circle cx="12.4" cy="12.4" r="1.45" fill="#4a3208"/><circle cx="19.6" cy="12.4" r="1.45" fill="#4a3208"/><path d="M13.3 17.8q2.7 2 5.4 0" stroke="#4a3208" stroke-width="1.3" fill="none" stroke-linecap="round"/><circle cx="22.4" cy="8.6" r="1.5" fill="#f7a3b8"/><circle cx="24.2" cy="9.9" r="1.5" fill="#f7a3b8"/><circle cx="23.5" cy="12" r="1.5" fill="#f7a3b8"/><circle cx="21.3" cy="12" r="1.5" fill="#f7a3b8"/><circle cx="20.6" cy="9.9" r="1.5" fill="#f7a3b8"/><circle cx="22.4" cy="10.5" r="1.1" fill="#ffcd66"/>`,
   // a crowned frog with its place on the board on its belly
-  legend: (pos) => `<circle cx="16" cy="16" r="15.5" fill="#57368a"/><ellipse cx="16" cy="20" rx="9.6" ry="7.6" fill="#d9c6ff"/><circle cx="10.6" cy="12" r="3.3" fill="#d9c6ff"/><circle cx="21.4" cy="12" r="3.3" fill="#d9c6ff"/><circle cx="10.6" cy="12" r="1.5" fill="#2a1747"/><circle cx="21.4" cy="12" r="1.5" fill="#2a1747"/><path d="M12.6 10.6l-.4-4.4 2.2 1.8L16 5l1.6 3 2.2-1.8-.4 4.4z" fill="#ffcd66" stroke="#8a5a12" stroke-width=".6" stroke-linejoin="round"/><text x="16" y="${pos > 9 ? 24.6 : 25.4}" text-anchor="middle" font-family="Nunito, ui-rounded, system-ui, sans-serif" font-weight="900" font-size="${pos > 9 ? 9.5 : 11.5}" fill="#57368a">${pos || ''}</text>`,
+  legend: (pos) => `<circle cx="16" cy="16" r="15.5" fill="#57368a"/><ellipse cx="16" cy="20" rx="9.6" ry="7.6" fill="#d9c6ff"/><circle cx="10.6" cy="12" r="3.3" fill="#d9c6ff"/><circle cx="21.4" cy="12" r="3.3" fill="#d9c6ff"/><circle cx="10.6" cy="12" r="1.5" fill="#2a1747"/><circle cx="21.4" cy="12" r="1.5" fill="#2a1747"/><path d="M12.6 10.6l-.4-4.4 2.2 1.8L16 5l1.6 3 2.2-1.8-.4 4.4z" fill="#ffcd66" stroke="#8a5a12" stroke-width=".6" stroke-linejoin="round"/><text x="16" y="${pos > 9 ? 22.9 : 23.6}" text-anchor="middle" font-family="Nunito, ui-rounded, system-ui, sans-serif" font-weight="900" font-size="${pos > 9 ? 9.5 : 11.5}" fill="#57368a">${pos || ''}</text>`,
 };
 const RANK_ORDER = ['tadpole', 'froglet', 'frog', 'master', 'legend'];
 // fresh: how many segments were just won (they draw in)
@@ -1769,8 +1781,9 @@ function petals(n = 28) {
     anim(p, [{ transform: 'translate(0,0) rotate(0)' }, { transform: `translate(${drift}px, 110vh) rotate(${360 + Math.random() * 360}deg)` }], { duration: dur, delay: Math.random() * 900, easing: 'cubic-bezier(.3,.1,.6,1)', fill: 'backwards' }).then(() => p.remove());
   }
 }
-function sheet(html) {
-  const wrap = el(`<div class="sheet-wrap"><div class="sheet" role="dialog">${html}</div></div>`);
+function sheet(html, cls = '') {
+  // The ✕ sits in the top-right corner and stays there while the body scrolls; it does what tapping outside does
+  const wrap = el(`<div class="sheet-wrap"><div class="sheet ${cls}" role="dialog"><button class="sheet-x" aria-label="Close">${ICON.x}</button><div class="sheet-body">${html}</div></div></div>`);
   document.body.appendChild(wrap);
   requestAnimationFrame(() => requestAnimationFrame(() => wrap.classList.add('open')));
   const close = () => {
@@ -1779,6 +1792,7 @@ function sheet(html) {
     setTimeout(() => { wrap.remove(); syncBack(); }, 320);
   };
   wrap.addEventListener('click', (e) => { if (e.target === wrap) close(); });
+  $('.sheet-x', wrap).onclick = (e) => { e.stopPropagation(); Snd.tap(); wrap.dispatchEvent(new MouseEvent('click')); }; // dialogs answer "no", like outside
   syncBack();
   return { el: wrap, close };
 }
@@ -2902,7 +2916,7 @@ function openProfile(done) {
       <div class="wheel"><div class="wheel-track" id="wt"></div></div>
       <div class="wheel-name" id="wn"></div>
       <div class="btns"><button class="btn" id="psave">Save</button></div>
-    </div>`);
+    </div>`, 'profile-sheet');
   const pv = $('#pv', s.el), inp = $('#pname', s.el), save = $('#psave', s.el), track = $('#wt', s.el), label = $('#wn', s.el);
   // The highest rank needed by anything the frog is trying on (or '' when all of it is earned); until then Save
   // is greyed out
@@ -2971,6 +2985,8 @@ function openProfile(done) {
     fill();
   });
   preview(false); fill();
+  // The profile is never taller than this editor, so the editor always covers it: share the editor's own height
+  document.documentElement.style.setProperty('--profile-h', `${Math.ceil($('.sheet-body', s.el).scrollHeight)}px`);
   inp.addEventListener('input', syncSave);
   save.onclick = async () => {
     const name = inp.value.trim(); if (!name || tryingOn()) return;
@@ -3006,20 +3022,18 @@ async function openCard(o = {}) {
       <span class="hist-res${g.won ? ' won' : ''}">${res}${g.delta != null ? `<small>${signed(g.delta)}</small>` : g.left === 'opp' ? '<small>they left</small>' : ''}</span></div>`;
   };
   const html = (av = c.mine ? myAvatar() : cleanAv(c.avatar)) => `<div class="card-top">
-      <div class="pv"><div class="pv-pad" style='${padStyle(av)}'></div>${avatarHTML(av, 84, { idle: true, id: 7 })}</div>
+      <div class="pv${c.mine ? ' pv-edit' : ''}"${c.mine ? ' data-a="edit" role="button" aria-label="Edit your frog"' : ''}><div class="pv-pad" style='${padStyle(av)}'></div>${avatarHTML(av, 84, { idle: true, id: 7 })}${c.mine ? `<span class="hero-edit">${ICON.pencil}</span>` : ''}</div>
       <div class="card-name">${esc(c.mine ? ME.name || 'Frog' : c.name)}</div>
       <button class="card-rank" data-a="board">${rankBadge(rk, 36)}<span>${esc(rk.name)}</span></button>
       ${next ? `<div class="rank-next">${esc(next)}</div>` : ''}
     </div>
     <div class="card-stats"><div><b>${st.played}</b><span>Played</span></div><div><b>${st.won}</b><span>Won</span></div><div><b>${st.played ? Math.round(st.won / st.played * 100) + '%' : '–'}</b><span>Win rate</span></div></div>
-    ${c.history.length ? `<div class="guide-sec">Recent games</div><div>${c.history.map(game).join('')}</div>` : ''}
-    <div class="btns${c.mine ? ' two' : ''}">${c.mine ? '<button class="btn ghost" data-a="edit">Edit frog</button>' : ''}<button class="btn" data-a="close">Close</button></div>`;
-  const s = sheet(html());
+    ${c.history.length ? `<div class="guide-sec">Recent games</div><div>${c.history.map(game).join('')}</div>` : ''}`;
+  const s = sheet(html(), 'profile-sheet');
   s.el.addEventListener('click', (e) => {
     const a = e.target.closest('[data-a]'), row = e.target.closest('[data-pid]');
-    if (a && a.dataset.a === 'close') s.close();
     // the editor opens on top; saving (or closing) it comes back to this profile, redrawn with your changes
-    if (a && a.dataset.a === 'edit') { Snd.tap(); openProfile(() => { $('.sheet', s.el).innerHTML = html(); if (o.done) o.done(); }); }
+    if (a && a.dataset.a === 'edit') { Snd.tap(); openProfile(() => { $('.sheet-body', s.el).innerHTML = html(); if (o.done) o.done(); }); }
     if (a && a.dataset.a === 'board') { Snd.tap(); openRanks(rk); }
     if (row) { Snd.tap(); openCard({ of: row.dataset.pid }); } // stacks on top; closing it comes back here
   });
@@ -3041,8 +3055,7 @@ function openRanks(rk) {
       <li><b>5 points</b> fill the ring and move you up a rank. You never drop back a rank.</li>
       <li>The top 10 Master Frogs are <b>Frog Legends</b>.</li>
     </ul>
-    <div class="btns two"><button class="btn ghost" data-a="board">Leaderboard</button><button class="btn" data-a="close">Got it</button></div>`);
-  $('[data-a="close"]', s.el).onclick = s.close;
+    <div class="btns"><button class="btn ghost" data-a="board">Leaderboard</button></div>`);
   $('[data-a="board"]', s.el).onclick = () => { Snd.tap(); openLeaders(); };
 }
 // The global leaderboard: the top 50 ranked players (Frog Legends first), and you if you're further down
@@ -3052,10 +3065,8 @@ async function openLeaders() {
   const row = (r) => `<button class="lb-row${r.me ? ' me' : ''}" data-pid="${esc(r.pid)}"><span class="lb-pos">${r.pos}</span><span class="mini">${avatarHTML(r.avatar, 30, { id: 0, centered: true })}</span>
     <span class="ht">${esc(r.name)}<small>${esc(r.rank.name)}</small></span>${rankBadge(r.rank, 32)}</button>`;
   const s = sheet(`<h2>Leaderboard</h2>
-    ${d.top.length ? `<div>${d.top.map(row).join('')}</div>${d.me ? `<div class="lb-gap">⋮</div>${row(d.me)}` : ''}` : '<p>No ranked games yet. Press Play to be the first.</p>'}
-    <div class="btns"><button class="btn" data-a="close">Close</button></div>`);
+    ${d.top.length ? `<div>${d.top.map(row).join('')}</div>${d.me ? `<div class="lb-gap">⋮</div>${row(d.me)}` : ''}` : '<p>No ranked games yet. Press Play to be the first.</p>'}`);
   s.el.addEventListener('click', (e) => {
-    if (e.target.closest('[data-a="close"]')) return s.close();
     const r = e.target.closest('[data-pid]'); if (!r) return;
     Snd.tap(); r.classList.contains('me') ? openCard() : openCard({ of: r.dataset.pid });
   });
@@ -3156,9 +3167,7 @@ function openGuide(set, pick = false) {
     : `<div class="guide-set">${esc(SETS[set].name)} frogs</div>`}
     <div class="set-list">${setFrogsHTML(set)}</div>
     <div class="guide-sec">Items</div>
-    ${Object.keys(FOODS).map((k) => `<div class="guide-row"><div class="gfrog"><div style="width:44px;height:44px">${bugArt(k)}</div></div><div class="txt"><span class="gname">${FOODS[k].name} ${coinBadge(FOODS[k].cost)}</span>${itemText(k)}</div></div>`).join('')}
-    <div class="btns"><button class="btn" data-a="close">Got it</button></div>`);
-  $('[data-a="close"]', s.el).onclick = s.close;
+    ${Object.keys(FOODS).map((k) => `<div class="guide-row"><div class="gfrog"><div style="width:44px;height:44px">${bugArt(k)}</div></div><div class="txt"><span class="gname">${FOODS[k].name} ${coinBadge(FOODS[k].cost)}</span>${itemText(k)}</div></div>`).join('')}`);
   s.el.addEventListener('click', (e) => {
     const t = e.target.closest('[data-set]'); if (!t) return;
     Snd.tap(); $$('.set-tabs .av-tab', s.el).forEach((x) => x.classList.toggle('on', x === t));
@@ -3188,8 +3197,7 @@ function pickSet(title, go, o = {}) {
   });
 }
 function openSetInfo(id) {
-  const s = sheet(`<h2>${esc(SETS[setId(id)].name)}</h2>${setFrogsHTML(id)}<div class="btns"><button class="btn" data-a="close">Close</button></div>`);
-  $('[data-a="close"]', s.el).onclick = s.close;
+  sheet(`<h2>${esc(SETS[setId(id)].name)}</h2>${setFrogsHTML(id)}`);
 }
 
 // =====================================================================
@@ -3247,10 +3255,8 @@ function openBattleSheet(lb, upto) {
   const s = sheet(`<h2>Round ${lb.round}</h2>
     <div class="guide-sec">${esc(oppName)}’s pond <span class="sub">front first</span></div>${lineup}
     <div class="guide-sec">What happened</div>
-    <div class="log-list"></div>
-    <div class="btns"><button class="btn" data-a="close">Close</button></div>`);
-  $('[data-a="close"]', s.el).onclick = s.close;
-  const list = $('.log-list', s.el), box = $('.sheet', s.el);
+    <div class="log-list"></div>`);
+  const list = $('.log-list', s.el), box = $('.sheet-body', s.el);
   let shown = 0;
   const update = (to) => {
     if (!s.el.isConnected) return;
