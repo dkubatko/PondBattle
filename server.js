@@ -199,12 +199,12 @@ E.hooks.gameOver = recordGame;
 // Each player's past games, newest last: uid -> [{ at, set, ranked, won, hearts, rounds, delta, left, opp }]
 const played = new Map();
 function indexGame(e) {
-  // practice games against Pond Bot are listed (marked practice) but don't count in your numbers
+  if (e.practice) return; // practice games against Pond Bot aren't part of your record
   e.players.forEach((p, i) => {
     if (!p.uid) return;
     const o = e.players[1 - i] || {};
     if (!played.has(p.uid)) played.set(p.uid, []);
-    played.get(p.uid).push({ at: e.endedAt, set: e.set, ranked: !!e.ranked, ...(e.practice ? { practice: true } : {}), won: !!p.won, hearts: p.hearts, rounds: e.rounds,
+    played.get(p.uid).push({ at: e.endedAt, set: e.set, ranked: !!e.ranked, won: !!p.won, hearts: p.hearts, rounds: e.rounds,
       ...(p.delta != null ? { delta: p.delta } : {}), ...(e.forfeit != null ? { left: e.forfeit === i ? 'me' : 'opp' } : {}),
       opp: { name: o.name || 'Frog', avatar: o.avatar || cleanAvatar(), uid: o.uid || '' } });
   });
@@ -369,14 +369,14 @@ http.createServer(async (req, res) => {
       return json(res, 200, { name: pr.name, avatar: pr.avatar });
     }
     if (url.pathname === '/api/card') {
-      // A profile (yours, or another player's by pid): rank, a few numbers and recent games (practice games are listed but don't count in the numbers)
+      // A profile (yours, or another player's by pid): rank, a few numbers and recent games (practice doesn't count)
       const of = b.of ? uidOf(String(b.of)) : uid, pr = profiles[of];
       if (!of || !pr) return json(res, 404, { error: 'No such player' });
       const games = played.get(of) || [];
       return json(res, 200, {
         pid: pidOf(of), mine: of === uid, name: pr.name || 'Frog', avatar: cleanAvatar(pr.avatar),
         rank: R.rankOf(of, profiles),
-        stats: { played: games.filter((g) => !g.practice).length, won: games.filter((g) => g.won && !g.practice).length },
+        stats: { played: games.length, won: games.filter((g) => g.won).length },
         history: games.slice(-30).reverse().map(({ opp: { uid: ou, ...o }, ...g }) => ({ ...g, opp: { ...o, ...(ou ? { pid: pidOf(ou) } : {}) } })),
       });
     }
