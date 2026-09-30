@@ -2097,11 +2097,20 @@ function route() {
   if (!sess) return showHome();
   if (!S || busy || playing) return;
   const lb = S.lastBattle;
-  if (lb && lb.id !== localStorage[seenKey()]) { const pre = preBattle(lb); return pre ? pre.then(() => playBattle(lb)) : playBattle(lb); }
+  if (lb && lb.id !== localStorage[seenKey()]) { const pre = preBattle(lb); return (pre ? pre.catch(() => {}).then(() => watchBattle(lb)) : watchBattle(lb)); }
   if (S.phase === 'over' && overGame == null) overGame = S.game;
   if (overGame != null) return showOver();
   if (S.phase === 'waiting') return showWaiting();
   showGame();
+}
+// Plays a battle; if anything in it goes wrong, the battle counts as watched and the game carries on (else
+// `playing` would stay on: no next screen, and the shop frozen on Waiting… until a reload)
+function watchBattle(lb) {
+  return playBattle(lb).catch((e) => {
+    console.error(e);
+    localStorage[seenKey()] = lb.id; playing = false; Snd.duck(false);
+    route();
+  });
 }
 function mount(name, node) {
   const root = $('#root'); root.innerHTML = ''; root.appendChild(node); screen = name; syncBack();
