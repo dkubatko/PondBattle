@@ -3199,7 +3199,9 @@ let readying = false;
 function toggleReady() {
   if (!S || readying || playing) return;
   // readying says which way it's going ('ready' / 'unready'), so the button shows where it's headed at once
-  const settle = async (to, fn) => { readying = to; updateButtons(); updateHeader(); try { await fn(); } finally { readying = false; if (S && screen === 'game') { updateButtons(); updateHeader(); } } };
+  // (the header only redraws when no battle is waiting: if your Ready started one, the answer is already the next
+  // round, with its hearts and round number, which must wait until the battle has been watched)
+  const settle = async (to, fn) => { readying = to; updateButtons(); updateHeader(); try { await fn(); } finally { readying = false; if (S && screen === 'game') { updateButtons(); if (!battleNext()) updateHeader(); } } };
   if (S.me.ready) { Snd.unready(); return run(() => settle('unready', () => act({ type: 'unready' }))); }
   return run(async () => {
     if (!S.me.team.some(Boolean) && !(await ask('Your pond is empty', 'Ready anyway?', 'Ready', 'Keep shopping'))) return;
