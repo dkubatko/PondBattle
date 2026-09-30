@@ -1858,15 +1858,14 @@ const Snd = (() => {
     queueMusic();
     if (!timer) timer = setInterval(queueMusic, 500);
   }
+  // Turning music off stops it at once (a few milliseconds of fade, so it doesn't click)
   function stopMusic() {
     if (!ctx) return;
-    mus.gain.cancelScheduledValues(ctx.currentTime); mus.gain.setTargetAtTime(0, ctx.currentTime, .2);
-    setTimeout(() => {
-      if (musicOn) return;
-      clearInterval(timer); timer = null;
-      for (const s of queued.splice(0)) try { s.stop(); } catch {}
-      segAt = 0;
-    }, 900);
+    clearInterval(timer); timer = null;
+    const t = ctx.currentTime;
+    mus.gain.cancelScheduledValues(t); mus.gain.setValueAtTime(mus.gain.value, t); mus.gain.linearRampToValueAtTime(0, t + .015);
+    for (const s of queued.splice(0)) try { s.stop(t + .02); } catch {}
+    segAt = 0;
   }
   api.init = init;
   api.music = () => musicOn;
@@ -1977,7 +1976,7 @@ function sheet(html, cls = '') {
 function ask(title, text, yes, no = 'Cancel', danger = false) {
   return new Promise((resolve) => {
     const s = sheet(`<h2>${esc(title)}</h2>${text ? `<p>${esc(text)}</p>` : ''}<div class="btns two"><button class="btn ghost" data-a="0">${esc(no)}</button><button class="btn ${danger ? 'blossom' : ''}" data-a="1">${esc(yes)}</button></div>`);
-    s.el.addEventListener('click', (e) => { const b = e.target.closest('[data-a]'); if (b || e.target === s.el) { s.close(); resolve(b ? b.dataset.a === '1' : false); } });
+    s.el.addEventListener('click', (e) => { const b = e.target.closest('[data-a]'); if (b || e.target === s.el) { if (b) Snd.tap(); s.close(); resolve(b ? b.dataset.a === '1' : false); } });
   });
 }
 
@@ -2154,7 +2153,7 @@ function showHome(msg, page) {
   // Music on/off, the same switch as in a game
   const drawMusic = () => { const b = $('#homeMusic'); if (!b) return; b.innerHTML = ICON.music(Snd.music()); b.classList.toggle('off', !Snd.music()); };
   drawMusic();
-  $('#homeMusic').onclick = () => { Snd.setMusic(!Snd.music()); drawMusic(); };
+  $('#homeMusic').onclick = () => { Snd.tap(); Snd.setMusic(!Snd.music()); drawMusic(); };
   longPress($('#homeMusic'), soundInfo);
   // Your rank and name; tap for your profile
   // Your rank and name on a tag above your frog
@@ -2173,7 +2172,7 @@ function showHome(msg, page) {
       <button class="btn wide" id="go" ${name ? '' : 'disabled'}>Continue</button>`;
     const inp = $('#name'), go = $('#go');
     inp.addEventListener('input', () => { go.disabled = !inp.value.trim(); });
-    const next = async () => { const n = inp.value.trim(); if (!n) return; await saveProfile(n, myAvatar()); lobbyStep(); };
+    const next = async () => { const n = inp.value.trim(); if (!n) return; Snd.tap(); await saveProfile(n, myAvatar()); lobbyStep(); };
     go.onclick = next; inp.addEventListener('keydown', (e) => { if (e.key === 'Enter') next(); });
   };
   const enter = enterRoom;
@@ -2397,6 +2396,7 @@ function showWaiting() {
   </div>`);
   mount('waiting', node);
   $('#share').onclick = async () => {
+    Snd.tap();
     // In Telegram: the share sheet with an invite ("Let's play Pond Brawl!" and a Join button that opens the
     // game in this pond). Telegram apps too old for cards get the same invite as a link message.
     if (TG && ME.bot) {
@@ -2414,7 +2414,7 @@ function showWaiting() {
       else { await navigator.clipboard.writeText(link); toast('Invite link copied'); }
     } catch {}
   };
-  $('#leave').onclick = () => endGame(S.code, true);
+  $('#leave').onclick = () => { Snd.tap(); endGame(S.code, true); };
   $('#wset').onclick = () => { Snd.tap(); openSetInfo(S.set); };
 }
 // Swipe a lobby row left to reveal its End button, or all the way (past half the row) to end it right away.
@@ -2513,7 +2513,7 @@ function buildGame() {
   </div>`);
   mount('game', node);
   prevTeam = []; prevShop = []; prevFood = undefined;
-  $('#musicBtn').onclick = () => { Snd.setMusic(!Snd.music()); updateHeader(); };
+  $('#musicBtn').onclick = () => { Snd.tap(); Snd.setMusic(!Snd.music()); updateHeader(); };
   longPress($('#musicBtn'), soundInfo);
   $('#menuBtn').onclick = openMenu;
   $('#rollBtn').onclick = roll;
@@ -2755,6 +2755,7 @@ function updateButtons() {
   if (yb.className !== ycls) yb.className = ycls;
   const yl = $('.lbl', yb), yt = me.ready ? 'Waiting…' : 'Ready';
   if (yl.textContent !== yt) yl.textContent = yt;
+  if (yb.disabled !== readying) yb.disabled = readying;
 }
 function updateTargets() {
   const me = S.me, dragging = drag && drag.started;
@@ -3111,19 +3112,27 @@ function lockShop() {
     await act({ type: 'lock' });
   });
 }
+// From tapping Ready (or Waiting…) until the server has answered and the team has landed, the button is off:
+// if your partner was already ready, the answer is the next round's shop, and a second tap would ready you for
+// it before the battle even shows
+let readying = false;
 function toggleReady() {
-  if (!S) return;
-  if (S.me.ready) { Snd.unready(); return run(() => act({ type: 'unready' })); }
+  if (!S || readying) return;
+  const settle = async (fn) => { readying = true; updateButtons(); try { await fn(); } finally { readying = false; if (S && screen === 'game') updateButtons(); } };
+  if (S.me.ready) { Snd.unready(); return run(() => settle(() => act({ type: 'unready' }))); }
   return run(async () => {
     if (!S.me.team.some(Boolean) && !(await ask('Your pond is empty', 'Ready anyway?', 'Ready', 'Keep shopping'))) return;
-    sel = null; Snd.ready();
-    updateBubble();
-    // The whole team hops together; the battle (if your partner is already ready, it starts right away)
-    // waits for them to land, since run() holds the next screen until this finishes
-    const hops = $$('.pad .frog').map((f) => { f.style.transformOrigin = '50% 100%'; return anim(f, [{ transform: 'none' }, { transform: 'translateY(-12px)', offset: .4 }, { transform: 'none' }], { duration: 380, easing: 'ease-out' }); });
-    await act({ type: 'ready' });
-    await Promise.all(hops);
+    await settle(readyUp);
   });
+}
+async function readyUp() {
+  sel = null; Snd.ready();
+  updateBubble();
+  // The whole team hops together; the battle (if your partner is already ready, it starts right away)
+  // waits for them to land, since run() holds the next screen until this finishes
+  const hops = $$('.pad .frog').map((f) => { f.style.transformOrigin = '50% 100%'; return anim(f, [{ transform: 'none' }, { transform: 'translateY(-12px)', offset: .4 }, { transform: 'none' }], { duration: 380, easing: 'ease-out' }); });
+  await act({ type: 'ready' });
+  await Promise.all(hops);
 }
 // One continuous hop: position eases in-out over the whole trip while the height follows a
 // parabola, sampled into keyframes (so there's no stop at the top of the arc and no corner).
@@ -3440,7 +3449,7 @@ function openMenu() {
   s.el.addEventListener('click', (e) => {
     const b = e.target.closest('[data-m]'); if (!b) return;
     const m = b.dataset.m;
-    if (m === 'music') { Snd.setMusic(!Snd.music()); $('.switch', b).classList.toggle('on', Snd.music()); if (screen === 'game') updateHeader(); }
+    if (m === 'music') { Snd.tap(); Snd.setMusic(!Snd.music()); $('.switch', b).classList.toggle('on', Snd.music()); if (screen === 'game') updateHeader(); }
     if (m === 'sfx') { Snd.setSfx(!Snd.sfxOn()); $('.switch', b).classList.toggle('on', Snd.sfxOn()); Snd.tap(); }
     if (m === 'guide') { Snd.tap(); openGuide(); } // opens on top of the menu; closing it comes back here
     if (m === 'name') { Snd.tap(); openCard(); }
@@ -3524,7 +3533,7 @@ function pickSet(title, go, o = {}) {
     const c = e.target.closest('[data-pick]');
     if (c) { Snd.tap(); row.scrollTo({ left: offsetOf(+c.dataset.n), behavior: 'smooth' }); return; } // a side card comes to the middle
     if (e.target.closest('[data-a="go"]')) {
-      localStorage[store] = set; s.close();
+      Snd.tap(); localStorage[store] = set; s.close();
       // Play matches "any" itself; a practice game or a lobby gets a random set
       go(set === 'any' && !o.play ? SET_IDS[Math.floor(Math.random() * SET_IDS.length)] : set);
     }
@@ -3689,11 +3698,11 @@ async function playBattle(lb) {
   const spd = $('#spd');
   const setSpd = () => { spd.textContent = speed === 1 ? 'Speed 1×' : 'Speed 2×'; };
   setSpd();
-  spd.onclick = () => { speed = speed === 1 ? 2 : 1; localStorage.frogSpeed = speed; setSpd(); };
+  spd.onclick = () => { Snd.tap(); speed = speed === 1 ? 2 : 1; localStorage.frogSpeed = speed; setSpd(); };
   // tools/screen.py steps through a battle: look(k) is called before frame k plays and answers with the speed to
   // play at (it can also hold the battle while it takes a picture). Players never have it.
   const look = window.pbLook;
-  $('#skip').onclick = () => { skipping = true; if (wake) wake(); };
+  $('#skip').onclick = () => { Snd.tap(); skipping = true; if (wake) wake(); };
   const wait = (ms) => (skipping ? Promise.resolve() : new Promise((r) => { wake = r; setTimeout(r, ms / speed); }));
   const dur = (ms) => ms / speed;
 
@@ -4086,13 +4095,15 @@ function showOver() {
   mount('over', node);
   $('#root').dataset.k = key; $('#root').dataset.won = wasWin ? '1' : '0';
   if (!restarted) { if (wasWin) { Snd.fanfare(); petals(34); } else Snd.lose(); }
-  $('#again').onclick = async () => {
+  $('#again').onclick = async (e) => {
+    if (e.currentTarget.disabled) return;
+    e.currentTarget.disabled = true; // once: a second tap would ask for a second rematch
     Snd.plop();
     if (S.ranked) { forget(); return startSearch(localStorage.frogPlaySet || 'any'); } // ranked: a new match, not a rematch
     if (S.phase === 'over') await act({ type: 'rematch' });
     overGame = null; shownRound = 0; route();
   };
-  $('#leave').onclick = () => forget(); // the game is over: back to the home page
+  $('#leave').onclick = () => { Snd.tap(); forget(); }; // the game is over: back to the home page
   const oc = $('#overOpp'); if (oc && opp.pid) oc.onclick = () => { Snd.tap(); openCard({ of: opp.pid }); };
 }
 
