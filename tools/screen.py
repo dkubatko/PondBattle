@@ -33,7 +33,8 @@ Options:
   --log              battle: print the battle's frames (number, kind, caption)
   --sizes all|WxH,.. default 393x710; all = 393x710,440x820,375x600
   --webkit / --both  WebKit only / Chromium and WebKit (default Chromium)
-  --do STEP          (repeatable) tap:CSS | click:TEXT | drag:CSS>CSS | eval:JS | wait:MS | until:JS (wait for it)
+  --do STEP          (repeatable) tap:CSS | click:TEXT | drag:CSS>CSS | eval:JS (prints its result) | wait:MS |
+                     until:JS (wait for it)
   --fresh            a first-time player (onboarding hints on)
   --text             print the text on screen
   --no-shot          no screenshots (report and text only)
@@ -250,7 +251,9 @@ def step(p, s):
     if kind == 'tap': p.locator(arg).first.click()
     elif kind == 'click': p.get_by_text(arg).first.click()
     elif kind == 'drag': a, b = arg.split('>', 1); p.locator(a).first.drag_to(p.locator(b).first)
-    elif kind == 'eval': p.evaluate(arg)
+    elif kind == 'eval':
+        r = p.evaluate(arg)
+        if r is not None: print(f'  eval: {json.dumps(r)[:1500]}')
     elif kind == 'wait': p.wait_for_timeout(int(arg))
     elif kind == 'until': p.wait_for_function(arg, timeout=60000, polling=50)
     else: raise SystemExit(f'--do {s}: use tap:CSS, click:TEXT, drag:CSS>CSS, eval:JS, wait:MS or until:JS')

@@ -2818,8 +2818,7 @@ function updateButtons() {
   if (mb.disabled !== off) mb.disabled = off;
   const l = $('.lbl', mb); if (l.textContent !== label) l.textContent = label;
   setHTML($('.amt', mb), amt === '' ? '' : coinBadge(amt));
-  const ycls = waiting ? 'btn ready-wait' : 'btn';
-  if (yb.className !== ycls) yb.className = ycls;
+  yb.classList.toggle('ready-wait', waiting); // (only this class: the ready clock's classes live on the button too)
   const yl = $('.lbl', yb), yt = waiting ? 'Waiting…' : 'Ready';
   if (yl.textContent !== yt) yl.textContent = yt;
   if (yb.disabled !== held) yb.disabled = held;
