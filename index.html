@@ -165,6 +165,11 @@ input:focus { border-color: var(--firefly); outline: none; }
   box-shadow: inset -5px -6px 10px rgba(140, 120, 80, .28), 0 0 40px 10px rgba(255, 236, 190, .18); }
 .hero .leafbig { position: absolute; bottom: 0; left: 50%; width: 132px; height: 52px; transform: translateX(-50%); background: var(--leaf) center / contain no-repeat; }
 .hero .frog { margin-bottom: 13px; } /* feet near the middle of the pad */
+/* The home page's frog (yours) is a third bigger than the other screens' */
+.hero.lg { height: 160px; }
+.hero.lg.tagged { height: 188px; }
+.hero.lg .leafbig { width: 176px; height: 69px; }
+.hero.lg .frog { margin-bottom: 17px; }
 /* Home: your rank and name on a little tag just above your frog (the moon moves aside to make room) */
 /* Home: your rank and name on a little tag just above your frog; drawHero() sets its height from the frog's (hats
    included). The hero is tall enough for the tallest frog (a tall one under an umbrella); the moon moves aside. */
@@ -2163,7 +2168,7 @@ function showHome(msg, page) {
     <button class="ib board-btn" id="boardBtn" aria-label="Leaderboard">${ICON.trophy}</button>
     <button class="ib home-music" id="homeMusic" aria-label="Music"></button>
     <button class="ib help-btn" id="helpBtn" aria-label="How to play">?</button>
-    <button class="hero" id="heroBtn" aria-label="Your profile"><div class="moon"></div><span class="nametag" id="heroTag"></span><div class="leafbig" id="heroPad"></div><span id="heroAv"></span></button>
+    <button class="hero lg" id="heroBtn" aria-label="Your profile"><div class="moon"></div><span class="nametag" id="heroTag"></span><div class="leafbig" id="heroPad"></div><span id="heroAv"></span></button>
     <h1>Pond Brawl</h1>
     <div class="panel" id="panel"></div>
   </div>`);
@@ -2173,9 +2178,9 @@ function showHome(msg, page) {
   // Your frog on its pad; the name tag sits just above whatever your frog is wearing (measured still, before it starts breathing)
   const drawHero = () => {
     const av = myAvatar(), slot = $('#heroAv');
-    slot.innerHTML = avatarHTML(av, 84, { id: 7 });
+    slot.innerHTML = avatarHTML(av, 112, { id: 7 });
     $('#heroTag').style.bottom = `${Math.round(paintedHeight(slot, $('#heroBtn'))) + 7}px`;
-    slot.innerHTML = avatarHTML(av, 84, { idle: true, id: 7 });
+    slot.innerHTML = avatarHTML(av, 112, { idle: true, id: 7 });
     $('#heroPad').style.setProperty('--leaf', padURL(av));
   };
   drawHero();

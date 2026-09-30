@@ -292,7 +292,7 @@ def step(p, s):
     elif kind == 'drag': a, b = arg.split('>', 1); p.locator(a).first.drag_to(p.locator(b).first)
     elif kind == 'eval':
         r = p.evaluate(arg)
-        if r is not None: print(f'  eval: {json.dumps(r)[:1500]}')
+        if r is not None: print(f'  eval: {json.dumps(r)[:200000]}')
     elif kind == 'wait': p.wait_for_timeout(int(arg))
     elif kind == 'until': p.wait_for_function(arg, timeout=60000, polling=50)
     elif kind == 'rival' and RIVAL: RIVAL[0].act(RIVAL[1], {'type': arg})
