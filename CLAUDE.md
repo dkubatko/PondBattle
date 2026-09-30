@@ -30,26 +30,26 @@ Home infrastructure (Tower, Docker, Nginx Proxy Manager, Cloudflare) is describe
   "Abiba" (a seeded Frog Legend with fake history): never log in as it and save anything.
 - A server reloads open phones whenever `index.html` in its own checkout changes. Changes to
   `engine.js`, `server.js`, `ranks.js` or the JSON files need a restart.
-- Browser checks use Playwright with the installed Chromium, at 393×710 and 440×820 (iPhones in Telegram)
-  and 375×600 (short screens). Freeze animations before screenshots (`* { animation: none !important }`):
-  a mid-blink frame looks like a bug. Chrome is not iPhone WebKit (see Pitfalls). For iPhone-only bugs,
-  ask the user for a screen recording.
+- Look at screens with `tools/look.py <scene>` (`--help` lists scenes and options): it sets up the state
+  through a throwaway server of its own, captures in Chromium and WebKit (`--both`) at 393×710 and
+  440×820 (iPhones in Telegram) and 375×600 (short screens) (`--sizes all`), and reports page errors,
+  console errors, failed requests and sideways scrolling. It freezes animations (a mid-blink frame looks
+  like a bug). WebKit is the Safari engine but not iPhone Telegram: for iPhone-only bugs, ask the user for
+  a screen recording. For anything the tool doesn't cover, extend it rather than writing a throwaway script.
 
 ## Before pushing
 
 1. Rebase onto `origin/main`; `git diff` shows only your changes.
 2. The Dockerfile copies an explicit list of files. A new runtime file must be added there. Start the
    server from exactly those files to be sure it boots (a missing `sets.json` once took prod down).
-3. Battles or balance touched: run `node tools/simulate.js` and replay scripted battles in the browser
-   with no page errors.
-4. UI touched: check the affected screens at the phone sizes above, with no page errors.
+3. Battles or balance touched: run `node tools/simulate.js` and watch a battle with `tools/look.py battle`
+   (no errors reported).
+4. UI touched: `tools/look.py <scene> --sizes all --both` for the affected screens, with no errors reported.
 5. Chain checks, commit and push with `&&`, never `;` (a `;` chain once pushed despite a failed test).
-6. After pushing, confirm prod with read-only requests only: the page contains a string from your change
-   (for engine- or server-only changes:
-   `ssh tower "docker exec pondbattle-pondbattle-1 grep -c '<string>' /app/engine.js"`), and
-   `GET /api/health` returns ok. Health alone doesn't say which build is serving. Never POST to prod to
-   check it: even `/api/me` creates a guest profile in the live data. If prod is down, look at the
-   container on Tower and fix it directly rather than waiting.
+6. After pushing, confirm prod with a read-only request: `GET https://pondbattle.3rdplacelounge.com/api/health`
+   returns ok and `commit` equals your pushed `git rev-parse HEAD` (the build takes a few minutes). Never
+   POST to prod to check it: even `/api/me` creates a guest profile in the live data. If prod is down, look
+   at the container on Tower and fix it directly rather than waiting.
 
 ## Balance
 

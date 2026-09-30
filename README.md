@@ -15,9 +15,10 @@
 | `frogs.json`, `items.json` | Stats, tiers and prices |
 | `sets.json` | Frog sets: which frogs a pond's shop sells (picked when the pond is made) |
 | `tools/simulate.js` | Balance report: plays full games (about 1M battles in ~20 s) on the working tree and reports how every frog and item does; A/B against a git ref (`--base`) or candidate stats (`--try`). Changes nothing |
+| `tools/look.py` | Screenshots of any screen (home, sheets, shop in round N, a battle mid-play, game over) in Chromium and WebKit at phone sizes, with page errors, console errors, failed requests and sideways scrolling. Runs its own throwaway server from the working tree |
 | `deploy/compose.yaml` | How it runs on Tower |
 
-No dependencies: plain Node (20+).
+No dependencies: plain Node (20+). `tools/look.py` needs Playwright for Python (on the NUC: the shared venv, which it finds on its own).
 
 ## Run locally
 
@@ -26,12 +27,13 @@ node server.js                 # http://localhost:8420 (browser guests; no bot)
 node tools/simulate.js                          # balance report (working tree, every set)
 node tools/simulate.js --base origin/main       # A/B: your uncommitted changes against main
 node tools/simulate.js --try "king.hp=7"        # A/B: candidate stats without editing files
+tools/look.py shop --round 4 --sizes all --both # screenshots + errors (--help lists scenes and options)
 ```
 
 State goes to `./data` (`DATA_DIR`): `rooms.json`, `profiles.json`, `games.jsonl`, `secret`. It is not in git.
 
 Environment: `TELEGRAM_BOT_TOKEN`, `PUBLIC_URL` (https, needed for the Telegram buttons),
-`ALLOW_GUESTS` (default on), `PORT` (8420), `DATA_DIR`, `TELEGRAM_POLL=0` (check Telegram sign-in without
+`ALLOW_GUESTS` (default on), `PORT` (8420), `DATA_DIR`, `BOT_DELAY_MS` (fixed Pond Bot delay, for tests), `TELEGRAM_POLL=0` (check Telegram sign-in without
 listening to the bot, for local testing with the real token). See `.env.example`.
 
 ## Players
@@ -54,4 +56,4 @@ Telegram id. The trophy button opens the global leaderboard (top 50).
 Pushing to `main` builds `ghcr.io/dkubatko/pondbattle:latest` (GitHub Actions). On Tower,
 `/mnt/cache/appdata/pondbattle` holds `compose.yaml` (from `deploy/`), `.env` and `data/`.
 Watchtower pulls new images within a minute. Nginx Proxy Manager forwards the public hostname to
-port 18420.
+port 18420. `GET /api/health` says which commit is serving (`commit`; `dev` outside the image).

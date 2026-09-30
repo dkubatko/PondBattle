@@ -143,6 +143,8 @@ function nudge(room) {
 // ---------- Practice: Pond Bot shops on its own, then readies up ----------
 const botTimers = new Map(); // room code -> pending turn
 function newBot() { const b = { ...newPlayer(''), name: 'Pond Bot', avatar: { b: 'round', c: 3, l: 'dew', lc: 3 }, bot: true }; return b; }
+// How long the Pond Bot "thinks" before it's ready; BOT_DELAY_MS sets a fixed delay (tools/look.py uses 0)
+const BOT_DELAY = process.env.BOT_DELAY_MS ? +process.env.BOT_DELAY_MS : null;
 function scheduleBot(room) {
   const bot = room.players.find((x) => x.bot);
   if (!bot || room.phase !== 'shop' || bot.ready || botTimers.has(room.code)) return;
@@ -152,7 +154,7 @@ function scheduleBot(room) {
     botShop(room, bot);
     act(room, bot, { type: 'ready' });
     changed(room);
-  }, 1500 + rand(2000)));
+  }, BOT_DELAY ?? 1500 + rand(2000)));
 }
 const act = (room, p, a) => E.act(room, p, a);
 
@@ -287,7 +289,8 @@ http.createServer(async (req, res) => {
     if (req.method === 'GET' && url.pathname.startsWith('/static/')) {
       return sendFile(res, path.join(STATIC, path.basename(url.pathname)), 'public, max-age=86400');
     }
-    if (url.pathname === '/api/health') return json(res, 200, { ok: true });
+    // commit: the git commit this image was built from ('dev' outside the image); page: the page build clients see
+    if (url.pathname === '/api/health') return json(res, 200, { ok: true, commit: process.env.COMMIT || 'dev', page: currentPage().build });
     if (url.pathname === '/api/lobby') {
       // Your own games, then ponds waiting on the same network as you ("nearby"). Ponds from other networks are
       // not listed; those are joined by invite, and strangers meet through Play (matchmaking)
