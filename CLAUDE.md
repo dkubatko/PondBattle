@@ -146,6 +146,12 @@ Home infrastructure (Tower, Docker, Nginx Proxy Manager, Cloudflare) is describe
   avoid filters on animated frogs.
 - iPhone audio: fade the gain out before suspending or closing the AudioContext; cutting off mid-note
   buzzes when the app is swiped away.
+- Sound (`Snd` in `index.html`): effects and the lullaby are synthesized once into buffers
+  (OfflineAudioContext) after the first tap and played as buffer sources; music passages are queued ~3 s
+  ahead on the audio clock, never by page timers. The audio session is "ambient" (the user's choice): the
+  game mixes with other apps' audio and respects the silent switch, so don't reintroduce "playback" or the
+  silent `<audio>` trick. Long-press a music button for the sound readout (engine state, mode, recent
+  events): ask the user for a screenshot of it when sound breaks on a phone.
 - Use component-prefixed CSS class names: generic names (`.ghost`, `.top`, `.bubble`) have collided.
 - Highlight rings use borders, not box-shadow: iPhone WebKit painted pulsing box-shadows as rectangles.
 - The bot token lives outside the repo (`~/claude/workspace/.env`). Never commit it. Only one process may

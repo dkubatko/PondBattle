@@ -437,6 +437,10 @@ h1 { margin: 0; text-align: center; font-size: 40px; font-weight: 900; line-heig
 .guide-sec { margin: 18px 0 8px; font-size: 15px; color: var(--firefly); font-weight: 900; overflow-wrap: anywhere; }
 .guide-row { display: flex; align-items: center; gap: 12px; padding: 6px 0; }
 .guide-row .gfrog { flex: none; width: 60px; display: flex; justify-content: center; }
+.snd-row { display: flex; justify-content: space-between; gap: 12px; padding: 7px 0; border-bottom: 1px solid rgba(245, 237, 214, .08); font-size: 15px; color: var(--moon-dim); }
+.snd-row b { color: var(--moon); font-weight: 800; text-align: right; }
+.snd-log { font-size: 13px; line-height: 1.6; color: var(--moon-dim); -webkit-user-select: text; user-select: text; }
+.snd-log span { display: inline-block; min-width: 34px; color: rgba(245, 237, 214, .4); }
 .guide-row .gname .coinb { margin-left: 4px; vertical-align: 1px; }
 /* the lineup names a frog's level beside its name (the tag above its picture would reach into the row above) */
 .guide-row .gfrog .lvl { display: none; }
@@ -1580,11 +1584,20 @@ function diffWords(a, b) {
 // Sound: small WebAudio synth for effects and a music-box lullaby
 // =====================================================================
 const Snd = (() => {
-  let ctx = null, out, sfx, mus, musIn, noiseBuf, timer = null, nextT = 0, step = 0, phrase = null, seed = 7;
+  let ctx = null, out, sfx, mus, musIn, noiseBuf, timer = null, phrase = null, seed = 7;
   let musicOn = localStorage.frogMusic !== '0', sfxOn = localStorage.frogSfx !== '0', ducked = false;
   const mtof = (m) => 440 * Math.pow(2, (m - 69) / 12);
   const MUS_VOL = .85;
 
+  // ---- How sound works ----
+  // Every sound is synthesized, but not live: the first tap renders each effect once into a buffer, and the
+  // lullaby into three 16-bar passages, by running the same synthesis code against an OfflineAudioContext.
+  // Playing is then one buffer source per sound, and music passages are queued a few seconds ahead on the
+  // audio clock, so a busy page (battle animations, a slow phone, Low Power Mode) can't make it stutter.
+  // Anything not rendered yet plays live, as before.
+  // The audio session is "ambient" (the user's choice): the game mixes with other apps' audio (a podcast keeps
+  // playing) and goes quiet with the silent switch.
+  //
   // ---- Keeping audio alive on iPhone (WebKit) ----
   // WebKit can leave an AudioContext "interrupted", fail resume() after a background stall
   // ("Failed to start the audio device"), or report "running" while its clock is frozen after
@@ -1592,27 +1605,32 @@ const Snd = (() => {
   // A watchdog checks the clock; a frozen context gets a suspend/resume, and if that doesn't
   // help (or resume fails), the next tap builds a brand-new context.
   const AC = window.AudioContext || window.webkitAudioContext;
-  let askedAt = 0, needsFresh = false, lastCt = -1, repairTried = false, media = null;
+  let askedAt = 0, needsFresh = false, lastCt = -1, repairTried = false;
+  // A short history of what the sound engine did, for the sound readout (long-press a music button)
+  const events = [];
+  const note = (what) => { events.push([Date.now(), what]); if (events.length > 12) events.shift(); };
   function fresh() {
     try { if (ctx && ctx.state !== 'closed') ctx.close().catch(() => {}); } catch {}
-    clearInterval(timer); timer = null; ctx = null;
+    clearInterval(timer); timer = null; ctx = null; queued.length = 0; segAt = 0;
     needsFresh = false; askedAt = 0; lastCt = -1; repairTried = false;
     build();
   }
   // The page is going away: close the context (the next tap, if the page comes back, builds a fresh one)
   function shut() {
     try { ctx.close().catch(() => {}); } catch {}
-    clearInterval(timer); timer = null; ctx = null; needsFresh = true;
+    clearInterval(timer); timer = null; ctx = null; needsFresh = true; queued.length = 0; segAt = 0; note('closed (page left)');
   }
   function kick() {
-    ctx.resume().then(() => { askedAt = 0; }, () => { needsFresh = true; });
+    ctx.resume().then(() => { askedAt = 0; }, () => { needsFresh = true; note('resume failed'); });
     try { const b = ctx.createBufferSource(); b.buffer = ctx.createBuffer(1, 1, 22050); b.connect(ctx.destination); b.start(0); } catch {}
   }
   // Called on every tap: WebKit only starts audio inside a real user gesture
   function init() {
     if (!AC || document.hidden) return;
-    unlockMedia();
-    if (!ctx || needsFresh || ctx.state === 'closed' || (askedAt && ctx.state !== 'running' && performance.now() - askedAt > 1000)) { fresh(); kick(); return; }
+    if (!ctx || needsFresh || ctx.state === 'closed' || (askedAt && ctx.state !== 'running' && performance.now() - askedAt > 1000)) {
+      note(!ctx ? 'started' : needsFresh ? 'rebuilt (was stuck)' : ctx.state === 'closed' ? 'rebuilt (was closed)' : 'rebuilt (wouldn’t resume)');
+      fresh(); kick(); return;
+    }
     if (ctx.state === 'running') { askedAt = 0; return; }
     if (!askedAt) askedAt = performance.now();
     kick();
@@ -1622,37 +1640,38 @@ const Snd = (() => {
     const ct = ctx.currentTime;
     if (lastCt >= 0 && ct >= lastCt && ct - lastCt < .25) {
       // "running" but the clock isn't moving: the context is silently dead
-      if (!repairTried) { repairTried = true; lastCt = -1; ctx.suspend().then(() => ctx && ctx.resume()).catch(() => { needsFresh = true; }); return; }
+      if (!repairTried) { repairTried = true; lastCt = -1; note('clock frozen: restarting it'); ctx.suspend().then(() => ctx && ctx.resume()).catch(() => { needsFresh = true; }); return; }
+      if (!needsFresh) note('clock still frozen: rebuild on next tap');
       needsFresh = true;
     } else if (lastCt >= 0) { repairTried = false; needsFresh = false; }
     lastCt = ct;
   }, 1000);
-  // Silent switch: Safari 17+ plays through it with audioSession "playback". Where that API is
-  // missing, a looping silent <audio> element puts the page in the playback session instead.
-  function unlockMedia() {
-    const iOS = /iP(hone|ad|od)/.test(navigator.userAgent) || (navigator.platform === 'MacIntel' && navigator.maxTouchPoints > 1);
-    if (!iOS || navigator.audioSession || media) return;
-    media = document.createElement('audio');
-    media.setAttribute('playsinline', ''); media.loop = true; media.disableRemotePlayback = true;
-    media.src = 'data:audio/wav;base64,UklGRmQAAABXQVZFZm10IBAAAAABAAEAQB8AAEAfAAABAAgAZGF0YUAAAACAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICA';
-    media.play().catch(() => { media = null; });
-  }
   function build() {
-    try { if (navigator.audioSession) navigator.audioSession.type = 'playback'; } catch {}
+    try { if (navigator.audioSession) navigator.audioSession.type = 'ambient'; } catch {}
     ctx = new AC();
-    ctx.onstatechange = () => { if (ctx && ctx.state === 'running') askedAt = 0; };
+    const c = ctx;
+    c.onstatechange = () => { if (c !== ctx) return; if (c.state === 'running') askedAt = 0; note(c.state); };
     const comp = ctx.createDynamicsCompressor(); comp.threshold.value = -16; comp.ratio.value = 3; comp.connect(ctx.destination);
     out = ctx.createGain(); out.gain.value = .9; out.connect(comp);
     sfx = ctx.createGain(); sfx.gain.value = sfxOn ? .8 : 0; sfx.connect(out);
     mus = ctx.createGain(); mus.gain.value = 0; mus.connect(out);
-    musIn = ctx.createGain(); musIn.connect(mus);
-    // Soft echo for the music box
-    const d = ctx.createDelay(2), fb = ctx.createGain(), lp = ctx.createBiquadFilter(), send = ctx.createGain();
-    d.delayTime.value = 60 / 66 * .75; fb.gain.value = .33; lp.type = 'lowpass'; lp.frequency.value = 2000; send.gain.value = .32;
-    musIn.connect(send); send.connect(d); d.connect(lp); lp.connect(fb); fb.connect(d); lp.connect(mus);
-    noiseBuf = ctx.createBuffer(1, ctx.sampleRate, ctx.sampleRate);
-    const ch = noiseBuf.getChannelData(0); for (let i = 0; i < ch.length; i++) ch[i] = Math.random() * 2 - 1;
+    musIn = echo(ctx, mus);
+    noiseBuf = noiseIn(ctx);
     if (musicOn) startMusic();
+    renderAll();
+  }
+  // The music box's soft echo: returns the input that melody bells play into (the echo feeds `into`)
+  function echo(c, into) {
+    const inp = c.createGain(); inp.connect(into);
+    const d = c.createDelay(2), fb = c.createGain(), lp = c.createBiquadFilter(), send = c.createGain();
+    d.delayTime.value = 60 / 66 * .75; fb.gain.value = .33; lp.type = 'lowpass'; lp.frequency.value = 2000; send.gain.value = .32;
+    inp.connect(send); send.connect(d); d.connect(lp); lp.connect(fb); fb.connect(d); lp.connect(into);
+    return inp;
+  }
+  function noiseIn(c) {
+    const b = c.createBuffer(1, c.sampleRate, c.sampleRate), ch = b.getChannelData(0);
+    for (let i = 0; i < ch.length; i++) ch[i] = Math.random() * 2 - 1;
+    return b;
   }
   const ok = () => ctx && sfxOn && ctx.state === 'running';
   const now = () => ctx.currentTime + .01;
@@ -1718,7 +1737,15 @@ const Snd = (() => {
     fanfare() { const t = now(); [72, 76, 79, 84, 79, 84, 88, 91].forEach((m, i) => bell(t + i * .12, m, .14, 1.6)); },
   };
   const api = {};
-  for (const k in fx) api[k] = (...a) => { if (ok()) fx[k](...a); };
+  const bufs = {}; // effect name -> its rendered sound
+  for (const k in fx) api[k] = (...a) => {
+    if (!ok()) return;
+    const b = bufs[k];
+    if (!b) return fx[k](...a); // not rendered yet: synthesize it live
+    const s = ctx.createBufferSource(); s.buffer = b;
+    if (k === 'ribbit') s.playbackRate.value = a[0] || .9 + Math.random() * .3; // rendered at pitch 1; each croak a little different
+    s.connect(sfx); s.start(now());
+  };
 
   // ---- Lullaby: F major music box over a soft pad ----
   const E = 60 / 66 / 2; // an eighth note at 66 bpm
@@ -1772,33 +1799,85 @@ const Snd = (() => {
     const n = phrase[pb][pos];
     if (n && !quiet) bell(t, n.m, .1, Math.min(2.4, n.len * E * 2.2), musIn);
   }
-  function tick() {
-    if (!ctx || ctx.state !== 'running') return;
-    if (nextT < ctx.currentTime) nextT = ctx.currentTime + .05; // after a pause, pick up from now instead of bunching notes
-    while (nextT < ctx.currentTime + .6) { scheduleStep(step, nextT); step++; nextT += E; }
+  // ---- Rendering ----
+  // Runs synthesis code against an offline context: the module's nodes point at the offline graph while
+  // draw() builds it (synchronously), then everything points back at the live context
+  const OAC = window.OfflineAudioContext || window.webkitOfflineAudioContext;
+  function render(seconds, rate, draw) {
+    const oc = new OAC(1, Math.ceil(seconds * rate), rate), saved = [ctx, sfx, mus, musIn, noiseBuf];
+    ctx = oc; noiseBuf = noiseIn(oc);
+    sfx = oc.createGain(); sfx.connect(oc.destination);
+    mus = oc.createGain(); mus.connect(oc.destination); musIn = echo(oc, mus);
+    try { draw(); } finally { [ctx, sfx, mus, musIn, noiseBuf] = saved; }
+    return new Promise((res, rej) => { oc.oncomplete = (e) => res(e.renderedBuffer); const p = oc.startRendering(); if (p && p.then) p.then(res, rej); });
+  }
+  // cut the silence after a sound ends
+  function trim(b) {
+    const ch = b.getChannelData(0); let n = ch.length;
+    while (n > 1 && Math.abs(ch[n - 1]) < 1e-4) n--;
+    if (n > ch.length - 256) return b;
+    try { const t = new AudioBuffer({ length: n + 128, numberOfChannels: 1, sampleRate: b.sampleRate }); t.copyToChannel(ch.subarray(0, n + 128), 0); return t; } catch { return b; }
+  }
+  // The lullaby: three 16-bar passages (a new melody each, the third starting with a quiet breath), played in a
+  // loop. Each passage renders with a few seconds of tail so its last notes and echo ring into the next.
+  const SEG = 128 * E, TAIL = 4, MUS_RATE = 22050, tunes = [];
+  function renderTune(k) {
+    return render(SEG + TAIL, MUS_RATE, () => {
+      seed = 7 + k; phrase = null;
+      for (let i = 0; i < 128; i++) scheduleStep(k * 128 + i, .05 + i * E);
+    });
+  }
+  let rendered = false;
+  async function renderAll() {
+    if (rendered || !OAC) return; rendered = true;
+    const t0 = performance.now();
+    try {
+      if (musicOn && !tunes[0]) { tunes[0] = await renderTune(0); queueMusic(); }
+      const rate = ctx ? ctx.sampleRate : 44100;
+      for (const k in fx) if (!bufs[k]) bufs[k] = trim(await render(2.8, rate, () => fx[k](k === 'ribbit' ? 1 : undefined)));
+      for (let k = 0; k < 3; k++) if (!tunes[k]) { tunes[k] = await renderTune(k); if (k === 0) queueMusic(); }
+      note(`sounds ready (${Math.round(performance.now() - t0)} ms)`);
+    } catch (e) { note('render failed: ' + (e && e.message || e)); rendered = false; }
+  }
+  // Keeps the next passage queued ~3 s ahead on the audio clock (a late timer can't make it skip)
+  let segAt = 0, segN = 0;
+  const queued = [];
+  function queueMusic() {
+    if (!ctx || ctx.state !== 'running' || !musicOn || !tunes[0]) return;
+    if (segAt < ctx.currentTime) { segAt = ctx.currentTime + .1; segN = 0; } // (re)starting: from the top
+    while (segAt < ctx.currentTime + 3) {
+      const s = ctx.createBufferSource(); s.buffer = tunes[segN % 3] || tunes[0]; s.connect(mus); s.start(segAt);
+      queued.push(s); s.onended = () => { const i = queued.indexOf(s); if (i >= 0) queued.splice(i, 1); };
+      segAt += SEG; segN++;
+    }
   }
   function startMusic() {
     if (!ctx) return;
     mus.gain.cancelScheduledValues(ctx.currentTime);
     mus.gain.setTargetAtTime(MUS_VOL * (ducked ? .55 : 1), ctx.currentTime, .6);
-    if (!timer) { nextT = ctx.currentTime + .15; timer = setInterval(tick, 100); }
+    queueMusic();
+    if (!timer) timer = setInterval(queueMusic, 500);
   }
   function stopMusic() {
     if (!ctx) return;
     mus.gain.cancelScheduledValues(ctx.currentTime); mus.gain.setTargetAtTime(0, ctx.currentTime, .2);
-    setTimeout(() => { if (!musicOn) { clearInterval(timer); timer = null; } }, 900);
+    setTimeout(() => {
+      if (musicOn) return;
+      clearInterval(timer); timer = null;
+      for (const s of queued.splice(0)) try { s.stop(); } catch {}
+      segAt = 0;
+    }, 900);
   }
   api.init = init;
   api.music = () => musicOn;
   api.sfxOn = () => sfxOn;
-  api.setMusic = (on) => { musicOn = on; localStorage.frogMusic = on ? '1' : '0'; init(); on ? startMusic() : stopMusic(); };
+  api.setMusic = (on) => { musicOn = on; localStorage.frogMusic = on ? '1' : '0'; init(); on ? startMusic() : stopMusic(); if (on && !tunes[0]) { rendered = false; renderAll(); } };
   api.setSfx = (on) => { sfxOn = on; localStorage.frogSfx = on ? '1' : '0'; init(); if (sfx) sfx.gain.value = on ? .8 : 0; };
   api.duck = (on) => { ducked = on; if (ctx && musicOn) mus.gain.setTargetAtTime(MUS_VOL * (on ? .55 : 1), ctx.currentTime, .4); };
   // Leaving (app hidden, minimised or closed): fade everything out over a few hundredths of a second before
   // stopping. Stopping audio mid-note makes iPhones repeat the last few milliseconds as a short buzz.
   let hush = null;
   api.suspend = (closing) => {
-    if (media) media.pause();
     if (!ctx || ctx.state !== 'running') return;
     clearTimeout(hush);
     try { out.gain.cancelScheduledValues(ctx.currentTime); out.gain.setTargetAtTime(0, ctx.currentTime, .012); } catch {}
@@ -1806,14 +1885,18 @@ const Snd = (() => {
   };
   api.resume = () => {
     clearTimeout(hush);
-    if (media) media.play().catch(() => {});
     if (ctx) { try { out.gain.cancelScheduledValues(ctx.currentTime); out.gain.setTargetAtTime(.9, ctx.currentTime, .05); } catch {} }
     // May not take outside a tap; the watchdog and the next tap handle it if it doesn't
     if (ctx && ctx.state !== 'running') ctx.resume().catch(() => { needsFresh = true; });
     lastCt = -1;
   };
   api.reset = () => { needsFresh = true; };
-  api.debug = () => ({ state: ctx && ctx.state, time: ctx && ctx.currentTime, needsFresh, repairTried, session: navigator.audioSession ? navigator.audioSession.type : 'n/a', media: !!media });
+  // What the sound engine is doing right now (the sound readout shows it)
+  api.debug = () => ({
+    state: ctx ? ctx.state : 'not started', time: ctx ? ctx.currentTime : 0, rate: ctx ? ctx.sampleRate : 0, frozen: needsFresh,
+    session: navigator.audioSession ? navigator.audioSession.type : '', music: musicOn, sfx: sfxOn,
+    tunes: tunes.filter(Boolean).length, fx: Object.keys(bufs).length, fxAll: Object.keys(fx).length, events: events.slice(),
+  });
   return api;
 })();
 // Non-passive listeners: iPhone WebKit may not count passive ones as the gesture that unlocks audio
@@ -2072,6 +2155,7 @@ function showHome(msg, page) {
   const drawMusic = () => { const b = $('#homeMusic'); if (!b) return; b.innerHTML = ICON.music(Snd.music()); b.classList.toggle('off', !Snd.music()); };
   drawMusic();
   $('#homeMusic').onclick = () => { Snd.setMusic(!Snd.music()); drawMusic(); };
+  longPress($('#homeMusic'), soundInfo);
   // Your rank and name; tap for your profile
   // Your rank and name on a tag above your frog
   const chip = () => {
@@ -2430,6 +2514,7 @@ function buildGame() {
   mount('game', node);
   prevTeam = []; prevShop = []; prevFood = undefined;
   $('#musicBtn').onclick = () => { Snd.setMusic(!Snd.music()); updateHeader(); };
+  longPress($('#musicBtn'), soundInfo);
   $('#menuBtn').onclick = openMenu;
   $('#rollBtn').onclick = roll;
   $('#lockBtn').onclick = lockShop;
@@ -3316,6 +3401,31 @@ async function matchFound(r) {
     }
   } catch {}
   enterRoom(r);
+}
+
+// ----- Sound readout -----
+// Long-press a music button: what the sound engine is doing, so a screenshot says why sound broke on a phone
+function soundInfo() {
+  const d = Snd.debug(), ago = (t) => { const s = Math.round((Date.now() - t) / 1000); return s < 60 ? `${s}s` : s < 3600 ? `${Math.round(s / 60)}m` : `${Math.round(s / 3600)}h`; };
+  const row = (k, v) => `<div class="snd-row"><span>${k}</span><b>${esc(String(v))}</b></div>`;
+  const s = sheet(`<h2>Sound</h2>
+    ${row('Engine', d.frozen ? `${d.state}, clock frozen` : d.state)}
+    ${row('Clock', d.time ? `${d.time.toFixed(1)}s at ${d.rate} Hz` : '–')}
+    ${row('Mode', d.session || 'default (ambient)')}
+    ${row('Music', `${d.music ? 'on' : 'off'}, ${d.tunes} of 3 ready`)}
+    ${row('Effects', `${d.sfx ? 'on' : 'off'}, ${d.fx} of ${d.fxAll} ready`)}
+    <div class="guide-sec">Recent</div>
+    <div class="snd-log">${d.events.slice().reverse().map(([t, w]) => `<div><span>${ago(t)}</span> ${esc(w)}</div>`).join('') || '<div>Nothing yet</div>'}</div>`);
+  return s;
+}
+// A long press (a little over half a second) runs fn instead of the button's tap
+function longPress(el, fn) {
+  let t = 0, fired = false;
+  const clear = () => clearTimeout(t);
+  el.addEventListener('pointerdown', () => { fired = false; clear(); t = setTimeout(() => { fired = true; haptic(['impact', 'medium']); fn(); }, 650); });
+  for (const ev of ['pointerup', 'pointerleave', 'pointercancel']) el.addEventListener(ev, clear);
+  el.addEventListener('click', (e) => { if (fired) { e.stopImmediatePropagation(); e.preventDefault(); fired = false; } }, true);
+  el.addEventListener('contextmenu', (e) => e.preventDefault());
 }
 
 // ----- Menu & guide -----
