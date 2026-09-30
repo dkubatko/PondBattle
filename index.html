@@ -1844,7 +1844,7 @@ const Snd = (() => {
   const queued = [];
   function queueMusic() {
     if (!ctx || ctx.state !== 'running' || !musicOn || !tunes[0]) return;
-    if (segAt < ctx.currentTime) { segAt = ctx.currentTime + .1; segN = 0; } // (re)starting: from the top
+    if (segAt < ctx.currentTime) segAt = ctx.currentTime + .1; // (re)starting, e.g. after coming back: carry on with the next passage
     while (segAt < ctx.currentTime + 3) {
       const s = ctx.createBufferSource(); s.buffer = tunes[segN % 3] || tunes[0]; s.connect(mus); s.start(segAt);
       queued.push(s); s.onended = () => { const i = queued.indexOf(s); if (i >= 0) queued.splice(i, 1); };
