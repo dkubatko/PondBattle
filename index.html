@@ -2106,6 +2106,7 @@ document.addEventListener('visibilitychange', () => {
 function onState(v) {
   if (v.build && v.build !== BUILD && BUILD.length === 10) staleBuild = v.build;
   if (S && v.v < S.v) return;
+  keepBattle(v);
   stampClock(v);
   const prev = S; S = v;
   if (v.me.rank) ME.rank = v.me.rank;
@@ -2113,10 +2114,14 @@ function onState(v) {
   if (prev && prev.opp && v.opp && !v.opp.bot && !prev.opp.ready && v.opp.ready && v.phase === 'shop' && !v.me.ready && prev.round === v.round) { toast(`${v.opp.name} is ready`); Snd.ribbit(1.15); }
   route();
 }
+// The server sends a battle once and after that only names it (lastBattleId): keep the one we hold
+function keepBattle(v) {
+  if (v.lastBattle === undefined) v.lastBattle = S && S.lastBattle && S.lastBattle.id === v.lastBattleId ? S.lastBattle : null;
+}
 async function act(action) {
   try {
-    const v = await api('/api/action', { room: sess.room, token: sess.token, action });
-    if (!S || v.v >= S.v) { stampClock(v); S = v; }
+    const v = await api('/api/action', { room: sess.room, token: sess.token, action, have: S && S.lastBattle ? S.lastBattle.id : undefined });
+    if (!S || v.v >= S.v) { keepBattle(v); stampClock(v); S = v; }
   } catch (e) { if (e.status === 404) forget('That game has ended'); else toast(e.message); }
 }
 

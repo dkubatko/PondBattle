@@ -42,8 +42,22 @@ function who(q) {
 }
 let profiles = {};
 try { profiles = JSON.parse(fs.readFileSync(PROFILES, 'utf8')); } catch {}
-let profTimer = null;
-const saveProfiles = () => { clearTimeout(profTimer); profTimer = setTimeout(() => fs.writeFile(PROFILES, JSON.stringify(profiles), () => {}), 500); };
+// Saving: at most every half second, and never put off for good by steady play (a debounce would never fire while
+// changes keep coming). Written to a temporary file and renamed over the old one, so a crash mid-write can't leave
+// half a file; one write at a time (a change during a write is saved right after it).
+function saver(file, data) {
+  let timer = null, writing = false, again = false;
+  const schedule = () => { if (!timer) timer = setTimeout(write, 500); };
+  const write = () => {
+    timer = null;
+    if (writing) { again = true; return; }
+    writing = true;
+    const done = (e) => { writing = false; if (e) console.error(e); if (again) { again = false; schedule(); } };
+    fs.writeFile(file + '.tmp', JSON.stringify(data()), (e) => (e ? done(e) : fs.rename(file + '.tmp', file, done)));
+  };
+  return schedule;
+}
+const saveProfiles = saver(PROFILES, () => profiles);
 const profile = (uid) => profiles[uid] || { name: 'Frog', avatar: { b: 'classic', c: 0 } };
 // Players on the same home network share a public address; that is how "nearby" ponds are found.
 // Behind Cloudflare + Nginx Proxy Manager the real address arrives in CF-Connecting-IP / X-Forwarded-For.
@@ -56,8 +70,7 @@ function clientIp(req) {
 
 // ---------- Rooms ----------
 let rooms = {};
-let saveTimer = null;
-const save = () => { clearTimeout(saveTimer); saveTimer = setTimeout(() => fs.writeFile(SAVE, JSON.stringify(rooms), () => {}), 500); };
+const save = saver(SAVE, () => rooms);
 
 const cleanName = (n) => String(n || '').replace(/\s+/g, ' ').trim().slice(0, 14) || 'Frog';
 // Avatar: a frog body shape in one of 13 colors or 5 gradients, plus eyes, pattern, accessory and a lily pad (the page draws them)
@@ -102,19 +115,21 @@ const online = (room, p) => !!p.bot || [...(subs.get(room.code) || [])].some((s)
 
 // Ranked games show both players' ranks, and after the game how many rank points you won or lost
 const rankView = (room, p) => (room.ranked ? { rank: R.rankOf(p.uid, profiles), ...(p.delta != null ? { delta: p.delta, prev: p.prevRank } : {}) } : {});
-function view(room, me) {
+// have: the id of the last battle this reader already holds; it's big (every frame of the battle), so it's only sent
+// when it's new to them. lastBattleId always says which one it is.
+function view(room, me, have) {
   const i = room.players.indexOf(me), opp = room.players[1 - i];
   return {
     v: room.v, build: currentPage().build, code: room.code, set: E.setOf(room), round: room.round, phase: room.phase, seat: i, winner: room.winner, game: room.game, ranked: !!room.ranked,
     me: { name: me.name, avatar: me.avatar || cleanAvatar(), hearts: me.hearts, trophies: me.trophies, gold: me.gold, team: me.team, shop: me.shop, ready: me.ready, fx: me.fx || [], ...rankView(room, me) },
     opp: opp ? { name: opp.name, avatar: opp.avatar || cleanAvatar(), bot: !!opp.bot, ...(opp.uid ? { pid: pidOf(opp.uid) } : {}), hearts: opp.hearts, trophies: opp.trophies, ready: opp.ready, online: online(room, opp), ...(room.ranked ? { rank: R.rankOf(opp.uid, profiles) } : {}) } : null,
-    lastBattle: room.lastBattle,
+    ...(room.lastBattle && have && room.lastBattle.id === have ? {} : { lastBattle: room.lastBattle }), lastBattleId: room.lastBattle ? room.lastBattle.id : null,
     // The ready clock: whether it's you on it, and how long is left (the page counts down from here)
     clock: room.clock ? { mine: room.clock.seat === i, left: Math.max(0, room.clock.until - Date.now()), total: READY_CLOCK_MS } : null,
   };
 }
 function broadcast(room) {
-  for (const s of subs.get(room.code) || []) s.res.write(`data: ${JSON.stringify(view(room, s.p))}\n\n`);
+  for (const s of subs.get(room.code) || []) { s.res.write(`data: ${JSON.stringify(view(room, s.p, s.have))}\n\n`); s.have = room.lastBattle && room.lastBattle.id; }
 }
 // Ending a game removes it for both players; open phones get told and go back to the lobby
 function endRoom(room, byName, extra) {
@@ -489,7 +504,7 @@ http.createServer(async (req, res) => {
       if (room.ranked && (b.action || {}).type === 'rematch') return json(res, 200, view(room, p)); // ranked: find a new match instead
       act(room, p, b.action || {});
       changed(room);
-      return json(res, 200, view(room, p));
+      return json(res, 200, view(room, p, b.have));
     }
     json(res, 404, { error: 'not found' });
   } catch (e) {
