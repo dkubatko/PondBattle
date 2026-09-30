@@ -165,18 +165,17 @@ function runBattle(teamA, teamB, opts = {}) {
       if (t && t.hp > 0) { buff(t, u.lvl, u.lvl); snap?.('ability', { actor: u.bid, target: t.bid, text: `${nm(u)} shelters ${nm(t)}` }); }
     }
   }
-  function onFaint(s, u, i) {
+  // A knocked-out frog stays in its pond (at 0 health) until everyone knocked out in the same moment leaves together.
+  // next: the first frog behind it that's still standing (where its babies or raised self will line up)
+  const nextOf = (s, u) => T[s].slice(T[s].indexOf(u) + 1).find((x) => x.hp > 0);
+  // Its own faint ability
+  function faintAbility(s, u) {
     const L = u.lvl;
-    const behind = T[s][i];
-    if (behind && behind.type === 'bullfrog' && behind.hp > 0) {
-      buff(behind, behind.lvl, behind.lvl);
-      snap?.('ability', { actor: behind.bid, text: `${nm(behind)} is fired up` });
-    }
     // Frogspawn (id 'tadpole'): retired from the shop (tier 0); kept only so ponds saved before still play out
-    if (u.type === 'tadpole') arrive(s, T[s][i], () => unit('froglet', L, L, 1, null, ++bid), false, () => `${nm(u)} hatches into a Froglet`);
+    if (u.type === 'tadpole') arrive(s, nextOf(s, u), () => unit('froglet', L, L, 1, null, ++bid), false, () => `${nm(u)} hatches into a Froglet`);
     if (u.type === 'surinam') {
       // Lays as many L/L Froglets as there's room for in the pond
-      arrive(s, T[s][i], () => unit('froglet', L, L, 1, null, ++bid), true, () => `${nm(u)}’s babies hatch`);
+      arrive(s, nextOf(s, u), () => unit('froglet', L, L, 1, null, ++bid), true, () => `${nm(u)}’s babies hatch`);
     }
     if (u.type === 'tree') {
       const f = alive(s);
@@ -186,12 +185,22 @@ function runBattle(teamA, teamB, opts = {}) {
       blast(1 - s, 2 * L);
       snap?.('splash', { side: 1 - s, text: `${nm(u)} makes a huge splash` });
     }
+  }
+  // Other frogs reacting to it: a Bullfrog right behind it, the Hungry Frog that knocked it out, a Necromancer
+  function faintReactions(s, u) {
+    const behind = T[s][T[s].indexOf(u) + 1];
+    if (behind && behind.type === 'bullfrog' && behind.hp > 0) {
+      buff(behind, behind.lvl, behind.lvl);
+      snap?.('ability', { actor: behind.bid, text: `${nm(behind)} is fired up` });
+    }
+    const foe = u.koBy;
+    if (foe && foe.type === 'hungry' && foe.hp > 0 && T[1 - s].includes(foe)) { buff(foe, foe.lvl, foe.lvl); snap?.('ability', { actor: foe.bid, text: `${nm(foe)} wants seconds` }); }
     // Necromancer: a fainted friend rises again as a 1/1 (L times per battle), in the same spot
     if (u.type !== 'necro') {
       // one raise per Necromancer charge (charges already promised to frogs waiting to come back count as used)
       const waiting = (n) => arrivals.filter((a) => a.by === n).length;
       const n = T[s].find((x) => x.type === 'necro' && x.hp > 0 && x.uses + waiting(x) < x.lvl);
-      if (n) arrive(s, T[s][i], () => { const f = unit(u.type, 1, 1, u.lvl, null, ++bid); if (fixed(f)) fixUnit(f); return f; }, false, (f) => `${nm(n)} raises ${nm(f)}`, n);
+      if (n) arrive(s, nextOf(s, u), () => { const f = unit(u.type, 1, 1, u.lvl, null, ++bid); if (fixed(f)) fixUnit(f); return f; }, false, (f) => `${nm(n)} raises ${nm(f)}`, n);
     }
   }
   const fixUnit = (u) => fixStats(u);
@@ -206,38 +215,33 @@ function runBattle(teamA, teamB, opts = {}) {
       u.aura += d; u.atk = Math.max(1, u.atk + d); u.hp = Math.max(1, u.hp + d);
     });
   };
+  // Everything an effect sets off, resolved one moment at a time (as in other auto battlers, with fair turns instead of
+  // attack order): 1. hurt reactions; 2. knocked-out Bouncy Frogs bounce; 3. every knocked-out frog's own faint
+  // ability; 4. the reactions to the knockouts; 5. everyone knocked out leaves together. Whatever a moment hurts or
+  // knocks out belongs to the next one. When nothing is left, babies and raised frogs come in (6).
+  // In each step the ponds take fair turns, and each pond's frogs go front to back.
+  const inTurns = (kind, lists) => { const out = []; lists = lists.map((l) => [...l]); for (let x; (x = take(kind, lists.map((l) => l.length > 0))) >= 0;) out.push([x, lists[x].shift()]); return out; };
   function settle() {
     for (let guard = 0; guard < 200; guard++) {
       const hs = take('hurt', hurts.map((q) => q.length > 0));
       if (hs >= 0) { const u = hurts[hs].shift(); if (u.hp > 0 && T[hs].includes(u)) onHurt(hs, u); continue; }
-      let found = false;
-      // one knocked-out frog (the front-most of its pond), from the pond whose turn it is when both have one
-      const ks = take('faint', [0, 1].map((x) => T[x].some((u) => u.hp <= 0)));
-      for (const s of ks >= 0 ? [ks] : []) {
-        const i = T[s].findIndex((u) => u.hp <= 0);
-        if (i >= 0 && T[s][i].type === 'bouncy' && !T[s][i].bounced) {
-          const [u] = T[s].splice(i, 1);
-          u.bounced = 1; u.hp = 2 * u.lvl; T[s].push(u);
-          auras();
-          snap?.('ability', { actor: u.bid, text: `${nm(u)} bounces to the back` });
-          found = true;
-          break;
-        }
-        if (i >= 0) {
-          const [u] = T[s].splice(i, 1);
-          auras();
-          snap?.('faint', { actor: u.bid });
-          const foe = u.koBy;
-          if (foe && foe.type === 'hungry' && foe.hp > 0 && T[1 - s].includes(foe)) { buff(foe, foe.lvl, foe.lvl); snap?.('ability', { actor: foe.bid, text: `${nm(foe)} wants seconds` }); }
-          onFaint(s, u, i);
-          found = true;
-          break;
-        }
+      const out = () => [0, 1].map((x) => T[x].filter((u) => u.hp <= 0));
+      for (const [x, u] of inTurns('faint', out().map((l) => l.filter((u) => u.type === 'bouncy' && !u.bounced)))) {
+        T[x].splice(T[x].indexOf(u), 1);
+        u.bounced = 1; u.hp = 2 * u.lvl; T[x].push(u);
+        auras();
+        snap?.('ability', { actor: u.bid, text: `${nm(u)} bounces to the back` });
       }
-      if (!found) {
+      const moment = inTurns('faint', out());
+      if (!moment.length) {
         if (arrivals.length) { letIn(); continue; } // everyone knocked out has left: babies and raised frogs come in
         return auras();
       }
+      for (const [x, u] of moment) faintAbility(x, u);
+      for (const [x, u] of moment) faintReactions(x, u);
+      for (const [x, u] of moment) T[x].splice(T[x].indexOf(u), 1);
+      auras();
+      snap?.('faint', { actors: moment.map(([, u]) => u.bid) });
     }
     auras();
   }

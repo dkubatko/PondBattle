@@ -55,6 +55,8 @@ for (const set of Object.keys(SETS)) {
       for (const id of was.keys()) if (!now.has(id) && fr.kind !== 'faint') flag(`a frog vanishes in a "${fr.kind}" frame`, at);
       if (fr.kind === 'faint' && [...was.keys()].every((id) => now.has(id))) flag('a "faint" frame where nobody leaves', at);
       if (fr.a.length > 5 || fr.b.length > 5) flag('more than 5 frogs in a pond', at);
+      // knocked-out frogs stay (at 0 health) only until their moment is over: never into the next hit or the end
+      if ((fr.kind === 'hit' || fr.kind === 'end') && [...pv.a, ...pv.b].some((u) => u.hp <= 0)) flag(`a knocked-out frog is still there at a "${fr.kind}"`, at);
       for (const u of now.values()) if (u.atk < 0) flag('negative attack', at);
       // whoever acts must be in the battle, and standing (knocked-out frogs only act as they faint or are raised)
       for (const key of ['actor', 'target', 'by']) {

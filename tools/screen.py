@@ -28,7 +28,7 @@ Options:
   --me-ready         --pvp: you press Ready (Rival is on the clock)
   --clock MS         the ready clock's length (default the server's, 60 s; the helper's server restarts for it)
   --frames K,...     battle: the battle as it stands after frame K (start = after the entrance, fight = the first
-                     hit, end = the result screen); default start,fight,end
+                     hit, end = the result screen; all = every frame); default start,fight,end
   --at MS,...        battle: capture in real time, MS after the battle screen appears (instead of --frames)
   --log              battle: print the battle's frames (number, kind, caption)
   --sizes all|WxH,.. default 393x710; all = 393x710,440x820,375x600
@@ -264,6 +264,7 @@ def step(p, s):
 
 def frame_list(lb, spec):
     n, out = len(lb['frames']), []
+    if spec == 'all': return [*range(n - 1), 'end']
     for x in spec.split(','):
         x = x.strip()
         k = {'start': 0, 'fight': lb.get('fightAt', 1), 'end': 'end'}.get(x, x)

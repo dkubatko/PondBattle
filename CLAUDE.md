@@ -81,9 +81,12 @@ Home infrastructure (Tower, Docker, Nginx Proxy Manager, Cloudflare) is describe
   Each kind keeps its own turn; all start with the round's first pond: the first seat in odd rounds, the
   second in even ones (the first seat is the pond's creator; in matchmaking, whoever waited longer). No
   seat may be favoured anywhere else either: anything both ponds do at once follows the round's order.
-- Each effect resolves completely (knockouts, hurt reactions) before the next one. Within a pond,
-  knockouts go front to back. Every start-of-battle ability always plays, and says so when there's
-  nothing to affect. The page plays a run of knockouts with nothing between them as one moment.
+- What an effect sets off resolves one moment at a time (`settle()`): hurt reactions; knocked-out Bouncy
+  Frogs bounce; every knocked-out frog's own faint ability (it stays, faded at 0 health); reactions to the
+  knockouts (Bullfrog, Hungry Frog, Necromancer); then everyone knocked out leaves together. Whatever a
+  moment hurts or knocks out belongs to the next one; babies and raised frogs arrive when nothing is left.
+  Within a pond, front to back. Start of battle settles after each frog. Every start-of-battle ability
+  always plays, and says so when there's nothing to affect.
 - Babies and raised frogs arrive once the frogs knocked out in the same moment have left. A pond never
   holds more than five.
 - "Immune" means no damage; effects like shrink, swap or scream still apply. Frogs behind a Frog King
