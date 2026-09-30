@@ -22,14 +22,18 @@ Scenes: name (first visit), home, queue (looking for a game), waiting (your own 
   profile, card, ranks, leaders, shop, menu, log (last battle's log), battle, over (game over).
 Options:
   --round N          game scenes: play N-1 rounds first (buys whatever is affordable, then Ready vs the Pond Bot)
-  --set ID           the practice game's set (e.g. nature, magic)
+  --set ID           the game's set (e.g. nature, magic)
+  --pvp              game scenes: a custom pond against a second player ("Rival") instead of practice vs the bot
+  --opp-ready        --pvp: Rival presses Ready (you're on the ready clock)
+  --me-ready         --pvp: you press Ready (Rival is on the clock)
+  --clock MS         the ready clock's length (default the server's, 60 s; the helper's server restarts for it)
   --frames K,...     battle: the battle as it stands after frame K (start = after the entrance, fight = the first
                      hit, end = the result screen); default start,fight,end
   --at MS,...        battle: capture in real time, MS after the battle screen appears (instead of --frames)
   --log              battle: print the battle's frames (number, kind, caption)
   --sizes all|WxH,.. default 393x710; all = 393x710,440x820,375x600
   --webkit / --both  WebKit only / Chromium and WebKit (default Chromium)
-  --do STEP          (repeatable) tap:CSS | click:TEXT | drag:CSS>CSS | eval:JS | wait:MS
+  --do STEP          (repeatable) tap:CSS | click:TEXT | drag:CSS>CSS | eval:JS | wait:MS | until:JS (wait for it)
   --fresh            a first-time player (onboarding hints on)
   --text             print the text on screen
   --no-shot          no screenshots (report and text only)
@@ -84,10 +88,13 @@ if (window.__pbWant) window.pbLook = (k) => new Promise((go) => {
 """
 READY = "screen === %s && window.__pbInflight === 0 && document.fonts.status === 'loaded' %s"
 FRAMES2 = 'new Promise((r) => requestAnimationFrame(() => requestAnimationFrame(r)))'
-# Settle: finite animations jump to their end, loops (breathing, blinking) go to their start and wait there
+# Settle: short animations jump to their end, loops (breathing, blinking) go to their start and wait there, and long
+# ones (the ready clock's ring) pause where they are
 SETTLE = """() => { window.__pbLoops = []; for (const a of document.getAnimations()) {
   const t = a.effect && a.effect.getComputedTiming();
-  if (t && t.iterations === Infinity) { a.pause(); a.currentTime = 0; window.__pbLoops.push(a); } else { try { a.finish(); } catch (e) {} } } }"""
+  if (t && t.iterations === Infinity) { a.pause(); a.currentTime = 0; window.__pbLoops.push(a); }
+  else if (t && t.activeDuration > 5000) { a.pause(); window.__pbLoops.push(a); }
+  else { try { a.finish(); } catch (e) {} } } }"""
 UNSETTLE = '() => { for (const a of window.__pbLoops || []) a.play(); window.__pbLoops = []; }'
 PAUSE = "() => { window.__pbLoops = document.getAnimations().filter((a) => a.playState === 'running'); window.__pbLoops.forEach((a) => a.pause()); }"
 
@@ -97,6 +104,10 @@ def parser():
     a.add_argument('scene', choices=SCENES)
     a.add_argument('--round', type=int, default=1)
     a.add_argument('--set')
+    a.add_argument('--pvp', action='store_true')
+    a.add_argument('--opp-ready', action='store_true')
+    a.add_argument('--me-ready', action='store_true')
+    a.add_argument('--clock', type=int)
     a.add_argument('--frames', default='start,fight,end')
     a.add_argument('--at')
     a.add_argument('--log', action='store_true')
@@ -119,17 +130,18 @@ class Game:
     """A throwaway server from this checkout, on a free port, with its own temporary data."""
     def __init__(self): self.proc, self.stamp, self.data, self.base = None, None, None, None
 
-    def stamp_now(self): return [(REPO / f).stat().st_mtime for f in SERVER_FILES]
+    def stamp_now(self, clock): return [clock, *((REPO / f).stat().st_mtime for f in SERVER_FILES)]
 
-    def ensure(self):
-        if self.proc and self.proc.poll() is None and self.stamp == self.stamp_now(): return self.base
+    def ensure(self, clock=None):
+        if self.proc and self.proc.poll() is None and self.stamp == self.stamp_now(clock): return self.base
         self.stop()
         with socket.socket() as s:
             s.bind(('127.0.0.1', 0)); port = s.getsockname()[1]
         self.data = tempfile.mkdtemp(prefix='pb-screen-')
         env = {k: v for k, v in os.environ.items() if not k.startswith('TELEGRAM')}  # never talk to the real bot
         env.update(BOT_DELAY_MS='0', PORT=str(port), DATA_DIR=f'{self.data}/data', ROOMS_FILE=f'{self.data}/rooms.json', HISTORY_FILE=f'{self.data}/games.jsonl')
-        self.stamp = self.stamp_now()
+        if clock: env['READY_CLOCK_MS'] = str(clock)
+        self.stamp = self.stamp_now(clock)
         self.proc = subprocess.Popen(['node', 'server.js'], cwd=REPO, env=env, stdout=subprocess.DEVNULL, stderr=subprocess.PIPE, start_new_session=True)
         self.base = f'http://127.0.0.1:{port}'
         for _ in range(200):
@@ -171,8 +183,8 @@ class Api:
 
     def act(self, room, action): return self.post('/api/action', {**room, 'action': action})
 
-    def play_round(self, room):
-        """Buy whatever is affordable (merging copies), press Ready, and wait for the Pond Bot and the battle."""
+    def shop(self, room):
+        """Buy whatever is affordable (merging copies)."""
         st = self.state(room)
         for i, f in enumerate(st['me']['shop']['frogs']):
             if not f: continue
@@ -180,7 +192,12 @@ class Api:
             slot = next((k for k, t in enumerate(team) if t and t['type'] == f['type'] and t['lvl'] < 3), None)
             if slot is None: slot = next((k for k, t in enumerate(team) if not t), None)
             if slot is not None and st['me']['gold'] >= cost: st = self.act(room, {'type': 'buy', 'shopIdx': i, 'slot': slot})
-        rnd = st['round']
+        return st
+
+    def play_round(self, room, rival=None):
+        """Shop and press Ready (and the same for the rival, in a two-player game); wait for the battle."""
+        rnd = self.shop(room)['round']
+        if rival: rival[0].shop(rival[1]); rival[0].act(rival[1], {'type': 'ready'})
         self.act(room, {'type': 'ready'})
         for _ in range(300):
             st = self.state(room)
@@ -202,15 +219,23 @@ def setup(o, api):
     if o.scene in SHEETS: return store, SHEETS[o.scene], None
     if o.scene == 'waiting':
         return {**store, 'frogSess': json.dumps(api.post('/api/create', {'set': o.set} if o.set else {}))}, None, None
-    room = api.post('/api/practice', {'set': o.set} if o.set else {})
+    rival = None
+    if o.pvp:  # a custom pond: you make it, a second guest joins
+        room = api.post('/api/create', {'set': o.set} if o.set else {})
+        other = Api(api.base); other.guest('Rival')
+        rival = (other, other.post('/api/join', {'room': room['room']}))
+    else:
+        room = api.post('/api/practice', {'set': o.set} if o.set else {})
     store['frogSess'] = json.dumps(room)
     # over: play to the end; battle: this round's battle is the one to watch; log: needs a finished battle
     rounds = {'over': 99, 'battle': o.round, 'log': max(o.round - 1, 1)}.get(o.scene, o.round - 1)
     st, seen = None, None
     for _ in range(max(rounds, 0)):
         seen = st and st.get('lastBattle')
-        st = api.play_round(room)
+        st = api.play_round(room, rival)
         if st['phase'] == 'over': break
+    if rival and o.opp_ready: rival[0].act(rival[1], {'type': 'ready'})
+    if rival and o.me_ready: api.act(room, {'type': 'ready'})
     if o.scene == 'battle':
         # the page opens straight into this round's battle: every battle before it counts as watched
         if seen: store[f"frogSeen_{room['room']}"] = seen['id']
@@ -227,7 +252,8 @@ def step(p, s):
     elif kind == 'drag': a, b = arg.split('>', 1); p.locator(a).first.drag_to(p.locator(b).first)
     elif kind == 'eval': p.evaluate(arg)
     elif kind == 'wait': p.wait_for_timeout(int(arg))
-    else: raise SystemExit(f'--do {s}: use tap:CSS, click:TEXT, drag:CSS>CSS, eval:JS or wait:MS')
+    elif kind == 'until': p.wait_for_function(arg, timeout=60000, polling=50)
+    else: raise SystemExit(f'--do {s}: use tap:CSS, click:TEXT, drag:CSS>CSS, eval:JS, wait:MS or until:JS')
 
 
 def frame_list(lb, spec):
@@ -264,7 +290,7 @@ class Capture:
 
     def run(self, o):
         t0 = time.time()
-        base = check_server(o.server) if o.server else self.game.ensure()
+        base = check_server(o.server) if o.server else self.game.ensure(o.clock)
         api = Api(base)
         store, open_js, lb = setup(o, api)
         want = None
@@ -321,7 +347,8 @@ class Capture:
             if open_js: p.evaluate(open_js)
             for s in o.do: step(p, s)
             sheet = "&& document.querySelector('.sheet-wrap')" if open_js and o.scene not in ('queue',) else ''
-            p.wait_for_function(READY % (json.dumps(SCREEN_OF[o.scene]), sheet), timeout=15000, polling=20)
+            target = json.dumps(SCREEN_OF[o.scene]) if not o.do else 'screen'  # steps may lead anywhere
+            p.wait_for_function(READY % (target, sheet), timeout=15000, polling=20)
             p.evaluate(FRAMES2)
             shoot('')
         width = p.evaluate('document.documentElement.scrollWidth')

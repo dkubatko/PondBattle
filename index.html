@@ -264,12 +264,30 @@ h1 { margin: 0; text-align: center; font-size: 40px; font-weight: 900; line-heig
 .portrait .avatar { transition: opacity .25s, filter .25s; }
 .pav, .pbadge, .phearts { display: contents; }
 .pl.is-away .portrait .avatar { opacity: .45; filter: grayscale(.6); }
-.badge { position: absolute; bottom: -3px; right: -4px; width: 21px; height: 21px; border-radius: 50%; display: grid; place-items: center; box-shadow: 0 0 0 2.5px #15292f; animation: badgeIn .3s cubic-bezier(.3, 1.6, .5, 1); }
+.badge { position: absolute; z-index: 1; bottom: -3px; right: -4px; width: 21px; height: 21px; border-radius: 50%; display: grid; place-items: center; box-shadow: 0 0 0 2.5px #15292f; animation: badgeIn .3s cubic-bezier(.3, 1.6, .5, 1); }
 .pl.opp .badge { right: auto; left: -4px; }
 .badge svg { width: 13px; height: 13px; }
 .badge.ready { background: #9be07a; color: #173b1f; }
 .badge.away { background: #3b5157; color: var(--moon-dim); }
 @keyframes badgeIn { from { transform: scale(0); } }
+/* Ready clock: whoever is on the clock gets a ring round their portrait that drains over its time (warm for the last
+   10 seconds); your Ready button drains with yours and shows the seconds left */
+.pclock { position: absolute; z-index: 0; inset: -5px; width: calc(100% + 10px); height: calc(100% + 10px); transform: rotate(-90deg); pointer-events: none; opacity: 0; transition: opacity .25s; }
+.pl.opp .pclock { transform: rotate(-90deg) scaleY(-1); }
+.pclock circle { fill: none; stroke: #ffcd66; stroke-width: 3; stroke-linecap: round; stroke-dasharray: 100; transition: stroke .3s; }
+.pl.on-clock .pclock { opacity: 1; }
+.pl.on-clock .pclock circle { animation: clockRing var(--clock-total) linear var(--clock-at) forwards; }
+.pl.clock-low .pclock circle { stroke: #ff9a7a; }
+@keyframes clockRing { from { stroke-dashoffset: 0; } to { stroke-dashoffset: 100; } }
+#readyBtn { position: relative; overflow: hidden; }
+#readyBtn > :not(.yfill) { position: relative; }
+.yfill { position: absolute; inset: 0; background: rgba(255, 255, 255, .24); transform-origin: left; transform: scaleX(0); pointer-events: none; }
+#readyBtn.on-clock .yfill { animation: clockFill var(--clock-total) linear var(--clock-at) forwards; }
+@keyframes clockFill { from { transform: scaleX(1); } to { transform: scaleX(0); } }
+.ysec { display: inline-grid; place-items: center; min-width: 26px; height: 20px; padding: 0 6px; border-radius: 10px; background: rgba(23, 39, 31, .14); font-size: 12.5px; line-height: 1; font-variant-numeric: tabular-nums; transition: background-color .3s, color .3s; }
+.ysec:empty { display: none; }
+.btn.ready-wait .ysec { background: rgba(245, 237, 214, .12); }
+.ysec.low { background: #ff9a7a; color: #3a130b; }
 .pl-info { min-width: 0; display: flex; flex-direction: column; gap: 6px; }
 .pl.opp .pl-info { align-items: flex-end; }
 .pl .nm { display: flex; align-items: center; gap: 5px; min-width: 0; max-width: 100%; font-size: 16px; font-weight: 900; line-height: 1.1; }
@@ -1731,6 +1749,7 @@ const Snd = (() => {
     block() { const t = now(); osc('sine', 520, 1500, t, .07, .22); noise(t + .01, .05, .14, 'highpass', 2500, 5000, .8); bell(t + .06, 96, .05, .4); },
     munch() { const t = now(); noise(t, .06, .2, 'bandpass', 1900, 900, 1.5); noise(t + .1, .06, .2, 'bandpass', 1700, 800, 1.5); },
     nope() { osc('triangle', 330, 240, now(), .16, .1); },
+    tick() { osc('sine', 1320, 1180, now(), .05, .07); },
     win() { const t = now(); [72, 76, 79, 84, 88].forEach((m, i) => bell(t + i * .11, m, .14, 1.5)); },
     lose() { const t = now(); [79, 76, 72, 67].forEach((m, i) => bell(t + i * .17, m, .11, 1.5)); },
     draw() { const t = now(); bell(t, 76, .11, 1); bell(t + .2, 76, .11, 1.3); },
@@ -2006,7 +2025,7 @@ async function login() {
 }
 // Taps and thumps you can feel (Telegram phones only)
 const HAPTIC = {
-  tap: ['selection'], plop: ['impact', 'light'], munch: ['impact', 'light'], coin: ['impact', 'soft'], levelup: ['notification', 'success'],
+  tap: ['selection'], tick: ['selection'], plop: ['impact', 'light'], munch: ['impact', 'light'], coin: ['impact', 'soft'], levelup: ['notification', 'success'],
   nope: ['notification', 'error'], hit: ['impact', 'medium'], block: ['impact', 'rigid'], win: ['notification', 'success'], fanfare: ['notification', 'success'], lose: ['notification', 'warning'],
 };
 function haptic([kind, style]) {
@@ -2076,6 +2095,7 @@ document.addEventListener('visibilitychange', () => {
 function onState(v) {
   if (v.build && v.build !== BUILD && BUILD.length === 10) staleBuild = v.build;
   if (S && v.v < S.v) return;
+  stampClock(v);
   const prev = S; S = v;
   if (v.me.rank) ME.rank = v.me.rank;
   if (prev && prev.phase === 'waiting' && v.phase === 'shop' && v.opp) { toast(`${v.opp.name} hopped in`); Snd.ribbit(); }
@@ -2085,7 +2105,7 @@ function onState(v) {
 async function act(action) {
   try {
     const v = await api('/api/action', { room: sess.room, token: sess.token, action });
-    if (!S || v.v >= S.v) S = v;
+    if (!S || v.v >= S.v) { stampClock(v); S = v; }
   } catch (e) { if (e.status === 404) forget('That game has ended'); else toast(e.message); }
 }
 
@@ -2517,7 +2537,7 @@ function buildGame() {
     </section>
     <nav class="actions">
       <button class="btn buy" id="mainBtn" data-drop="sell"><span class="lbl">Buy</span><span class="amt"></span></button>
-      <button class="btn" id="readyBtn"><span class="lbl">Ready</span></button>
+      <button class="btn" id="readyBtn"><span class="yfill"></span><span class="lbl">Ready</span><span class="ysec"></span></button>
     </nav>
   </div>`);
   mount('game', node);
@@ -2577,7 +2597,7 @@ function updateHeader() {
   // (not on every update) and the avatar keeps breathing undisturbed.
   const plate = (node, p, id, state) => {
     if (!node._built) {
-      node.innerHTML = '<span class="portrait"><span class="pav"></span><span class="pbadge"></span></span><span class="pl-info"><span class="nm"><span></span></span><span class="phearts"></span></span>';
+      node.innerHTML = '<span class="portrait"><span class="pav"></span><span class="pbadge"></span><svg class="pclock" viewBox="0 0 60 60"><circle cx="30" cy="30" r="28" pathLength="100"/></svg></span><span class="pl-info"><span class="nm"><span></span></span><span class="phearts"></span></span>';
       node._built = true;
     }
     node.classList.toggle('is-ready', state === 'ready');
@@ -2590,6 +2610,8 @@ function updateHeader() {
   };
   plate($('#meCard'), me, 1, me.ready ? 'ready' : '');
   plate($('#oppCard'), opp, 2, !opp.online ? 'away' : opp.ready ? 'ready' : '');
+  clockOn($('#meCard'), S.clock && S.clock.mine);
+  clockOn($('#oppCard'), S.clock && !S.clock.mine);
   const g = $('#gold');
   if (g.dataset.v !== String(me.gold)) {
     const up = g.dataset.v !== undefined && +g.dataset.v !== me.gold;
@@ -2598,6 +2620,40 @@ function updateHeader() {
   }
 }
 function setHTML(node, html) { if (node._h !== html) { node.innerHTML = html; node._h = html; } }
+// Ready clock (see server.js): the ring / button fill starts where the clock is, and restarts only for a new clock
+function clockOn(node, on) {
+  const key = on ? `${S.round}:${S.clock.mine}` : '';
+  if (node._clock === key) return;
+  node._clock = key;
+  node.classList.remove('on-clock', 'clock-low');
+  if (!on) return;
+  void node.offsetWidth; // restart the animation
+  node.style.setProperty('--clock-total', `${S.clock.total}ms`);
+  node.style.setProperty('--clock-at', `${-(S.clock.total - (S.clock.until - performance.now()))}ms`);
+  node.classList.add('on-clock');
+  clockTick();
+}
+// Once a second while a clock runs: the seconds on the button, warm for the last 10, a soft tick for your last 5
+let clockTimer = null, clockLast = null;
+function clockTick() {
+  clearTimeout(clockTimer);
+  const c = S && screen === 'game' && S.phase === 'shop' && S.clock, sec = $('#readyBtn .ysec');
+  if (!c || !sec) { if (sec) setHTML(sec, ''); return; }
+  const left = Math.max(0, Math.ceil((c.until - performance.now()) / 1000)), low = left <= 10;
+  setHTML(sec, String(left));
+  sec.classList.toggle('low', low);
+  $(c.mine ? '#meCard' : '#oppCard').classList.toggle('clock-low', low);
+  if (c.mine && left <= 5 && left > 0 && clockLast !== left && !S.me.ready) Snd.tick();
+  clockLast = left;
+  clockTimer = setTimeout(clockTick, ((c.until - performance.now()) % 1000 + 1000) % 1000 + 20);
+}
+// The page counts down from when the state arrived (the server says how much is left, not when, so clocks needn't agree)
+function stampClock(v) {
+  if (!v.clock) return;
+  v.clock.until = performance.now() + v.clock.left;
+  const o = S && S.clock;
+  if (o && S.round === v.round && o.mine === v.clock.mine && Math.abs(o.until - v.clock.until) < 1500) v.clock.until = o.until;
+}
 const fkey = (f) => (f ? `${f.id}:${f.atk}:${f.hp}:${f.lvl}:${f.xp}:${f.gear || ''}` : '');
 
 function bump(fr) {
@@ -2768,6 +2824,8 @@ function updateButtons() {
   const yl = $('.lbl', yb), yt = waiting ? 'Waiting…' : 'Ready';
   if (yl.textContent !== yt) yl.textContent = yt;
   if (yb.disabled !== held) yb.disabled = held;
+  clockOn(yb, !!S.clock && S.clock.mine && !waiting);
+  if (!S.clock) setHTML($('.ysec', yb), '');
 }
 function updateTargets() {
   const me = S.me, dragging = drag && drag.started;
@@ -3487,6 +3545,7 @@ function openGuide(set, pick = false) {
       <li>The frog on the <b>right</b> fights first.</li>
       <li>Drop a frog on a matching one to <b>level it up</b>.</li>
       <li><b>Lock</b> the shop (1 gold) to keep it for the next round.</li>
+      <li>Playing someone? Once they're <b>ready</b>, you have a minute to finish.</li>
       <li>Lose a round and you lose a <b>heart</b>. Whoever still has hearts at the end wins.</li>
       <li>Each pond plays one <b>set</b> of frogs, picked when it starts.</li>
     </ul>

@@ -96,6 +96,9 @@ Home infrastructure (Tower, Docker, Nginx Proxy Manager, Cloudflare) is describe
   on in the editor; Save stays greyed out, with no extra text.
 - Adding an avatar color or pad color: also raise `AV_COLORS` / `PAD_COLORS` in `server.js`, or
   `cleanAvatar` clamps the new ids away.
+- Games between two players (ranked and custom ponds, not practice) have a ready clock: once one player is
+  ready, the other has 60 s (`READY_CLOCK_MS`), then is readied with the pond they have (`setClock` in
+  `server.js`). The page shows it as a draining ring on that player's portrait and on the Ready button.
 - Only matchmade rooms (`room.ranked`) change rank. Ranked games have no rematch, and leaving one after the
   partner has joined counts as a loss.
 - Other players are only ever sent by public id (`pid`, an HMAC). Never put a uid or Telegram id in an API

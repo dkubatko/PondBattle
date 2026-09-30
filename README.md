@@ -48,6 +48,8 @@ game against anyone else looking, in the same set or any set (closest rank first
 while you wait). Only those games count for rank: +1 for a win and −1 for a loss against a similar player
 (+2 / ±0 against one 3+ points higher, −2 losing to one 3+ lower); 5 points fill a tier, a tier once
 reached is kept, and the top 10 full Master Frogs are Frog Legends. Leaving a ranked game counts as a loss.
+In any game between two players, once one is ready the other has a minute (the ready clock), then is readied
+with the pond they have.
 Invite and practice games are unrated. Profiles (your frog or name on the home page; any player's plate in a
 game, a leaderboard row or a recent game) show rank, games played/won and recent games, read from
 `games.jsonl` (practice games aren't listed). Other players are addressed by a public id, never their

@@ -109,6 +109,8 @@ function view(room, me) {
     me: { name: me.name, avatar: me.avatar || cleanAvatar(), hearts: me.hearts, trophies: me.trophies, gold: me.gold, team: me.team, shop: me.shop, ready: me.ready, fx: me.fx || [], ...rankView(room, me) },
     opp: opp ? { name: opp.name, avatar: opp.avatar || cleanAvatar(), bot: !!opp.bot, ...(opp.uid ? { pid: pidOf(opp.uid) } : {}), hearts: opp.hearts, trophies: opp.trophies, ready: opp.ready, online: online(room, opp), ...(room.ranked ? { rank: R.rankOf(opp.uid, profiles) } : {}) } : null,
     lastBattle: room.lastBattle,
+    // The ready clock: whether it's you on it, and how long is left (the page counts down from here)
+    clock: room.clock ? { mine: room.clock.seat === i, left: Math.max(0, room.clock.until - Date.now()), total: READY_CLOCK_MS } : null,
   };
 }
 function broadcast(room) {
@@ -123,7 +125,7 @@ function endRoom(room, byName, extra) {
   save();
   for (const s of list) { try { s.res.write(msg); s.res.end(); } catch {} }
 }
-function changed(room) { room.v++; room.touched = Date.now(); save(); broadcast(room); scheduleBot(room); nudge(room); }
+function changed(room) { setClock(room); room.v++; room.touched = Date.now(); save(); broadcast(room); scheduleBot(room); nudge(room); }
 
 // ---------- Telegram nudges ----------
 // A Telegram player who isn't looking at the game gets one message per round when their partner is waiting
@@ -138,6 +140,34 @@ function nudge(room) {
     room.nudged[p.uid] = room.round;
     TG.notify(id, `${o.name} is ready for round ${room.round}. Your move! 🐸`, `?room=${room.code}`);
   });
+}
+
+// ---------- Ready clock ----------
+// In a game between two players (ranked or a custom pond; not practice), once one of them is ready the other has
+// READY_CLOCK_MS to finish shopping; then they're readied with the pond they have, so nobody can hold a game up.
+// room.clock = { seat: who's on the clock, round, until: ms timestamp } (saved with the room, so it survives restarts)
+const READY_CLOCK_MS = +process.env.READY_CLOCK_MS || 60e3;
+const clockTimers = new Map(); // room code -> timeout
+function setClock(room) {
+  const waiting = room.players.filter((p) => !p.ready);
+  const on = room.players.length === 2 && !room.players.some((p) => p.bot) && room.phase === 'shop' && waiting.length === 1;
+  if (!on) { delete room.clock; clearTimeout(clockTimers.get(room.code)); clockTimers.delete(room.code); return; }
+  const seat = room.players.indexOf(waiting[0]);
+  if (!room.clock || room.clock.seat !== seat || room.clock.round !== room.round) {
+    room.clock = { seat, round: room.round, until: Date.now() + READY_CLOCK_MS };
+    armClock(room);
+  }
+}
+function armClock(room) {
+  clearTimeout(clockTimers.get(room.code));
+  const { seat, round, until } = room.clock;
+  clockTimers.set(room.code, setTimeout(() => {
+    clockTimers.delete(room.code);
+    const p = room.players[seat];
+    if (rooms[room.code] !== room || !room.clock || room.clock.round !== round || room.phase !== 'shop' || !p || p.ready) return;
+    act(room, p, { type: 'ready' });
+    changed(room);
+  }, Math.max(0, until - Date.now())));
 }
 
 // ---------- Practice: Pond Bot shops on its own, then readies up ----------
@@ -277,6 +307,7 @@ try { for (const line of fs.readFileSync(HISTORY, 'utf8').split('\n')) if (line.
 for (const r of Object.values(rooms)) for (const p of r.players) {
   for (const f of [...p.team, ...(p.shop?.frogs || [])]) if (f) E.bumpId(f.id + 1);
 }
+for (const r of Object.values(rooms)) if (r.clock) armClock(r); // clocks that were running before a restart
 
 http.createServer(async (req, res) => {
   const url = new URL(req.url, 'http://x');
