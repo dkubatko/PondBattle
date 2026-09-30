@@ -4019,7 +4019,13 @@ async function playBattle(lb) {
       Snd.hit(); apply(fr, true);
       await wait(touched.length ? 620 : 520);
     } else if (fr.kind === 'faint') {
-      Snd.faint(); apply(fr, true); await wait(560);
+      // Frogs knocked out in the same moment leave together. The engine takes them one at a time (a frame each, so
+      // faint abilities keep their order); a faint that does something ends the group, since its frame comes next.
+      while (frames[k + 1] && frames[k + 1].kind === 'faint') {
+        k++; if (look) speed = await look(k);
+        seen = k; if (logView && logView.open()) logView.update(k);
+      }
+      Snd.faint(); apply(frames[k], true); await wait(560);
     } else if (fr.kind === 'spit') {
       caption(fr.text);
       const a = byId(fr.actor), t = byId(fr.target);
