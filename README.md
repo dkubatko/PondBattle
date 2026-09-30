@@ -15,10 +15,11 @@
 | `frogs.json`, `items.json` | Stats, tiers and prices |
 | `sets.json` | Frog sets: which frogs a pond's shop sells (picked when the pond is made) |
 | `tools/simulate.js` | Balance report: plays full games (about 1M battles in ~20 s) on the working tree and reports how every frog and item does; A/B against a git ref (`--base`) or candidate stats (`--try`). Changes nothing |
-| `tools/look.py` | Screenshots of any screen (home, sheets, shop in round N, a battle mid-play, game over) in Chromium and WebKit at phone sizes, with page errors, console errors, failed requests and sideways scrolling. Runs its own throwaway server from the working tree |
+| `tools/screen.py` | Screenshots of any screen (home, sheets, shop in round N, any frame of a battle, game over) in Chromium and WebKit at phone sizes, with page errors, console errors, failed requests and sideways scrolling. A background helper keeps a throwaway server (working tree) and the browsers warm, so a capture takes well under a second |
+| `tools/audit.js` | Battle audit: 20,000 random battles per set, checking the rules every battle frame must follow; exits 1 on any broken rule. CI runs it on every image |
 | `deploy/compose.yaml` | How it runs on Tower |
 
-No dependencies: plain Node (20+). `tools/look.py` needs Playwright for Python (on the NUC: the shared venv, which it finds on its own).
+No dependencies: plain Node (20+). `tools/screen.py` needs Playwright for Python (on the NUC: the shared venv, which it finds on its own).
 
 ## Run locally
 
@@ -27,7 +28,8 @@ node server.js                 # http://localhost:8420 (browser guests; no bot)
 node tools/simulate.js                          # balance report (working tree, every set)
 node tools/simulate.js --base origin/main       # A/B: your uncommitted changes against main
 node tools/simulate.js --try "king.hp=7"        # A/B: candidate stats without editing files
-tools/look.py shop --round 4 --sizes all --both # screenshots + errors (--help lists scenes and options)
+tools/screen.py shop --round 4 --sizes all --both   # screenshots + errors (--help lists scenes and options)
+node tools/audit.js                             # battle rules check (a few seconds)
 ```
 
 State goes to `./data` (`DATA_DIR`): `rooms.json`, `profiles.json`, `games.jsonl`, `secret`. It is not in git.
@@ -53,7 +55,9 @@ Telegram id. The trophy button opens the global leaderboard (top 50).
 
 ## Deploy
 
-Pushing to `main` builds `ghcr.io/dkubatko/pondbattle:latest` (GitHub Actions). On Tower,
+Pushing to `main` builds `ghcr.io/dkubatko/pondbattle:latest` (GitHub Actions). Before publishing, the workflow
+starts the built image (it must answer `/api/health` with the pushed commit) and runs `tools/audit.js` in it;
+if either fails, nothing is published and prod keeps its build. On Tower,
 `/mnt/cache/appdata/pondbattle` holds `compose.yaml` (from `deploy/`), `.env` and `data/`.
 Watchtower pulls new images within a minute. Nginx Proxy Manager forwards the public hostname to
 port 18420. `GET /api/health` says which commit is serving (`commit`; `dev` outside the image).

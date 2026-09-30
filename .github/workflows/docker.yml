@@ -1,5 +1,7 @@
-# Every push to main builds the image and publishes it to GitHub's registry;
+# Every push to main builds the image, checks it, and publishes it to GitHub's registry;
 # Watchtower on Tower pulls the new :latest within a few minutes.
+# The checks run on the built image itself: it must start and answer /api/health with this commit, and the
+# battle audit (tools/audit.js) must pass. If either fails, nothing is published and prod keeps its build.
 name: Docker image
 on:
   push:
@@ -14,12 +16,34 @@ jobs:
     steps:
       - uses: actions/checkout@v4
       - uses: docker/setup-buildx-action@v3
+      - name: Build (not published yet)
+        uses: docker/build-push-action@v6
+        with:
+          context: .
+          load: true
+          platforms: linux/amd64
+          build-args: COMMIT=${{ github.sha }}
+          tags: pondbattle:check
+          cache-from: type=gha
+          cache-to: type=gha,mode=max
+      - name: Check the image starts and serves this commit
+        run: |
+          docker run -d --name pb -p 8420:8420 pondbattle:check
+          for i in $(seq 1 30); do curl -fsS http://127.0.0.1:8420/api/health > health.json 2>/dev/null && break; sleep 0.5; done
+          cat health.json || { docker logs pb; exit 1; }
+          grep -q '"commit":"${{ github.sha }}"' health.json || { echo "wrong commit"; docker logs pb; exit 1; }
+      - name: Battle audit
+        run: docker exec pb node tools/audit.js
+      - name: Stop the check container
+        if: always()
+        run: docker rm -f pb || true
       - uses: docker/login-action@v3
         with:
           registry: ghcr.io
           username: ${{ github.actor }}
           password: ${{ secrets.GITHUB_TOKEN }}
-      - uses: docker/build-push-action@v6
+      - name: Publish (same build, from the cache)
+        uses: docker/build-push-action@v6
         with:
           context: .
           push: true
@@ -29,4 +53,3 @@ jobs:
             ghcr.io/dkubatko/pondbattle:latest
             ghcr.io/dkubatko/pondbattle:${{ github.sha }}
           cache-from: type=gha
-          cache-to: type=gha,mode=max

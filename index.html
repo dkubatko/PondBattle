@@ -3580,6 +3580,9 @@ async function playBattle(lb) {
   const setSpd = () => { spd.textContent = speed === 1 ? 'Speed 1×' : 'Speed 2×'; };
   setSpd();
   spd.onclick = () => { speed = speed === 1 ? 2 : 1; localStorage.frogSpeed = speed; setSpd(); };
+  // tools/screen.py steps through a battle: look(k) is called before frame k plays and answers with the speed to
+  // play at (it can also hold the battle while it takes a picture). Players never have it.
+  const look = window.pbLook;
   $('#skip').onclick = () => { skipping = true; if (wake) wake(); };
   const wait = (ms) => (skipping ? Promise.resolve() : new Promise((r) => { wake = r; setTimeout(r, ms / speed); }));
   const dur = (ms) => ms / speed;
@@ -3755,6 +3758,7 @@ async function playBattle(lb) {
   cap.style.top = ((mid + 4 * dy + padH / 2) + H) / 2 + 'px'; // play-by-play: midway between your last pad and your plaque
 
   // Entrance
+  if (look) speed = await look(0);
   const first = frames[0];
   [[0, first.mine], [1, first.theirs]].forEach(([side, arr]) => arr.forEach((u, i) => {
     const rec = makeUnit(u, side); const [x, y] = pos(side, i);
@@ -3772,6 +3776,7 @@ async function playBattle(lb) {
   let seen = 0, logView = null;
   $('#blog').onclick = () => { Snd.tap(); logView = openBattleSheet(lb, seen); };
   for (let k = 1; k < frames.length && !skipping; k++) {
+    if (look) speed = await look(k);
     seen = k;
     if (logView && logView.open()) logView.update(k); // the open log gets this step's line as it plays
     const fr = frames[k];
@@ -3900,6 +3905,7 @@ async function playBattle(lb) {
       apply(fr, true); await wait(400);
     }
   }
+  if (look) await look(frames.length);
   if (skipping) { apply(frames[frames.length - 1], false); caption(''); }
   await sleep(skipping ? 50 : 250);
 
