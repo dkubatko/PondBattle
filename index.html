@@ -3189,7 +3189,7 @@ async function openCard(o = {}) {
   const game = (g) => {
     const res = g.left === 'me' ? 'Left' : g.won ? 'Won' : 'Lost';
     return `<div class="hist-row${g.opp.pid ? ' tap' : ''}"${g.opp.pid ? ` data-pid="${esc(g.opp.pid)}"` : ''}><span class="mini">${avatarHTML(g.opp.avatar, 30, { id: 0, centered: true })}</span>
-      <span class="ht">${esc(g.opp.name)}<small>${g.ranked ? 'Ranked' : 'Custom'} · ${esc(SETS[setId(g.set)].name)} · ${ago(g.at)}</small></span>
+      <span class="ht">${esc(g.opp.name)}<small>${g.practice ? 'Practice' : g.ranked ? 'Ranked' : 'Custom'} · ${esc(SETS[setId(g.set)].name)} · ${ago(g.at)}</small></span>
       <span class="hist-res${g.won ? ' won' : ''}">${res}${g.delta != null ? `<small>${signed(g.delta)}</small>` : g.left === 'opp' ? '<small>they left</small>' : ''}</span></div>`;
   };
   const html = (av = c.mine ? myAvatar() : cleanAv(c.avatar)) => `<div class="card-top">
