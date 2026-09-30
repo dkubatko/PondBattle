@@ -270,8 +270,8 @@ h1 { margin: 0; text-align: center; font-size: 40px; font-weight: 900; line-heig
 .badge.ready { background: #9be07a; color: #173b1f; }
 .badge.away { background: #3b5157; color: var(--moon-dim); }
 @keyframes badgeIn { from { transform: scale(0); } }
-/* Ready clock: whoever is on the clock gets a ring round their portrait that drains over its time (warm for the last
-   10 seconds); your Ready button drains with yours and shows the seconds left */
+/* Ready clock: whoever is on the clock gets a ring round their portrait that drains over its time; when it's you,
+   your Ready button drains with it. Both turn coral for the last 10 seconds. Waiting… shows nothing */
 .pclock { position: absolute; z-index: 0; inset: -5px; width: calc(100% + 10px); height: calc(100% + 10px); transform: rotate(-90deg); pointer-events: none; opacity: 0; transition: opacity .25s; }
 .pl.opp .pclock { transform: rotate(-90deg) scaleY(-1); }
 .pclock circle { fill: none; stroke: #ffcd66; stroke-width: 3; stroke-linecap: round; stroke-dasharray: 100; transition: stroke .3s; }
@@ -284,10 +284,9 @@ h1 { margin: 0; text-align: center; font-size: 40px; font-weight: 900; line-heig
 .yfill { position: absolute; inset: 0; background: rgba(255, 255, 255, .24); transform-origin: left; transform: scaleX(0); pointer-events: none; }
 #readyBtn.on-clock .yfill { animation: clockFill var(--clock-total) linear var(--clock-at) forwards; }
 @keyframes clockFill { from { transform: scaleX(1); } to { transform: scaleX(0); } }
-.ysec { display: inline-grid; place-items: center; min-width: 26px; height: 20px; padding: 0 6px; border-radius: 10px; background: rgba(23, 39, 31, .14); font-size: 12.5px; line-height: 1; font-variant-numeric: tabular-nums; transition: background-color .3s, color .3s; }
-.ysec:empty { display: none; }
-.btn.ready-wait .ysec { background: rgba(245, 237, 214, .12); }
-.ysec.low { background: #ff9a7a; color: #3a130b; }
+#readyBtn.on-clock { transition: transform .08s, background-color .3s, box-shadow .3s; }
+#readyBtn.clock-low { background-color: #ff9a7a; box-shadow: 0 5px 0 #c4604b; }
+#readyBtn.clock-low:active:not(:disabled) { box-shadow: 0 2px 0 #c4604b; }
 .pl-info { min-width: 0; display: flex; flex-direction: column; gap: 6px; }
 .pl.opp .pl-info { align-items: flex-end; }
 .pl .nm { display: flex; align-items: center; gap: 5px; min-width: 0; max-width: 100%; font-size: 16px; font-weight: 900; line-height: 1.1; }
@@ -2537,7 +2536,7 @@ function buildGame() {
     </section>
     <nav class="actions">
       <button class="btn buy" id="mainBtn" data-drop="sell"><span class="lbl">Buy</span><span class="amt"></span></button>
-      <button class="btn" id="readyBtn"><span class="yfill"></span><span class="lbl">Ready</span><span class="ysec"></span></button>
+      <button class="btn" id="readyBtn"><span class="yfill"></span><span class="lbl">Ready</span></button>
     </nav>
   </div>`);
   mount('game', node);
@@ -2633,16 +2632,16 @@ function clockOn(node, on) {
   node.classList.add('on-clock');
   clockTick();
 }
-// Once a second while a clock runs: the seconds on the button, warm for the last 10, a soft tick for your last 5
+// Once a second while a clock runs: coral for the last 10 seconds (the ring, and your Ready button while it's
+// draining), a soft tick for your last 5
 let clockTimer = null, clockLast = null;
 function clockTick() {
   clearTimeout(clockTimer);
-  const c = S && screen === 'game' && S.phase === 'shop' && S.clock, sec = $('#readyBtn .ysec');
-  if (!c || !sec) { if (sec) setHTML(sec, ''); return; }
+  const c = S && screen === 'game' && S.phase === 'shop' && S.clock, yb = $('#readyBtn');
+  if (!c || !yb) return;
   const left = Math.max(0, Math.ceil((c.until - performance.now()) / 1000)), low = left <= 10;
-  setHTML(sec, String(left));
-  sec.classList.toggle('low', low);
   $(c.mine ? '#meCard' : '#oppCard').classList.toggle('clock-low', low);
+  yb.classList.toggle('clock-low', low && yb.classList.contains('on-clock'));
   if (c.mine && left <= 5 && left > 0 && clockLast !== left && !S.me.ready) Snd.tick();
   clockLast = left;
   clockTimer = setTimeout(clockTick, ((c.until - performance.now()) % 1000 + 1000) % 1000 + 20);
@@ -2825,7 +2824,6 @@ function updateButtons() {
   if (yl.textContent !== yt) yl.textContent = yt;
   if (yb.disabled !== held) yb.disabled = held;
   clockOn(yb, !!S.clock && S.clock.mine && !waiting);
-  if (!S.clock) setHTML($('.ysec', yb), '');
 }
 function updateTargets() {
   const me = S.me, dragging = drag && drag.started;
