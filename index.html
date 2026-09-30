@@ -2101,8 +2101,8 @@ function showHome(msg, page) {
 
   // Lists: tap a row to resume/join; swipe a row left to end that game.
   let lobby = null, last = '', quiet = true; // quiet: the first refresh after opening only catches up, without animating
-  // A pond's name line and its small line (Ranked · set)
-  const withSet = (text, r) => `${text}<small>${r.ranked ? 'Ranked · ' : ''}${esc(SETS[setId(r.set)].name)}</small>`;
+  // A pond's name line and its small line (Ranked or Custom · set; practice already says so in its name line)
+  const withSet = (text, r) => `${text}<small>${r.ranked ? 'Ranked · ' : r.practice ? '' : 'Custom · '}${esc(SETS[setId(r.set)].name)}</small>`;
   const gameText = (r) => withSet(r.practice ? 'Practice' : r.seats.map((x) => esc(x.name)).join(' & '), r);
   const row = (seats, text, cta, onOpen, onEnd, endLabel) => {
     const b = el(`<button class="pond-btn"><span class="avs">${seats.map((x, k) => `<span class="mini">${avatarHTML(x.avatar, 30, { id: 20 + k, centered: true })}</span>`).join('')}</span><span class="pt">${text}</span><em>${cta}</em></button>`);
