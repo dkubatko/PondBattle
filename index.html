@@ -1458,15 +1458,17 @@ const PAD_COLORS = [
   ['Gold', '#d9aa38', '#f0cc62', '#b0862a'], ['Moss', '#6b8436', '#90a957', '#526827'], ['Midnight', '#3a4c7a', '#5d71a3', '#2a385d'],
 ];
 // Every style fits the same 100×56 box, so pads keep their size and place whatever the style
-const PAD_NOTCHED = 'M50 28 L58.4 2.4 A48 26 0 1 1 41.6 2.4 Z';
+// the cut faces the front (the frog stands behind it), as on the logo
+const PAD_NOTCHED = 'M50 28 L41.6 53.6 A48 26 0 1 1 58.4 53.6 Z';
+const PAD_RIM = 'M41.6 53.6 A48 26 0 1 1 58.4 53.6'; // the rim runs round the outside only: it stops where the cut begins
 const padVeins = (V, ends) => `<path d="${ends.map(([x, y]) => `M50 28L${x} ${y}`).join('')}" stroke="${V}" stroke-width="1.8" stroke-linecap="round"/>`;
-const padClassic = (F, R, V) => `<path d="${PAD_NOTCHED}" fill="${F}"/><path d="${PAD_NOTCHED}" fill="none" stroke="${R}" stroke-width="3" opacity=".55"/>` + padVeins(V, [[22, 42], [50, 52], [78, 42], [12, 24], [88, 24]]);
+const padClassic = (F, R, V) => `<path d="${PAD_NOTCHED}" fill="${F}"/><path d="${PAD_RIM}" fill="none" stroke="${R}" stroke-width="3" opacity=".55"/>` + padVeins(V, [[24, 45], [76, 45], [12, 24], [88, 24], [50, 3]]);
 const PAD_STYLES = [
   { id: 'classic', name: 'Classic', art: padClassic },
   // a water lily in bloom on the front edge, where the frog doesn't hide it
   { id: 'blossom', name: 'Blossom', art: (F, R, V) => padClassic(F, R, V) + `<g transform="translate(77 40) scale(1.25)">${[0, 60, 120, 180, 240, 300].map((a) => `<ellipse cy="-5" rx="3" ry="6" fill="${a % 120 ? '#fbd3e2' : '#fff1f6'}" transform="rotate(${a})"/>`).join('')}${[30, 150, 270].map((a) => `<ellipse cy="-4" rx="2.4" ry="4.6" fill="#f7a8c6" transform="rotate(${a})"/>`).join('')}<circle r="2.8" fill="#ffd76a"/></g>` },
   // big glassy dewdrops around the edge of the pad
-  { id: 'dew', name: 'Dewdrops', art: (F, R, V) => padClassic(F, R, V) + [[17, 32, 4.6], [30, 45, 3.8], [72, 46, 4.8], [86, 30, 3.6], [22, 16, 3.2], [80, 14, 3], [52, 48, 2.8]]
+  { id: 'dew', name: 'Dewdrops', art: (F, R, V) => padClassic(F, R, V) + [[17, 32, 4.6], [30, 45, 3.8], [72, 46, 4.8], [86, 30, 3.6], [22, 16, 3.2], [80, 14, 3], [61, 50, 2.8]]
     .map(([x, y, r]) => `<circle cx="${x}" cy="${y + .8}" r="${r}" fill="#000" opacity=".15"/><circle cx="${x}" cy="${y}" r="${r}" fill="#e8f8ff" opacity=".75" stroke="#fff" stroke-width=".8"/><circle cx="${x - r * .35}" cy="${y - r * .38}" r="${r * .34}" fill="#fff"/>`).join('') },
   // Lotus: a pad with a petalled edge (eight rounded points all round)
   { id: 'lotus', name: 'Lotus', art: (F, R, V) => { const petals = Array.from({ length: 8 }, (_, k) => { const a = (k / 8) * Math.PI * 2 + Math.PI / 8;
