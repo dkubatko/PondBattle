@@ -76,10 +76,14 @@ Home infrastructure (Tower, Docker, Nginx Proxy Manager, Cloudflare) is describe
 - Never rename or delete a frog id: ids are stored in saved rooms, match history and profiles. Rename only
   its `name`. To retire a frog, set its tier to 0 (it leaves the shop; saved ponds still play), as was done
   for Frogspawn (`tadpole`).
-- Start of battle: the ponds take turns, one start-of-battle frog each. The first seat starts in odd
-  rounds, the second in even ones (the first seat is the pond's creator; in matchmaking, whoever waited
-  longer). Each effect resolves completely (knockouts, hurt reactions) before the next frog acts. Every
-  start-of-battle ability always plays, and says so when there's nothing to affect.
+- Fair turns: whenever both ponds have something waiting at the same moment (a start-of-battle frog, a
+  knocked-out frog, a hurt reaction), the pond whose turn it is goes first and the turn passes to the other.
+  Each kind keeps its own turn; all start with the round's first pond: the first seat in odd rounds, the
+  second in even ones (the first seat is the pond's creator; in matchmaking, whoever waited longer). No
+  seat may be favoured anywhere else either: anything both ponds do at once follows the round's order.
+- Each effect resolves completely (knockouts, hurt reactions) before the next one. Within a pond,
+  knockouts go front to back. Every start-of-battle ability always plays, and says so when there's
+  nothing to affect. The page plays a run of knockouts with nothing between them as one moment.
 - Babies and raised frogs arrive once the frogs knocked out in the same moment have left. A pond never
   holds more than five.
 - "Immune" means no damage; effects like shrink, swap or scream still apply. Frogs behind a Frog King

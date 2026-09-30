@@ -94,7 +94,16 @@ function runBattle(teamA, teamB, opts = {}) {
     }
   }
   const an = (name) => `${/^[AEIOU]/.test(name) ? 'an' : 'a'} ${name}`;
-  const hurts = [];
+  // Fair turns: whenever both ponds have something waiting at the same moment (a start-of-battle frog, a knocked-out
+  // frog, a hurt reaction), the pond whose turn it is goes first and the turn passes to the other. Each kind keeps its
+  // own turn, and every one of them starts with the round's first pond (opts.first), so no seat is always first.
+  const first = opts.first ? 1 : 0, order = [first, 1 - first];
+  const turnOf = { start: first, faint: first, hurt: first };
+  const take = (kind, has) => {
+    if (has[0] && has[1]) { const s = turnOf[kind]; turnOf[kind] = 1 - s; return s; }
+    return has[0] ? 0 : has[1] ? 1 : -1;
+  };
+  const hurts = [[], []]; // per pond, in the order the frogs were hurt
   const nm = (u) => FROGS[u.type].name;
   const fixed = (u) => FROGS[u.type].fixed;
 
@@ -114,7 +123,7 @@ function runBattle(teamA, teamB, opts = {}) {
     if (src && src.type === 'golden' && src.uses < src.lvl) { src.uses++; n = Math.max(n, u.hp); if (snap) gold.push(u.bid); }
     else if (u.type === 'turtle') { const m = Math.max(1, n - u.lvl); if (snap && m < n) shell.push([u.bid, n - m]); n = m; }
     u.hp -= n;
-    if (u.hp > 0) hurts.push([s, u]);
+    if (u.hp > 0) hurts[s].push(u);
   };
   // Fixed stats (Frog King, Pebble Toad's attack) ignore buffs
   const buff = (u, a, h) => {
@@ -139,7 +148,7 @@ function runBattle(teamA, teamB, opts = {}) {
   };
   const hugs = () => {
     const born = newborn.splice(0);
-    for (const s of [0, 1]) for (const m of T[s]) {
+    for (const s of order) for (const m of T[s]) {
       if (m.type !== 'mama' || m.hp <= 0) continue;
       const kids = born.filter(([side, f]) => side === s && f !== m && f.hp > 0).map(([, f]) => f);
       if (!kids.length) continue;
@@ -199,9 +208,12 @@ function runBattle(teamA, teamB, opts = {}) {
   };
   function settle() {
     for (let guard = 0; guard < 200; guard++) {
-      if (hurts.length) { const [s, u] = hurts.shift(); if (u.hp > 0 && T[s].includes(u)) onHurt(s, u); continue; }
+      const hs = take('hurt', hurts.map((q) => q.length > 0));
+      if (hs >= 0) { const u = hurts[hs].shift(); if (u.hp > 0 && T[hs].includes(u)) onHurt(hs, u); continue; }
       let found = false;
-      for (const s of [0, 1]) {
+      // one knocked-out frog (the front-most of its pond), from the pond whose turn it is when both have one
+      const ks = take('faint', [0, 1].map((x) => T[x].some((u) => u.hp <= 0)));
+      for (const s of ks >= 0 ? [ks] : []) {
         const i = T[s].findIndex((u) => u.hp <= 0);
         if (i >= 0 && T[s][i].type === 'bouncy' && !T[s][i].bounced) {
           const [u] = T[s].splice(i, 1);
@@ -234,7 +246,7 @@ function runBattle(teamA, teamB, opts = {}) {
   // Chameleons take on the ability of the friend behind them first (back to front, so chains copy the
   // finished copy), so a copied start-of-battle ability still fires below. They keep their own stats, level and gear
   // (unless the ability sets its stats, like the Frog King's).
-  for (const s of [0, 1]) {
+  for (const s of order) {
     for (let i = T[s].length - 2; i >= 0; i--) {
       const u = T[s][i], b = T[s][i + 1];
       if (u.type !== 'chameleon' || b.type === 'chameleon') continue;
@@ -244,7 +256,7 @@ function runBattle(teamA, teamB, opts = {}) {
     }
   }
   // Paladins and Guards size up the ponds
-  for (const s of [0, 1]) for (const u of T[s]) {
+  for (const s of order) for (const u of T[s]) {
     auras(u);
     if (u.aura && u.type === 'paladin') snap?.('ability', { actor: u.bid, text: `${nm(u)} takes on ${u.aura / u.lvl} ${u.aura === u.lvl ? 'enemy' : 'enemies'}` });
     if (u.aura && u.type === 'guard') snap?.('ability', { actor: u.bid, text: `${nm(u)} stands with its friends` });
@@ -252,16 +264,16 @@ function runBattle(teamA, teamB, opts = {}) {
   // Start of battle: the ponds take turns, one start-of-battle frog each (each pond's are taken front to back), so
   // two of one pond's never go in a row while the other pond still has one waiting, however many frogs stand
   // before them. opts.first says which pond starts; fight() switches it every round, so neither seat always acts first.
-  const first = opts.first ? 1 : 0, order = [first, 1 - first];
   // Each frog's effect is settled right away (knockouts, hurt reactions, babies), before the next frog acts; frogs
   // that turn up during start of battle (babies, raised frogs) don't get a turn of their own
   const lines = T.map((t) => t.filter((u) => START_OF_BATTLE.has(u.type)));
   // L random enemies from a list (fewer if there aren't that many)
   const some = (pool, L) => { const out = []; pool = [...pool]; while (out.length < L && pool.length) out.push(pool.splice(rand(pool.length), 1)[0]); return out; };
-  for (let i = 0; i < Math.max(lines[0].length, lines[1].length); i++) {
-    for (const s of order) {
-      const u = lines[s][i];
-      if (!u || u.hp <= 0 || !T[s].includes(u)) continue;
+  // a pond's next start-of-battle frog that's still standing in it (knocked-out ones lose their go, not their pond's turn)
+  const waiting = (x) => { while (lines[x].length && !(lines[x][0].hp > 0 && T[x].includes(lines[x][0]))) lines[x].shift(); return lines[x].length > 0; };
+  for (let s; (s = take('start', [waiting(0), waiting(1)])) >= 0;) {
+    {
+      const u = lines[s].shift();
       const L = u.lvl;
       if (u.type === 'hypno') {
         // Sends the enemy's front frog to the back, L times (one step each, so you can follow it)
