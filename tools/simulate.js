@@ -1,205 +1,295 @@
 #!/usr/bin/env node
-// Frog simulation report (tools/simulate.js) — plays lots of full games with every frog in the pool and reports how each
-// frog and item does. It changes nothing: the numbers are for a person to read and decide on.
+// Balance simulator (tools/simulate.js): plays lots of full games and reports how every frog and item does.
+// It changes nothing and decides nothing: the numbers are for the person or agent reading them.
 //
-//   node tools/simulate.js [--games N] [--set ID]   (default 120000 full games per set, spread over all CPU cores;
-//                                                    every set in sets.json, or just the one given)
+//   node tools/simulate.js                         the working tree (uncommitted changes included), every set
+//   node tools/simulate.js --set nature            one set
+//   node tools/simulate.js --base origin/main      A/B: the working tree (B) against a git ref or a folder (A)
+//   node tools/simulate.js --try "king.hp=7 cricket.cost=3"
+//                                                  A/B: the working tree (A) against itself with these changes (B);
+//                                                  with --base, the changes apply to the working tree side
+//   options: --games N (full games per set and side, default 60000), --seed N, --json, --workers N
 //
-// Each set is its own game (its shop only sells that set's frogs), so each set gets its own report.
-// How it works: two identical simulated players play complete games (seeded, fast). They buy
-// frogs without looking at which frog it is (so every frog gets picked about as often), merge
-// copies, feed, sell to make room for higher tiers and arrange by each frog's preferred spot.
-// Nothing is scripted about which frogs go well together: combos show up (or not) on their own.
-// Every battle records both boards; a frog's score is how often boards that include it won
-// (50% = average), next to the typical frog of its tier (they unlock in the same round and show up
-// about as often, so that is the fair comparison). Also shown: win rate of boards where the frog is
-// level 3. Items are scored by how often the buyer wins the next 3 battles.
+// How games are played: two identical simulated players buy frogs without looking at which frog it is (so every
+// frog gets picked about as often), merge copies, feed items, sell to make room for higher tiers, and line up
+// by each frog's preferred spot in frogs.json. Nothing about which frogs go well together is scripted: combos
+// show up (or not) on their own. Keep it that way (see CLAUDE.md, Balance).
 //
-// Trying a change: edit frogs.json / items.json / engine.js in a copy of the game, run this there,
-// and compare with the report from before the change.
+// What is measured, per set:
+// - each frog: how often boards with it win (50% = average), next to its tier's typical frog (the median),
+//   how often it's on a board, and the win rate of boards where it's level 3. "±" is a 95% margin.
+// - each item: how often the buyer wins the next 3 battles.
+// - the games: rounds, battles, draws, and how often the pond that acts first at start of battle wins.
+// A/B runs play the same seeded games on both sides, so a difference comes from the change, not from luck.
+// A difference smaller than its own margin is marked as noise ("~").
 'use strict';
 const fs = require('fs');
 const os = require('os');
 const path = require('path');
+const { execFileSync } = require('child_process');
 const { Worker, isMainThread, parentPort } = require('worker_threads');
-const G = require('../engine.js'); // game rules only; never touches rooms or game history
-const { FROGS, FOODS, SETS } = G;
-const ITEMS = Object.keys(FOODS);
-const args = process.argv.slice(2);
-const flag = (name, dflt) => { const i = args.indexOf(`--${name}`); return i >= 0 ? args[i + 1] : dflt; };
-const GAMES = Number(flag('games', 120000));
-const ONLY = flag('set', null);
-const BAND = 0.03;       // more than 3 points from its tier's typical frog is worth a look
-let SET = Object.keys(SETS)[0]; // the set being simulated
-const REAL = () => SETS[SET].frogs;
+
+const ROOT = path.join(__dirname, '..');
+const FILES = ['engine.js', 'frogs.json', 'items.json', 'sets.json']; // what the game rules are made of
+
+// ===================================================================================== worker: play games
+if (!isMainThread) {
+  const loaded = new Map(); // folder -> { G, pristine } (the engine is loaded once per folder)
+  const load = (dir) => {
+    if (!loaded.has(dir)) {
+      const G = require(path.join(dir, 'engine.js'));
+      loaded.set(dir, { G, pristine: JSON.stringify({ frogs: G.FROGS, foods: G.FOODS }) });
+    }
+    return loaded.get(dir);
+  };
+  parentPort.on('message', (task) => {
+    const { G, pristine } = load(task.dir);
+    // start from the folder's own stats every time, then apply this side's changes (--try)
+    const p = JSON.parse(pristine);
+    for (const k of Object.keys(G.FROGS)) delete G.FROGS[k];
+    for (const k of Object.keys(G.FOODS)) delete G.FOODS[k];
+    Object.assign(G.FROGS, p.frogs); Object.assign(G.FOODS, p.foods);
+    for (const [id, field, value] of task.changes) (G.FROGS[id] || G.FOODS[id])[field] = value;
+    parentPort.postMessage(play(G, task));
+  });
+  return; // eslint-disable-line
+}
+
 function mulberry32(a) { return () => { a |= 0; a = (a + 0x6D2B79F5) | 0; let t = Math.imul(a ^ (a >>> 15), 1 | a); t = (t + Math.imul(t ^ (t >>> 7), 61 | t)) ^ t; return ((t ^ (t >>> 14)) >>> 0) / 4294967296; }; }
 
-// ---------- one simulated game ----------
-const posRank = { front: 0, any: 1, back: 2 };
-function simTier(type) { return FROGS[type].tier; }
-function botTurn(room, p, tier) {
-  const r = () => p.rng();
+// One simulated player's shop turn: type-blind buys, merges, items, selling for higher tiers, then lining up
+function shopTurn(G, room, p, buys) {
+  const { FROGS, FOODS } = G, r = p.rng, posRank = { front: 0, any: 1, back: 2 };
   const price = (f) => f.cost ?? G.frogCost(f.type);
   for (let rolls = 0; rolls <= 2; rolls++) {
     for (let guard = 0; guard < 8; guard++) {
       const opts = p.shop.frogs.map((f, i) => f && { f, i }).filter((o) => o && p.gold >= price(o.f));
       if (!opts.length) break;
-      const o = opts[Math.floor(r() * opts.length)]; // type-blind: any affordable frog
+      const o = opts[Math.floor(r() * opts.length)];
       let slot = p.team.findIndex((t) => t && t.type === o.f.type && t.lvl < 3);
       if (slot < 0) slot = p.team.findIndex((t) => !t);
       if (slot < 0) {
-        // Pond full: make room only for a frog from a higher tier, replacing a level-1 frog of the lowest tier
+        // Pond full: make room only for a frog from a higher tier, selling a level-1 frog of the lowest tier.
+        // Frogs whose ability pays out when sold (sell: "first") are what a player sells first.
         const cands = p.team.map((t, j) => [t, j]).filter(([t]) => t.lvl === 1);
         if (!cands.length) break;
-        // Frogs whose ability pays out when sold (sell: "first") are what a player sells to make room
         const sellers = cands.filter(([t]) => FROGS[t.type].sell === 'first' && o.f.type !== t.type);
         let pool;
         if (sellers.length) pool = sellers;
         else {
-          const low = Math.min(...cands.map(([t]) => simTier(t.type)));
-          if (simTier(o.f.type) <= low) break;
-          pool = cands.filter(([t]) => simTier(t.type) === low);
+          const low = Math.min(...cands.map(([t]) => FROGS[t.type].tier));
+          if (FROGS[o.f.type].tier <= low) break;
+          pool = cands.filter(([t]) => FROGS[t.type].tier === low);
         }
         slot = pool[Math.floor(r() * pool.length)][1];
         G.act(room, p, { type: 'sell', slot });
       }
       G.act(room, p, { type: 'buy', shopIdx: o.i, slot });
     }
-    if (p.shop.food && p.gold >= (p.shop.foodCost ?? 3)) {
-      // Any frog that can use it (gear only for a frog without any, a Cricket below level 3)
-      const item = p.shop.food;
-      const idx = p.team.map((t, j) => (G.canTake(t, FOODS[item]) ? j : -1)).filter((j) => j >= 0);
-      if (idx.length) { G.act(room, p, { type: 'food', slot: idx[Math.floor(r() * idx.length)] }); room.buys.push([room.round, room.players.indexOf(p), item]); }
+    const item = p.shop.food;
+    if (item && p.gold >= (p.shop.foodCost ?? 3)) {
+      const can = p.team.map((t, j) => (G.canTake(t, FOODS[item]) ? j : -1)).filter((j) => j >= 0);
+      if (can.length) { G.act(room, p, { type: 'food', slot: can[Math.floor(r() * can.length)] }); buys.push([room.round, room.players.indexOf(p), item]); }
     }
     if (p.gold < G.ROLL_COST + 3) break;
     G.act(room, p, { type: 'roll' });
   }
-  // Arrange: frogs that want the front go first, then by toughness; back-row frogs last
   const team = p.team.filter(Boolean).sort((a, b) => (posRank[FROGS[a.type].pos] ?? 1) - (posRank[FROGS[b.type].pos] ?? 1) || (b.atk + b.hp) - (a.atk + a.hp));
   p.team = [...team, ...Array(G.TEAM_SIZE - team.length).fill(null)];
   G.act(room, p, { type: 'ready' });
 }
 
-// One full game; returns the per-round log (both boards and who won)
-function playGame(seed) {
-  Math.random = mulberry32(seed * 2654435761);
-  const room = { code: 'SIM', sim: true, set: SET, v: 0, players: [G.newPlayerState(), G.newPlayerState()], buys: [] };
-  room.players.forEach((p, i) => { p.rng = mulberry32(seed * 31 + i); });
-  G.resetGame(room);
-  for (let guard = 0; guard < 40 && room.phase === 'shop'; guard++) {
-    const r0 = room.round;
-    for (const p of room.players) botTurn(room, p, 0);
-    if (room.round === r0 && room.phase === 'shop') break;
-  }
-  const log = room.log || [];
-  log.buys = room.buys; // items bought: [round, player, item]
-  return log;
-}
-// ---------- counting (runs in the worker threads) ----------
-// [wins, boards] per frog: overall and at level 3; [wins, battles] per item
-function count(from, to) {
-  const frog = {}, items = {};
-  let rounds = 0;
-  const add = (o, k, w) => { const r = (o[k] ??= [0, 0]); r[0] += w; r[1]++; };
-  for (let g = from; g < to; g++) {
-    const log = playGame(1000 + g);
-    for (const [round, side, item] of log.buys) {
-      for (const e of log) if (e.round >= round && e.round < round + 3 && e.winner >= 0) add(items, item, e.winner === side ? 1 : 0);
+// Games [from, to) of one set; returns counts only (the main thread adds them up)
+function play(G, { set, from, to, seed }) {
+  const frog = {}, items = {}, g = { games: 0, rounds: 0, battles: 0, draws: 0, starterWins: 0, decided: 0 };
+  const add = (o, k, w) => { const c = (o[k] ??= [0, 0]); c[0] += w; c[1]++; };
+  for (let n = from; n < to; n++) {
+    const s = seed + n;
+    Math.random = mulberry32(s * 2654435761);
+    const room = { code: 'SIM', sim: true, set, v: 0, players: [G.newPlayerState(), G.newPlayerState()] };
+    room.players.forEach((p, i) => { p.rng = mulberry32(s * 31 + i); });
+    G.resetGame(room);
+    const buys = [];
+    for (let guard = 0; guard < 40 && room.phase === 'shop'; guard++) {
+      const r0 = room.round;
+      for (const p of room.players) shopTurn(G, room, p, buys);
+      if (room.round === r0 && room.phase === 'shop') break;
     }
+    const log = room.log || [];
+    g.games++; g.rounds += log.length; g.battles += log.length;
+    for (const [round, side, item] of buys) for (const e of log) if (e.round >= round && e.round < round + 3 && e.winner >= 0) add(items, item, e.winner === side ? 1 : 0);
     for (const e of log) {
-      if (e.winner < 0) continue;
-      rounds++;
+      if (e.winner < 0) { g.draws++; continue; }
+      // the pond acting first at start of battle: seat 0 in odd rounds, seat 1 in even ones (engine.js fight())
+      g.decided++; if (e.winner === (e.round % 2 === 0 ? 1 : 0)) g.starterWins++;
       e.teams.forEach((team, side) => {
         const w = e.winner === side ? 1 : 0, best = new Map();
         for (const f of team) if (f) best.set(f.type, Math.max(best.get(f.type) || 0, f.lvl));
-        for (const [type, lvl] of best) {
-          const r = (frog[type] ??= {});
-          add(r, 'all', w);
-          if (lvl === 3) add(r, 'l3', w);
-
-        }
+        for (const [type, lvl] of best) { const r = (frog[type] ??= {}); add(r, 'all', w); if (lvl === 3) add(r, 'l3', w); }
       });
     }
   }
-  return { frog, items, rounds };
+  return { frog, items, g };
 }
-if (!isMainThread) {
-  parentPort.on('message', ({ frogs, foods, set, from, to }) => {
-    SET = set;
-    for (const k in frogs) FROGS[k] = frogs[k];
-    for (const k in foods) FOODS[k] = foods[k];
-    parentPort.postMessage(count(from, to));
+
+// ===================================================================================== main: run and report
+const args = process.argv.slice(2);
+const opt = (name, dflt) => { const i = args.indexOf(`--${name}`); return i < 0 ? dflt : args[i + 1] && !args[i + 1].startsWith('--') ? args[i + 1] : true; };
+const GAMES = Number(opt('games', 60000)), SEED = Number(opt('seed', 1000)), JSON_OUT = !!opt('json', false);
+const WORKERS = Number(opt('workers', os.cpus().length));
+const BASE = opt('base', null), TRY = opt('try', null), ONLY = opt('set', null);
+const CHUNK = 2000; // games per task: small enough to keep every core busy to the end
+
+// A side's rules come from a folder: the working tree, a folder given with --base, or a git ref copied out
+function refFolder(ref) {
+  if (fs.existsSync(ref) && fs.statSync(ref).isDirectory()) return path.resolve(ref);
+  const dir = fs.mkdtempSync(path.join(os.tmpdir(), 'pond-sim-'));
+  for (const f of FILES) {
+    try { fs.writeFileSync(path.join(dir, f), execFileSync('git', ['-C', ROOT, 'show', `${ref}:${f}`])); }
+    catch { throw new Error(`--base ${ref}: can't read ${f} from git (is the ref right, and does it have sets.json?)`); }
+  }
+  return dir;
+}
+// --try "king.hp=7 prince=5/7 cricket.cost=3": field changes for frogs or items (id=atk/hp is short for both)
+function parseTry(s, dir) {
+  if (!s || s === true) return [];
+  const G = require(path.join(dir, 'engine.js'));
+  return s.trim().split(/\s+/).flatMap((tok) => {
+    const m = tok.match(/^([a-z0-9_]+)(?:\.([a-z]+))?=(.+)$/i);
+    if (!m) throw new Error(`--try: can't read "${tok}" (use id.field=value or id=atk/hp)`);
+    const [, id, field, value] = m;
+    if (!G.FROGS[id] && !G.FOODS[id]) throw new Error(`--try: no frog or item "${id}"`);
+    if (!field) { const [a, h] = value.split('/').map(Number); return [[id, 'atk', a], [id, 'hp', h]]; }
+    const num = Number(value);
+    return [[id, field, Number.isNaN(num) ? value : num]];
   });
-  return; // eslint-disable-line
-}
-
-// ---------- simulate: spread the games over all cores ----------
-let pool = null;
-async function simulate() {
-  pool ??= Array.from({ length: Math.max(1, os.cpus().length) }, () => new Worker(__filename));
-  const per = Math.ceil(GAMES / pool.length);
-  const parts = await Promise.all(pool.map((w, i) => new Promise((res, rej) => {
-    w.once('error', rej); w.once('message', (m) => { w.off('error', rej); res(m); });
-    w.postMessage({ frogs: FROGS, foods: FOODS, set: SET, from: i * per, to: Math.min(GAMES, (i + 1) * per) });
-  })));
-  const sum = (a, b) => (b ? [a[0] + b[0], a[1] + b[1]] : a);
-  const frog = {}, items = {};
-  let rounds = 0;
-  for (const p of parts) {
-    rounds += p.rounds;
-    for (const [k, r] of Object.entries(p.frog)) { const t = (frog[k] ??= {}); for (const x in r) t[x] = sum(r[x], t[x]); }
-    for (const [k, r] of Object.entries(p.items)) items[k] = sum(r, items[k]);
-  }
-  const out = {};
-  const rate = (r) => (r && r[1] ? r[0] / r[1] : null);
-  for (const k of REAL()) {
-    const r = frog[k] || {};
-    out[k] = { wr: rate(r.all) ?? 0.5, seen: (r.all ? r.all[1] : 0) / Math.max(1, 2 * rounds), l3: rate(r.l3), l3n: r.l3 ? r.l3[1] : 0 };
-  }
-  for (const k of ITEMS) { const r = items[k] || [0, 0]; out[k] = { wr: rate(r) ?? 0.5, seen: r[1] }; }
-  return out;
-}
-// A tier's yardstick is its typical frog (the median), so one far-off newcomer doesn't shift the rest
-const median = (xs) => { const v = xs.filter((x) => x != null).sort((a, b) => a - b); return v.length ? (v[(v.length - 1) >> 1] + v[v.length >> 1]) / 2 : null; };
-function tierAverages(res, key = 'wr') {
-  const t = {};
-  for (let tier = 1; tier <= 4; tier++) t[tier] = median(REAL().filter((k) => FROGS[k].tier === tier).map((k) => res[k][key]));
-  return t;
-}
-
-const ITEM_BAND = 0.015; // an item moves a board less than a frog does, so the band is tighter
-const itemAverage = (res) => ITEMS.reduce((a, k) => a + res[k].wr, 0) / ITEMS.length;
-const pad = (s, n) => String(s).padEnd(n);
-const pct = (x) => (x == null ? '-' : `${(x * 100).toFixed(1)}%`);
-function table(res, avg) {
-  const l3 = tierAverages(res, 'l3');
-  console.log(`\n${pad('frog', 12)}${pad('tier', 5)}${pad('price', 6)}${pad('stats', 7)}${pad('on boards', 10)}${pad('wins', 7)}${pad('typical', 9)}${pad('verdict', 20)}at Lv3`);
-  for (const k of REAL().sort((a, b) => FROGS[a].tier - FROGS[b].tier || res[b].wr - res[a].wr)) {
-    const f = FROGS[k], r = res[k], d = r.wr - avg[f.tier];
-    const v = Math.abs(d) <= BAND ? 'ok' : d > 0 ? `strong (+${(d * 100).toFixed(1)})` : `weak (${(d * 100).toFixed(1)})`;
-    // Level 3 is rare; under 1000 boards the number is only a hint
-    const lv3 = r.l3 == null ? '-' : `${pct(r.l3)} ${r.l3 - l3[f.tier] >= 0 ? '+' : ''}${((r.l3 - l3[f.tier]) * 100).toFixed(0)}${r.l3n < 1000 ? '?' : ''}`;
-    console.log(`${pad(k, 12)}${pad(f.tier, 5)}${pad(f.cost, 6)}${pad(`${f.atk}/${f.hp}`, 7)}${pad(pct(r.seen), 10)}${pad(pct(r.wr), 7)}${pad(pct(avg[f.tier]), 9)}${pad(v, 20)}${lv3}`);
-  }
-  console.log(`typical frog per tier: ${[1, 2, 3, 4].map((t) => `tier ${t} ${pct(avg[t])}`).join(', ')}`);
-  console.log(`  at level 3:  ${[1, 2, 3, 4].map((t) => `tier ${t} ${pct(l3[t])}`).join(', ')}`);
-  const ia = itemAverage(res);
-  console.log(`\n${pad('item', 12)}${pad('price', 7)}${pad('bought', 9)}${pad('wins next 3', 13)}${pad('item avg', 10)}verdict`);
-  for (const k of [...ITEMS].sort((a, b) => res[b].wr - res[a].wr)) {
-    const d = res[k].wr - ia, v = Math.abs(d) <= ITEM_BAND ? 'ok' : d > 0 ? `strong (+${(d * 100).toFixed(1)})` : `weak (${(d * 100).toFixed(1)})`;
-    console.log(`${pad(k, 12)}${pad(FOODS[k].cost, 7)}${pad(res[k].seen, 9)}${pad(pct(res[k].wr), 13)}${pad(pct(ia), 10)}${v}`);
-  }
 }
 
 async function main() {
   const t0 = Date.now();
-  for (const set of ONLY ? [ONLY] : Object.keys(SETS)) {
-    SET = set;
-    console.log(`\n=== ${SETS[set].name}: ${GAMES.toLocaleString('en')} full games on ${os.cpus().length} cores`);
-    const res = await simulate();
-    table(res, tierAverages(res));
-  }
-  console.error(`done in ${((Date.now() - t0) / 1000).toFixed(0)}s`);
-  for (const w of pool || []) w.terminate();
+  // Sides: B is always the working tree; A is the base (--base), or the working tree without --try changes
+  const work = ROOT, changes = parseTry(TRY, work);
+  const sides = BASE ? [{ name: 'A', label: `${BASE}`, dir: refFolder(BASE), changes: [] }, { name: 'B', label: `working tree${changes.length ? ` + ${TRY}` : ''}`, dir: work, changes }]
+    : changes.length ? [{ name: 'A', label: 'working tree', dir: work, changes: [] }, { name: 'B', label: `working tree + ${TRY}`, dir: work, changes }]
+    : [{ name: 'A', label: 'working tree', dir: work, changes: [] }];
+  const SETS = require(path.join(work, 'engine.js')).SETS;
+  const sets = ONLY ? [ONLY] : Object.keys(SETS);
+  for (const s of sets) if (!SETS[s]) throw new Error(`no set "${s}" (sets: ${Object.keys(SETS).join(', ')})`);
+
+  // every (side, set) is split into chunks; a pool of workers takes chunks until none are left
+  const tasks = [];
+  for (const side of sides) for (const set of sets) for (let from = 0; from < GAMES; from += CHUNK) tasks.push({ side: side.name, set, dir: side.dir, changes: side.changes, from, to: Math.min(GAMES, from + CHUNK), seed: SEED });
+  const results = {};
+  const merge = (task, r) => {
+    const acc = (results[`${task.side}:${task.set}`] ??= { frog: {}, items: {}, g: {} });
+    const sum = (a, b) => [a[0] + b[0], a[1] + b[1]];
+    for (const [k, v] of Object.entries(r.frog)) { const t = (acc.frog[k] ??= {}); for (const x in v) t[x] = t[x] ? sum(t[x], v[x]) : v[x]; }
+    for (const [k, v] of Object.entries(r.items)) acc.items[k] = acc.items[k] ? sum(acc.items[k], v) : v;
+    for (const [k, v] of Object.entries(r.g)) acc.g[k] = (acc.g[k] || 0) + v;
+  };
+  const pool = Array.from({ length: Math.max(1, WORKERS) }, () => new Worker(__filename));
+  await Promise.all(pool.map((w) => new Promise((resolve, reject) => {
+    const next = () => {
+      const task = tasks.shift();
+      if (!task) { w.terminate(); return resolve(); }
+      w.once('message', (r) => { merge(task, r); next(); });
+      w.postMessage(task);
+    };
+    w.on('error', reject);
+    next();
+  })));
+  const secs = (Date.now() - t0) / 1000;
+  const battles = Object.values(results).reduce((n, r) => n + r.g.battles, 0);
+  const report = build(sides, sets, results);
+  report.run = { games: GAMES, sets, sides: sides.map((s) => ({ name: s.name, label: s.label })), battles, seconds: +secs.toFixed(1), battlesPerSecond: Math.round(battles / secs), seed: SEED, workers: pool.length };
+  if (JSON_OUT) console.log(JSON.stringify(report, null, 1));
+  else print(report);
 }
-main();
+
+// ------------------------------------------------------------------ numbers
+const Z = 1.96;
+const rate = (c) => (c && c[1] ? c[0] / c[1] : null);
+const margin = (c) => { const p = rate(c); return p == null ? null : Z * Math.sqrt((p * (1 - p)) / c[1]); };
+const median = (xs) => { const v = xs.filter((x) => x != null).sort((a, b) => a - b); return v.length ? (v[(v.length - 1) >> 1] + v[v.length >> 1]) / 2 : null; };
+function build(sides, sets, results) {
+  const rules = (dir) => require(path.join(dir, 'engine.js'));
+  const out = { sets: {} };
+  for (const set of sets) {
+    const bySide = {};
+    for (const side of sides) {
+      const r = results[`${side.name}:${set}`], G = rules(side.dir);
+      const stat = (id, k) => { const f = G.FROGS[id], c = Object.fromEntries(side.changes.filter(([i]) => i === id).map(([, f2, v]) => [f2, v])); return { ...f, ...c }[k]; };
+      const frogs = {}, boards = 2 * r.g.decided;
+      for (const id of G.SETS[set] ? G.SETS[set].frogs : []) {
+        const c = r.frog[id] || {};
+        frogs[id] = { name: stat(id, 'name'), tier: stat(id, 'tier'), atk: stat(id, 'atk'), hp: stat(id, 'hp'), cost: stat(id, 'cost'),
+          win: rate(c.all), margin: margin(c.all), seen: c.all ? c.all[1] / boards : 0, lv3: rate(c.l3), lv3Boards: c.l3 ? c.l3[1] : 0 };
+      }
+      const tiers = {};
+      for (const t of [1, 2, 3, 4]) tiers[t] = { typical: median(Object.values(frogs).filter((f) => f.tier === t).map((f) => f.win)), typicalLv3: median(Object.values(frogs).filter((f) => f.tier === t && f.lv3Boards >= 1000).map((f) => f.lv3)) };
+      for (const f of Object.values(frogs)) f.vsTier = f.win == null || tiers[f.tier] == null || tiers[f.tier].typical == null ? null : f.win - tiers[f.tier].typical;
+      const items = {};
+      for (const [id, c] of Object.entries(r.items)) items[id] = { name: G.FOODS[id] ? G.FOODS[id].name : id, cost: (side.changes.find(([i, f]) => i === id && f === 'cost') || [])[2] ?? (G.FOODS[id] || {}).cost, win: rate(c), margin: margin(c), bought: c[1] };
+      const g = r.g;
+      bySide[side.name] = { frogs, tiers, items, games: { games: g.games, battles: g.battles, roundsPerGame: g.rounds / g.games, drawRate: g.draws / g.battles, starterWinRate: g.starterWins / g.decided, starterMargin: margin([g.starterWins, g.decided]) } };
+    }
+    out.sets[set] = bySide;
+    if (sides.length === 2) {
+      // A/B: what changed, with the combined margin of both sides
+      const [A, B] = [bySide.A, bySide.B], diff = [];
+      for (const id of new Set([...Object.keys(A.frogs), ...Object.keys(B.frogs)])) {
+        const a = A.frogs[id], b = B.frogs[id];
+        if (!a || !b || a.win == null || b.win == null) { diff.push({ id, kind: 'frog', note: !a ? 'only in B' : 'only in A' }); continue; }
+        const d = b.win - a.win, m = Math.hypot(a.margin, b.margin);
+        diff.push({ id, kind: 'frog', a: a.win, b: b.win, delta: d, margin: m, real: Math.abs(d) > m, vsTierA: a.vsTier, vsTierB: b.vsTier, statsA: `${a.atk}/${a.hp}`, statsB: `${b.atk}/${b.hp}` });
+      }
+      for (const id of new Set([...Object.keys(A.items), ...Object.keys(B.items)])) {
+        const a = A.items[id], b = B.items[id];
+        if (!a || !b) { diff.push({ id, kind: 'item', note: !a ? 'only in B' : 'only in A' }); continue; }
+        const d = b.win - a.win, m = Math.hypot(a.margin, b.margin);
+        diff.push({ id, kind: 'item', a: a.win, b: b.win, delta: d, margin: m, real: Math.abs(d) > m });
+      }
+      out.sets[set].diff = diff.sort((x, y) => Math.abs(y.delta || 0) - Math.abs(x.delta || 0));
+    }
+  }
+  return out;
+}
+
+// ------------------------------------------------------------------ text report
+const pct = (x, d = 1) => (x == null ? '-' : `${(x * 100).toFixed(d)}%`);
+const pts = (x) => (x == null ? '-' : `${x >= 0 ? '+' : ''}${(x * 100).toFixed(1)}`);
+const pad = (s, n) => String(s).padEnd(n);
+function print(rep) {
+  const { run } = rep;
+  console.log(`Pond Brawl balance report: ${run.games.toLocaleString('en')} full games per set and side, seed ${run.seed}`);
+  for (const s of run.sides) console.log(`  ${s.name}: ${s.label}`);
+  for (const set of run.sets) {
+    const sides = rep.sets[set];
+    for (const name of Object.keys(sides).filter((k) => k !== 'diff')) {
+      const { frogs, tiers, items, games } = sides[name];
+      console.log(`\n=== ${set}${run.sides.length > 1 ? ` · ${name}` : ''}`);
+      console.log(`games: ${games.roundsPerGame.toFixed(1)} rounds each · draws ${pct(games.drawRate)} · the pond acting first at start of battle wins ${pct(games.starterWinRate)} ±${pct(games.starterMargin)}`);
+      console.log(`tier typical (median): ${[1, 2, 3, 4].map((t) => `T${t} ${pct(tiers[t].typical)}`).join(' · ')}   at Lv3: ${[1, 2, 3, 4].map((t) => `T${t} ${pct(tiers[t].typicalLv3)}`).join(' · ')}`);
+      console.log(`${pad('frog', 16)}${pad('tier', 5)}${pad('stats', 7)}${pad('cost', 5)}${pad('win ±', 14)}${pad('vs tier', 9)}${pad('on boards', 11)}Lv3 win (boards)`);
+      for (const [id, f] of Object.entries(frogs).sort((a, b) => a[1].tier - b[1].tier || (b[1].win || 0) - (a[1].win || 0))) {
+        const flag = f.vsTier != null && Math.abs(f.vsTier) > 0.03 ? ' *' : '';
+        console.log(`${pad(id, 16)}${pad(f.tier, 5)}${pad(`${f.atk}/${f.hp}`, 7)}${pad(f.cost ?? '-', 5)}${pad(`${pct(f.win)} ±${(f.margin * 100).toFixed(1)}`, 14)}${pad(pts(f.vsTier) + flag, 9)}${pad(pct(f.seen), 11)}${f.lv3 == null ? '-' : `${pct(f.lv3)} (${f.lv3Boards})`}`);
+      }
+      console.log(`${pad('item', 16)}${pad('cost', 5)}${pad('bought', 10)}wins the next 3 battles ±`);
+      for (const [id, it] of Object.entries(items).sort((a, b) => b[1].win - a[1].win)) console.log(`${pad(id, 16)}${pad(it.cost ?? '-', 5)}${pad(it.bought, 10)}${pct(it.win)} ±${(it.margin * 100).toFixed(1)}`);
+    }
+    if (sides.diff) {
+      console.log(`\n=== ${set} · A → B (points; "~" = within the margin, i.e. noise)`);
+      console.log(`${pad('', 16)}${pad('A', 9)}${pad('B', 9)}${pad('change ±', 16)}vs tier A → B`);
+      for (const d of sides.diff) {
+        if (d.note) { console.log(`${pad(d.id, 16)}${d.note}`); continue; }
+        const stats = d.kind === 'frog' && d.statsA !== d.statsB ? `  (${d.statsA} → ${d.statsB})` : '';
+        console.log(`${pad(d.id, 16)}${pad(pct(d.a), 9)}${pad(pct(d.b), 9)}${pad(`${pts(d.delta)} ±${(d.margin * 100).toFixed(1)}${d.real ? '' : ' ~'}`, 16)}${d.kind === 'frog' ? `${pts(d.vsTierA)} → ${pts(d.vsTierB)}` : ''}${stats}`);
+      }
+    }
+  }
+  console.log(`\n* more than 3 points from its tier's typical frog (a number to look at, not a verdict)`);
+  console.error(`${run.battles.toLocaleString('en')} battles in ${run.seconds}s (${run.battlesPerSecond.toLocaleString('en')}/s on ${run.workers} workers)`);
+}
+
+main().catch((e) => { console.error(e.message || e); process.exit(1); });

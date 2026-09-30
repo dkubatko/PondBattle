@@ -14,7 +14,7 @@
 | `index.html` | The whole client (it only replays battles the server computed) |
 | `frogs.json`, `items.json` | Stats, tiers and prices |
 | `sets.json` | Frog sets: which frogs a pond's shop sells (picked when the pond is made) |
-| `tools/simulate.js` | Plays 120k full games per set and reports how every frog and item does (changes nothing) |
+| `tools/simulate.js` | Balance report: plays full games (about 1M battles in ~20 s) on the working tree and reports how every frog and item does; A/B against a git ref (`--base`) or candidate stats (`--try`). Changes nothing |
 | `deploy/compose.yaml` | How it runs on Tower |
 
 No dependencies: plain Node (20+).
@@ -23,7 +23,9 @@ No dependencies: plain Node (20+).
 
 ```sh
 node server.js                 # http://localhost:8420 (browser guests; no bot)
-node tools/simulate.js         # balance report
+node tools/simulate.js                          # balance report (working tree, every set)
+node tools/simulate.js --base origin/main       # A/B: your uncommitted changes against main
+node tools/simulate.js --try "king.hp=7"        # A/B: candidate stats without editing files
 ```
 
 State goes to `./data` (`DATA_DIR`): `rooms.json`, `profiles.json`, `games.jsonl`, `secret`. It is not in git.

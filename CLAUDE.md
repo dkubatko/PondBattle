@@ -53,8 +53,11 @@ Home infrastructure (Tower, Docker, Nginx Proxy Manager, Cloudflare) is describe
 
 ## Balance
 
-- `tools/simulate.js` plays 120k full games per set and only reports. There is no autotuner: read the
-  report, decide changes yourself, try them in a copy, and report numbers.
+- `tools/simulate.js` plays full games (about 1M battles in ~20 s) and only reports. There is no
+  autotuner: read the report, decide changes yourself, and report numbers. Compare candidates with
+  `--try "id.field=value"` (no file edits) or `--base <git ref>` (your working tree against it); both
+  sides play the same seeded games, and changes within the margin are marked as noise. `--json` for
+  machine-readable output.
 - Simulated players stay generic: random affordable buys, merges, the front/any/back placement from
   `frogs.json`. Never add frog-specific placement or buying logic to make a number look right.
 - Compare each frog with its own tier's typical frog (the median); within about 3 points is fine. Higher
