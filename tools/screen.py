@@ -34,7 +34,7 @@ Options:
   --sizes all|WxH,.. default 393x710; all = 393x710,440x820,375x600
   --webkit / --both  WebKit only / Chromium and WebKit (default Chromium)
   --do STEP          (repeatable) tap:CSS | click:TEXT | drag:CSS>CSS | eval:JS (prints its result) | wait:MS |
-                     until:JS (wait for it)
+                     until:JS (wait for it) | rival:ACTION (--pvp: Rival does it, e.g. rival:ready)
   --fresh            a first-time player (onboarding hints on)
   --text             print the text on screen
   --no-shot          no screenshots (report and text only)
@@ -208,6 +208,7 @@ class Api:
 
 
 FROGS = json.loads((REPO / 'frogs.json').read_text())
+RIVAL = None  # (Api, room) of the second player in a --pvp game, for rival: steps
 
 
 def setup(o, api):
@@ -220,11 +221,12 @@ def setup(o, api):
     if o.scene in SHEETS: return store, SHEETS[o.scene], None
     if o.scene == 'waiting':
         return {**store, 'frogSess': json.dumps(api.post('/api/create', {'set': o.set} if o.set else {}))}, None, None
-    rival = None
+    global RIVAL
+    rival = RIVAL = None
     if o.pvp:  # a custom pond: you make it, a second guest joins
         room = api.post('/api/create', {'set': o.set} if o.set else {})
         other = Api(api.base); other.guest('Rival')
-        rival = (other, other.post('/api/join', {'room': room['room']}))
+        rival = RIVAL = (other, other.post('/api/join', {'room': room['room']}))
     else:
         room = api.post('/api/practice', {'set': o.set} if o.set else {})
     store['frogSess'] = json.dumps(room)
@@ -256,7 +258,8 @@ def step(p, s):
         if r is not None: print(f'  eval: {json.dumps(r)[:1500]}')
     elif kind == 'wait': p.wait_for_timeout(int(arg))
     elif kind == 'until': p.wait_for_function(arg, timeout=60000, polling=50)
-    else: raise SystemExit(f'--do {s}: use tap:CSS, click:TEXT, drag:CSS>CSS, eval:JS, wait:MS or until:JS')
+    elif kind == 'rival' and RIVAL: RIVAL[0].act(RIVAL[1], {'type': arg})
+    else: raise SystemExit(f'--do {s}: use tap:CSS, click:TEXT, drag:CSS>CSS, eval:JS, wait:MS, until:JS or rival:ACTION (--pvp)')
 
 
 def frame_list(lb, spec):

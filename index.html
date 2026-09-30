@@ -283,6 +283,9 @@ h1 { margin: 0; text-align: center; font-size: 40px; font-weight: 900; line-heig
 #readyBtn > :not(.yfill) { position: relative; }
 .yfill { position: absolute; inset: 0; background: rgba(255, 255, 255, .24); transform-origin: left; transform: scaleX(0); pointer-events: none; }
 #readyBtn.on-clock .yfill { animation: clockFill var(--clock-total) linear var(--clock-at) forwards; }
+.clock-frozen .pclock circle, .clock-frozen .yfill { animation-play-state: paused !important; }
+#readyBtn.clock-frozen { background-color: #a6dc7f; box-shadow: 0 5px 0 #5f9848; color: #17271f; }
+#readyBtn.clock-frozen.clock-low { background-color: #ff9a7a; box-shadow: 0 5px 0 #c4604b; }
 @keyframes clockFill { from { transform: scaleX(1); } to { transform: scaleX(0); } }
 #readyBtn.on-clock { transition: transform .08s, background-color .3s, box-shadow .3s; }
 #readyBtn.clock-low { background-color: #ff9a7a; box-shadow: 0 5px 0 #c4604b; }
@@ -2621,10 +2624,13 @@ function updateHeader() {
 function setHTML(node, html) { if (node._h !== html) { node.innerHTML = html; node._h = html; } }
 // Ready clock (see server.js): the ring / button fill starts where the clock is, and restarts only for a new clock
 function clockOn(node, on) {
+  // The clock ends because the battle is on its way (Ready pressed, both ready): the ring and your button stop
+  // where they were, colour and all, until the battle screen takes over
+  if (!on && node.classList.contains('on-clock') && (readying === 'ready' || playing || battleNext())) return node.classList.add('clock-frozen');
   const key = on ? `${S.round}:${S.clock.mine}` : '';
-  if (node._clock === key) return;
+  if (node._clock === key && !node.classList.contains('clock-frozen')) return;
   node._clock = key;
-  node.classList.remove('on-clock', 'clock-low');
+  node.classList.remove('on-clock', 'clock-low', 'clock-frozen');
   if (!on) return;
   void node.offsetWidth; // restart the animation
   node.style.setProperty('--clock-total', `${S.clock.total}ms`);
@@ -2632,6 +2638,7 @@ function clockOn(node, on) {
   node.classList.add('on-clock');
   clockTick();
 }
+const battleNext = () => !!(S && S.lastBattle && S.lastBattle.id !== localStorage[seenKey()]);
 // Once a second while a clock runs: coral for the last 10 seconds (the ring, and your Ready button while it's
 // draining), a soft tick for your last 5
 let clockTimer = null, clockLast = null;
@@ -2642,7 +2649,7 @@ function clockTick() {
   const left = Math.max(0, Math.ceil((c.until - performance.now()) / 1000)), low = left <= 10;
   $(c.mine ? '#meCard' : '#oppCard').classList.toggle('clock-low', low);
   yb.classList.toggle('clock-low', low && yb.classList.contains('on-clock'));
-  if (c.mine && left <= 5 && left > 0 && clockLast !== left && !S.me.ready) Snd.tick();
+  if (c.mine && left <= 5 && left > 0 && clockLast !== left && !S.me.ready && !readying && !playing) Snd.tick(); // not once you've pressed Ready
   clockLast = left;
   clockTimer = setTimeout(clockTick, ((c.until - performance.now()) % 1000 + 1000) % 1000 + 20);
 }
@@ -2818,11 +2825,14 @@ function updateButtons() {
   if (mb.disabled !== off) mb.disabled = off;
   const l = $('.lbl', mb); if (l.textContent !== label) l.textContent = label;
   setHTML($('.amt', mb), amt === '' ? '' : coinBadge(amt));
-  yb.classList.toggle('ready-wait', waiting); // (only this class: the ready clock's classes live on the button too)
-  const yl = $('.lbl', yb), yt = waiting ? 'Waiting…' : 'Ready';
+  clockOn(yb, !!S.clock && S.clock.mine && !waiting);
+  clockOn($('#meCard'), !!S.clock && S.clock.mine && !waiting); // your ring stops the moment you press Ready
+  // A clock stopped by the battle coming keeps the button as it was (colour, fill, Ready) until the battle plays
+  const frozen = yb.classList.contains('clock-frozen');
+  yb.classList.toggle('ready-wait', waiting && !frozen); // (only this class: the ready clock's classes live on the button too)
+  const yl = $('.lbl', yb), yt = waiting && !frozen ? 'Waiting…' : 'Ready';
   if (yl.textContent !== yt) yl.textContent = yt;
   if (yb.disabled !== held) yb.disabled = held;
-  clockOn(yb, !!S.clock && S.clock.mine && !waiting);
 }
 function updateTargets() {
   const me = S.me, dragging = drag && drag.started;
@@ -3708,6 +3718,7 @@ function openBattleSheet(lb, upto) {
 // state that arrives is already the next round's; any card that isn't green yet (your partner's, or yours if you were
 // last) turns green for a moment before the battle.
 function preBattle(lb) {
+  $$('.on-clock').forEach((n) => n.classList.add('clock-frozen')); // a running clock stops where it is
   if (screen !== 'game' || lb.id === sessionStorage.frogPre) return null;
   const mine = ((lb.before || [])[S.seat] || []).filter((x) => x && x.from != null);
   const unlit = ['#meCard', '#oppCard'].map((id) => $(id)).filter((c) => c && !c.classList.contains('is-ready'));
