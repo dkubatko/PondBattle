@@ -274,8 +274,8 @@ function runBattle(teamA, teamB, opts = {}) {
         }
       }
       if (u.type === 'wizard') {
-        // Shrinks L random enemies to 1/1 (skipping ones that already are); they keep their abilities
-        const foes = some(alive(1 - s).filter((e) => e.atk + e.hp > 2 && !fixed(e)), L);
+        // Shrinks the L strongest enemies to 1/1 (skipping ones that already are); they keep their abilities
+        const foes = alive(1 - s).filter((e) => e.atk + e.hp > 2 && !fixed(e)).sort((x, y) => y.atk + y.hp - (x.atk + x.hp)).slice(0, L);
         for (const e of foes) { e.atk = 1; e.hp = 1; }
         // (it always casts, so it's clear it acted even when there was no one to shrink)
         snap?.('spell', { actor: u.bid, targets: foes.map((e) => e.bid), text: foes.length ? `${nm(u)} shrinks the enemy` : `${nm(u)}’s spell finds no one to shrink` });
@@ -525,7 +525,7 @@ function fight(room) {
   room.round++;
   for (const p of room.players) {
     p.ready = false;
-    const lucky = p.team.reduce((g, f) => g + (f && f.type === 'lucky' ? f.lvl : 0), 0);
+    const lucky = p.team.reduce((g, f) => g + (f && f.type === 'lucky' ? f.lvl + 1 : 0), 0);
     p.gold = START_GOLD + lucky;
     if (lucky) room.lastBattle.after[room.players.indexOf(p)].push(`${FROGS.lucky.name}: +${lucky} gold next round`);
     if (p.shop && p.shop.locked) refillShop(p, room.round, setOf(room)); else rollShop(p, room.round, setOf(room));

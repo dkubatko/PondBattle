@@ -667,9 +667,9 @@ const DESC = {
   glass:    (L) => ['Sell', `a random friend gets ${statText(L, L)}`],
   hungry:   (L) => ['Knocks out an enemy', `gain ${statText(L, L)} this battle`],
   rain:     (L) => ['Hurt', `the friend behind gets ${statText(L, L)} this battle`],
-  lucky:    (L) => ['Start of round', `+${L} gold`],
+  lucky:    (L) => ['Start of round', `+${L + 1} gold`],
   mama:     (L) => ['Friend hatches', `it gets ${statText(L, L)}`],
-  wizard:   (L) => ['Start of battle', `shrink ${L === 1 ? 'a random enemy' : `${L} random enemies`} to 1/1`],
+  wizard:   (L) => ['Start of battle', `shrink the ${L === 1 ? 'strongest enemy' : `${L} strongest enemies`} to 1/1`],
   bouncy:   (L) => ['Faint', `come back once at the back with ${2 * L} health`],
   surinam:  (L) => ['Faint', `fill the pond with ${L}/${L} Froglets`],
   midwife:  (L) => ['Hurt', `a ${L}/${L} Froglet hatches behind it`],
@@ -2449,7 +2449,7 @@ function showGame() {
     shownRound = S.round;
     const news = { 3: 'New frogs in the shop', 5: 'Stronger frogs in the shop', 7: 'Rare frogs in the shop' }[S.round];
     roundBanner(`Round ${S.round}`, news || '');
-    const lucky = S.me.team.reduce((g, f) => g + (f && f.type === 'lucky' ? f.lvl : 0), 0);
+    const lucky = S.me.team.reduce((g, f) => g + (f && f.type === 'lucky' ? f.lvl + 1 : 0), 0);
     if (lucky && was && S.round > was) setTimeout(() => { toast(`Lucky Toad: +${lucky} gold`); Snd.coin(); }, 1000);
   }
 }
