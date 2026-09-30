@@ -3833,8 +3833,8 @@ async function playBattle(lb) {
     rec.st.style.transform = statsAt(rec, x, y);
   };
   const makeUnit = (u, side) => {
-    const node = el(`<div class="bu s${side}"><div class="bscale" style="transform:scale(${s.toFixed(3)})"><div class="bmove">${frogHTML({ ...u, xp: 0 }, { size: 56, flip: side === 1, grow: true, stats: false })}</div></div></div>`);
-    const st = el(`<div class="bst s${side}"><span class="st atk">${u.atk}</span><span class="st hp">${Math.max(0, u.hp)}</span></div>`);
+    const node = el(`<div class="bu s${side}" data-bid="${u.id}"><div class="bscale" style="transform:scale(${s.toFixed(3)})"><div class="bmove">${frogHTML({ ...u, xp: 0 }, { size: 56, flip: side === 1, grow: true, stats: false })}</div></div></div>`);
+    const st = el(`<div class="bst s${side}" data-bid="${u.id}"><span class="st atk">${u.atk}</span><span class="st hp">${Math.max(0, u.hp)}</span></div>`);
     arena.appendChild(node); arena.appendChild(st);
     const rec = { el: node, st, move: $('.bmove', node), side, u: { ...u }, w: node.offsetWidth, h: node.offsetHeight };
     units.set(u.id, rec);

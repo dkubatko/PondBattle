@@ -44,8 +44,9 @@ Home infrastructure (Tower, Docker, Nginx Proxy Manager, Cloudflare) is describe
 1. Rebase onto `origin/main`; `git diff` shows only your changes.
 2. The Dockerfile copies an explicit list of files. A new runtime file must be added there. Start the
    server from exactly those files to be sure it boots (a missing `sets.json` once took prod down).
-3. Battles or balance touched: `node tools/audit.js` (CI runs it too), `node tools/simulate.js`, and
-   `tools/screen.py battle` for the battles you changed (no errors reported).
+3. Battles or balance touched: `node tools/audit.js` (CI runs it too), `node tools/simulate.js`,
+   `tools/screen.py battle --frames all --check` on a range of rounds and both sets (the battlefield must match the
+   engine at every frame), and a few `tools/screen.py game` runs (whole games in the page, no errors reported).
 4. UI touched: `tools/screen.py <scene> --sizes all --both` for the affected screens, with no errors reported.
 5. Chain checks, commit and push with `&&`, never `;` (a `;` chain once pushed despite a failed test).
 6. After pushing, confirm prod with a read-only request: `GET https://pondbattle.3rdplacelounge.com/api/health`

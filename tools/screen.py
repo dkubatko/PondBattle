@@ -31,6 +31,10 @@ Options:
                      hit, end = the result screen; all = every frame); default start,fight,end
   --at MS,...        battle: capture in real time, MS after the battle screen appears (instead of --frames)
   --log              battle: print the battle's frames (number, kind, caption)
+  --check            battle: at every captured frame, compare the battlefield with the engine's frame (every frog
+                     there and nothing extra, its stats, the knocked-out look, order on the pads, no stray stats)
+Scene game: a whole two-player game in the page, round after round to game over (--speed N: animation speed,
+  default 4); every battle's result is checked like --check and errors are reported (--rounds N stops early)
   --sizes all|WxH,.. default 393x710; all = 393x710,440x820,375x600
   --webkit / --both  WebKit only / Chromium and WebKit (default Chromium)
   --do STEP          (repeatable) tap:CSS | click:TEXT | drag:CSS>CSS | eval:JS (prints its result) | wait:MS |
@@ -70,9 +74,9 @@ PHONES = ['393x710', '440x820', '375x600']
 SHEETS = {'guide': 'openGuide()', 'profile': 'openProfile()', 'card': 'openCard()', 'ranks': 'openRanks()',
           'leaders': 'openLeaders()', 'picker': "pickSet('Practice', () => {})"}
 GAME = {'shop': None, 'menu': 'openMenu()', 'log': 'openBattleSheet(S.lastBattle)', 'battle': None, 'over': None}
-SCENES = ['name', 'home', 'queue', 'waiting', *SHEETS, *GAME]
+SCENES = ['name', 'home', 'queue', 'waiting', *SHEETS, *GAME, 'game']
 SCREEN_OF = {'name': 'home', 'home': 'home', 'queue': 'search', 'waiting': 'waiting', **{s: 'home' for s in SHEETS},
-             'shop': 'game', 'menu': 'game', 'log': 'game', 'over': 'over', 'battle': 'battle'}
+             'shop': 'game', 'menu': 'game', 'log': 'game', 'over': 'over', 'battle': 'battle', 'game': 'game'}
 OPENS_FROM = {**SCREEN_OF, 'queue': 'home'}  # the screen the scene's JS is run on
 
 # Before the page loads: storage for the scene, a count of fetches in flight (so we know when data has arrived),
@@ -97,6 +101,30 @@ SETTLE = """() => { window.__pbLoops = []; for (const a of document.getAnimation
   else if (t && t.activeDuration > 5000) { a.pause(); window.__pbLoops.push(a); }
   else { try { a.finish(); } catch (e) {} } } }"""
 UNSETTLE = '() => { for (const a of window.__pbLoops || []) a.play(); window.__pbLoops = []; }'
+# The battlefield against the engine's frame k (the page's own view of the battle): returns what doesn't match
+CHECK = """(k) => {
+  const F = viewFrames(S.lastBattle, S.seat), fr = F[k], bad = [], q = (sel) => document.querySelector('#arena ' + sel);
+  for (const [side, list] of [[0, fr.mine], [1, fr.theirs]]) {
+    const ids = [...document.querySelectorAll(`#arena .bu.s${side}`)].map((e) => +e.dataset.bid), want = list.map((u) => u.id);
+    const extra = ids.filter((i) => !want.includes(i)), missing = want.filter((i) => !ids.includes(i));
+    if (extra.length) bad.push(`side ${side}: frogs on screen that the frame doesn't have (${extra})`);
+    if (missing.length) bad.push(`side ${side}: frogs missing from the screen (${missing})`);
+    const xs = [];
+    for (const u of list) {
+      const el = q(`.bu[data-bid="${u.id}"]`), st = q(`.bst[data-bid="${u.id}"]`);
+      if (!el || !st) continue;
+      const a = +st.querySelector('.st.atk').textContent, h = +st.querySelector('.st.hp').textContent;
+      if (a !== u.atk || h !== Math.max(0, u.hp)) bad.push(`${u.type} #${u.id} shows ${a}/${h}, the frame has ${u.atk}/${Math.max(0, u.hp)}`);
+      if (el.classList.contains('ko') !== (u.hp <= 0)) bad.push(`${u.type} #${u.id}: knocked-out look is ${el.classList.contains('ko')} at ${u.hp} health`);
+      if (+getComputedStyle(st).opacity < .5) bad.push(`${u.type} #${u.id}: its stats are hidden`);
+      xs.push(new DOMMatrix(getComputedStyle(el).transform).m41);
+    }
+    for (let i = 1; i < xs.length; i++) if (side === 0 ? !(xs[i] < xs[i - 1] - 1) : !(xs[i] > xs[i - 1] + 1)) { bad.push(`side ${side}: frogs out of order or sharing a pad`); break; }
+  }
+  const stray = [...document.querySelectorAll('#arena .bst')].filter((st) => !q(`.bu[data-bid="${st.dataset.bid}"]`));
+  if (stray.length) bad.push(`${stray.length} stat badge(s) left without their frog`);
+  return bad;
+}"""
 PAUSE = "() => { window.__pbLoops = document.getAnimations().filter((a) => a.playState === 'running'); window.__pbLoops.forEach((a) => a.pause()); }"
 
 
@@ -112,6 +140,9 @@ def parser():
     a.add_argument('--frames', default='start,fight,end')
     a.add_argument('--at')
     a.add_argument('--log', action='store_true')
+    a.add_argument('--check', action='store_true')
+    a.add_argument('--rounds', type=int, default=40)
+    a.add_argument('--speed', type=float, default=4)
     a.add_argument('--sizes', default=PHONES[0])
     a.add_argument('--webkit', action='store_true')
     a.add_argument('--both', action='store_true')
@@ -209,6 +240,7 @@ class Api:
 
 FROGS = json.loads((REPO / 'frogs.json').read_text())
 RIVAL = None  # (Api, room) of the second player in a --pvp game, for rival: steps
+GAME_OF = None  # the game scene's (Api, room, (rival Api, rival room))
 
 
 def setup(o, api):
@@ -221,7 +253,12 @@ def setup(o, api):
     if o.scene in SHEETS: return store, SHEETS[o.scene], None
     if o.scene == 'waiting':
         return {**store, 'frogSess': json.dumps(api.post('/api/create', {'set': o.set} if o.set else {}))}, None, None
-    global RIVAL
+    global RIVAL, GAME_OF
+    if o.scene == 'game':  # a whole two-player game, played in the page
+        room = api.post('/api/create', {'set': o.set} if o.set else {})
+        other = Api(api.base); other.guest('Rival')
+        GAME_OF = (api, room, (other, other.post('/api/join', {'room': room['room']})))
+        return {**store, 'frogSess': json.dumps(room), 'frogSpeed': str(o.speed)}, None, None
     rival = RIVAL = None
     if o.pvp:  # a custom pond: you make it, a second guest joins
         room = api.post('/api/create', {'set': o.set} if o.set else {})
@@ -347,8 +384,29 @@ class Capture:
             for k in want:
                 if k == 'end': p.wait_for_selector('#cont', timeout=30000)
                 else: p.wait_for_function(f'window.__pbHold && window.__pbHold.k === {k}', timeout=30000, polling=20)
+                if o.check:
+                    p.evaluate(SETTLE); p.evaluate(FRAMES2)
+                    at = len(lb['frames']) - 1 if k == 'end' else k
+                    for b in p.evaluate(CHECK, at): errors.append(f'frame {at}: {b}')
                 shoot('-end' if k == 'end' else f'-f{k}')
                 if k != 'end': p.evaluate('() => { const h = window.__pbHold; window.__pbHold = null; h.go(); }')
+        elif o.scene == 'game':
+            api, room, (rv, rroom) = GAME_OF
+            p.wait_for_function(READY % ('"game"', ''), timeout=15000, polling=20)
+            for rnd in range(o.rounds):
+                api.shop(room); rv.shop(rroom); rv.act(rroom, {'type': 'ready'})
+                p.wait_for_function("S && S.opp && S.opp.ready && S.me.team.some(Boolean) && !readying", timeout=15000, polling=20)
+                p.click('#readyBtn')
+                p.wait_for_selector('#cont', timeout=120000)
+                p.evaluate(FRAMES2)
+                n = p.evaluate('viewFrames(S.lastBattle, S.seat).length')
+                for b in p.evaluate(CHECK, n - 1): errors.append(f'round {rnd + 1}, result: {b}')
+                p.click('#cont')
+                p.wait_for_function("screen === 'game' || screen === 'over'", timeout=15000, polling=20)
+                p.wait_for_timeout(300)
+                if p.evaluate('screen') == 'over': break
+            shots.append(f"{rnd + 1} rounds, ended on '{p.evaluate('screen')}'")
+            if not o.no_shot: shoot('')
         else:
             p.wait_for_function(READY % (json.dumps(OPENS_FROM[o.scene]), ''), timeout=15000, polling=20)
             if open_js: p.evaluate(open_js)
