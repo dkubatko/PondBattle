@@ -2515,7 +2515,7 @@ function buildGame() {
   prevTeam = []; prevShop = []; prevFood = undefined;
   $('#musicBtn').onclick = () => { Snd.tap(); Snd.setMusic(!Snd.music()); updateHeader(); };
   longPress($('#musicBtn'), soundInfo);
-  $('#menuBtn').onclick = openMenu;
+  $('#menuBtn').onclick = () => { Snd.tap(); openMenu(); };
   $('#rollBtn').onclick = roll;
   $('#lockBtn').onclick = lockShop;
   // Tap a plate for that player's profile (the log button shows the last battle)
@@ -2733,16 +2733,19 @@ function updateInfo() {
 }
 function updateButtons() {
   const me = S.me, rb = $('#rollBtn'), mb = $('#mainBtn'), yb = $('#readyBtn');
-  rb.disabled = me.ready || me.gold < 1;
+  // Waiting: you're ready, or both were and the battle is about to play (the state is then already the next round's,
+  // with you not ready, while preBattle lights the cards up): the shop stays as it was, Ready stays pressed and off
+  const waiting = readying ? readying === 'ready' : me.ready || playing, held = !!readying || playing;
+  rb.disabled = waiting || me.gold < 1;
   const lb = $('#lockBtn'), locked = !!me.shop.locked;
   lb.classList.toggle('locked', locked);
   setHTML(lb, locked ? `${ICON.lockSm}Locked` : `${ICON.lockSm}Lock${coinBadge(1)}`);
-  lb.disabled = me.ready || (!locked && me.gold < 1);
+  lb.disabled = waiting || (!locked && me.gold < 1);
   // One contextual action: Buy by default, Sell for your own frog, Feed for a bug
   let label = 'Buy', amt = '', cls = 'btn buy', off = true;
   const dragging = drag && drag.started;
   if (dragging && drag.kind === 'team') { label = 'Sell'; amt = sellGold(me.team[drag.i]); cls = 'btn blossom'; off = false; }
-  else if (!dragging && sel && !me.ready) {
+  else if (!dragging && sel && !waiting) {
     if (sel.kind === 'shop') off = me.gold < costOf(me.shop.frogs[sel.i]) || buySlot(sel.i) < 0;
     if (sel.kind === 'team') { label = 'Sell'; amt = sellGold(me.team[sel.i]); cls = 'btn blossom'; off = false; }
     if (sel.kind === 'food') { label = FOODS[me.shop.food].gear ? 'Give' : 'Feed'; off = sel.target == null || me.gold < foodCost(); }
@@ -2751,11 +2754,11 @@ function updateButtons() {
   if (mb.disabled !== off) mb.disabled = off;
   const l = $('.lbl', mb); if (l.textContent !== label) l.textContent = label;
   setHTML($('.amt', mb), amt === '' ? '' : coinBadge(amt));
-  const ycls = me.ready ? 'btn ready-wait' : 'btn';
+  const ycls = waiting ? 'btn ready-wait' : 'btn';
   if (yb.className !== ycls) yb.className = ycls;
-  const yl = $('.lbl', yb), yt = me.ready ? 'Waiting…' : 'Ready';
+  const yl = $('.lbl', yb), yt = waiting ? 'Waiting…' : 'Ready';
   if (yl.textContent !== yt) yl.textContent = yt;
-  if (yb.disabled !== readying) yb.disabled = readying;
+  if (yb.disabled !== held) yb.disabled = held;
 }
 function updateTargets() {
   const me = S.me, dragging = drag && drag.started;
@@ -2861,7 +2864,7 @@ const itemBlock = (t) => {
 };
 const canTakeItem = (t) => !!t && !!S.me.shop.food && !itemBlock(t);
 function validDrop(kind, i, tkind, ti) {
-  if (!S || S.me.ready) return false;
+  if (!S || S.me.ready || playing) return false;
   const me = S.me;
   if (tkind === 'sell') return kind === 'team';
   if (tkind !== 'team') return false;
@@ -2884,7 +2887,7 @@ function onDown(e) {
   }
   const kind = src.dataset.tap, i = +src.dataset.i;
   const has = kind === 'team' ? S.me.team[i] : kind === 'shop' ? S.me.shop.frogs[i] : S.me.shop.food;
-  drag = { kind, i, src, has: !!has && !S.me.ready, x0: e.clientX, y0: e.clientY, px: e.clientX, py: e.clientY, started: false, target: null };
+  drag = { kind, i, src, has: !!has && !S.me.ready && !playing, x0: e.clientX, y0: e.clientY, px: e.clientX, py: e.clientY, started: false, target: null };
   window.addEventListener('pointermove', onMove);
   window.addEventListener('pointerup', onUp);
   window.addEventListener('pointercancel', onCancel);
@@ -2977,7 +2980,7 @@ function buySlot(i) {
   return match >= 0 ? match : me.team.findIndex((t) => !t);
 }
 function mainAction() {
-  if (!S || S.me.ready || !sel) return;
+  if (!S || S.me.ready || playing || !sel) return;
   if (sel.kind === 'shop') { const slot = buySlot(sel.i); if (slot >= 0) buy(sel.i, slot); return; }
   if (sel.kind === 'team') return sell(sel.i);
   if (sel.kind === 'food' && sel.target != null) return feed(sel.target);
@@ -3090,7 +3093,7 @@ function feed(slot, ghost) {
   });
 }
 function roll() {
-  if (!S || S.me.ready || S.me.gold < 1) return;
+  if (!S || S.me.ready || playing || S.me.gold < 1) return;
   sel = null;
   return run(async () => {
     Snd.roll();
@@ -3102,7 +3105,7 @@ function roll() {
 }
 // Lock keeps this shop for the next round (1 gold); rolling unlocks it
 function lockShop() {
-  if (!S || S.me.ready) return;
+  if (!S || S.me.ready || playing) return;
   if (S.me.shop.locked) { toast('Rolling unlocks the shop'); return Snd.tap(); }
   if (S.me.gold < 1) return notEnoughGold();
   sel = null;
@@ -3117,12 +3120,13 @@ function lockShop() {
 // it before the battle even shows
 let readying = false;
 function toggleReady() {
-  if (!S || readying) return;
-  const settle = async (fn) => { readying = true; updateButtons(); try { await fn(); } finally { readying = false; if (S && screen === 'game') updateButtons(); } };
-  if (S.me.ready) { Snd.unready(); return run(() => settle(() => act({ type: 'unready' }))); }
+  if (!S || readying || playing) return;
+  // readying says which way it's going ('ready' / 'unready'), so the button shows where it's headed at once
+  const settle = async (to, fn) => { readying = to; updateButtons(); try { await fn(); } finally { readying = false; if (S && screen === 'game') updateButtons(); } };
+  if (S.me.ready) { Snd.unready(); return run(() => settle('unready', () => act({ type: 'unready' }))); }
   return run(async () => {
     if (!S.me.team.some(Boolean) && !(await ask('Your pond is empty', 'Ready anyway?', 'Ready', 'Keep shopping'))) return;
-    await settle(readyUp);
+    await settle('ready', readyUp);
   });
 }
 async function readyUp() {
@@ -3453,8 +3457,8 @@ function openMenu() {
     if (m === 'sfx') { Snd.setSfx(!Snd.sfxOn()); $('.switch', b).classList.toggle('on', Snd.sfxOn()); Snd.tap(); }
     if (m === 'guide') { Snd.tap(); openGuide(); } // opens on top of the menu; closing it comes back here
     if (m === 'name') { Snd.tap(); openCard(); }
-    if (m === 'lobby') { s.close(); setTimeout(toLobby, 200); }
-    if (m === 'end') { s.close(); setTimeout(() => endGame(), 200); }
+    if (m === 'lobby') { Snd.tap(); s.close(); setTimeout(toLobby, 200); }
+    if (m === 'end') { Snd.tap(); s.close(); setTimeout(() => endGame(), 200); }
   });
 }
 // A set's frogs, by the round they start showing up in the shop
@@ -3644,7 +3648,7 @@ function preBattle(lb) {
   const unlit = ['#meCard', '#oppCard'].map((id) => $(id)).filter((c) => c && !c.classList.contains('is-ready'));
   if (!mine.length && !unlit.length) return null;
   sessionStorage.frogPre = lb.id; // once per battle, even if the page reloads before the battle is watched
-  playing = true;
+  playing = true; updateButtons();
   $('#bubble')?.classList.remove('show');
   return (async () => {
     if (unlit.length) {
