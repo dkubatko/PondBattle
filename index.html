@@ -542,34 +542,38 @@ h1 { margin: 0; text-align: center; font-size: 40px; font-weight: 900; line-heig
 .card-rank { border: 0; background: none; color: inherit; padding: 0; }
 .corner { position: absolute; top: calc(env(safe-area-inset-top) + 10px); right: 14px; z-index: 2; display: flex; gap: 8px; }
 .corner .ib { color: var(--moon-dim); }
-/* Friends: a contacts list like the leaderboard: frog (a dot for what they're up to), name, rank, round buttons */
-.fr-row { display: flex; align-items: center; gap: 12px; padding: 8px 8px; border-radius: 14px; cursor: pointer; }
-.fr-row:active { background: rgba(245, 237, 214, .05); }
+/* Friends: a card per person: frog (a dot for what they're up to), name and rank, what they're up to below, round
+   buttons on the right */
+.fr-row { display: flex; align-items: center; gap: 12px; min-height: 64px; padding: 8px 12px 8px 10px; border-radius: 16px; background: rgba(245, 237, 214, .05); cursor: pointer; }
+.fr-row:active { background: rgba(245, 237, 214, .09); }
 .fr-row .mini { flex: none; box-shadow: none; }
-.fr-row .ht { flex: 1; min-width: 0; font-size: 17px; font-weight: 800; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
-.fr-row .ht small { display: flex; align-items: center; gap: 5px; margin-top: 2px; font-size: 13px; font-weight: 700; color: var(--moon-dim); }
-.fr-row .ht small svg { flex: none; }
-.fst::before { content: '·'; margin-right: 5px; color: var(--moon-dim); }
+.fr-row .ht { flex: 1; min-width: 0; display: flex; flex-direction: column; gap: 2px; }
+.fn { display: flex; align-items: center; gap: 6px; min-width: 0; }
+.fn .nm { min-width: 0; font-size: 17px; font-weight: 800; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.fn svg { flex: none; }
+.fn .rk { flex: none; font-size: 13px; font-weight: 800; color: var(--moon-dim); white-space: nowrap; }
+.fst { font-size: 13px; font-weight: 700; color: var(--moon-dim); }
 .fst.searching { color: var(--firefly); } .fst.online { color: #8fd67a; } .fst.playing { color: #8fc4f2; }
 .fr-acts { display: flex; gap: 8px; flex: none; }
-.rbtn { width: 40px; height: 40px; border-radius: 50%; border: 0; display: grid; place-items: center; padding: 0; flex: none; }
-.rbtn svg { width: 19px; height: 19px; }
-.rbtn.no { background: rgba(245, 237, 214, .1); color: var(--moon-dim); }
-.rbtn.yes { background: #9be07a; color: #173b1f; }
-.rbtn.battle { background: rgba(255, 205, 102, .16); color: var(--firefly); }
+/* round buttons, small versions of the main buttons: green (accept, challenge) and ghost (decline, cancel) */
+.rbtn { width: 42px; height: 42px; border-radius: 50%; border: 0; display: grid; place-items: center; padding: 0; flex: none; transition: transform .08s; }
+.rbtn svg { width: 20px; height: 20px; }
+.rbtn.yes, .rbtn.battle { background: #a6dc7f; color: #17271f; box-shadow: 0 4px 0 #5f9848; }
+.rbtn.no { background: rgba(245, 237, 214, .05); color: var(--moon-dim); box-shadow: inset 0 0 0 2px rgba(245, 237, 214, .14), 0 4px 0 rgba(0, 0, 0, .26); }
+.rbtn:active { transform: translateY(2px); }
+.rbtn.yes:active, .rbtn.battle:active { box-shadow: 0 2px 0 #5f9848; }
+.rbtn.no:active { box-shadow: inset 0 0 0 2px rgba(245, 237, 214, .14), 0 2px 0 rgba(0, 0, 0, .26); }
 .rbtn.battle svg { width: 22px; height: 22px; }
-.card-friend .rbtn.battle svg { width: 24px; height: 24px; }
-.fdot { position: absolute; right: -2px; bottom: -2px; width: 12px; height: 12px; border-radius: 50%; box-shadow: 0 0 0 2.5px var(--bg, #15292f); }
+.fdot { position: absolute; right: -2px; bottom: -2px; width: 12px; height: 12px; border-radius: 50%; box-shadow: 0 0 0 2.5px #1f3a3e; }
 .fdot.online { background: #7cc467; } .fdot.searching { background: var(--firefly); } .fdot.playing { background: #6aa9e8; } .fdot.offline { display: none; }
 .fr-empty { margin: 10px auto 0; }
-.friends-page .lists { margin-top: 6px; gap: 2px; }
-.friends-page .label { margin-top: 12px; }
+.friends-page .lists { margin-top: 6px; }
+.friends-page .label { margin-top: 10px; }
 /* a profile's friend controls: a chip (+ Add friend, Requested ✕, ✓ Friends) and round buttons; Share on your own */
 .card-top { position: relative; }
 .card-share { position: absolute; left: 0; top: 0; color: var(--moon-dim); }
 .card-friend { display: flex; align-items: center; justify-content: center; gap: 10px; width: 100%; margin-top: 10px; }
 .card-friend .rbtn { width: 44px; height: 44px; }
-.card-friend .rbtn svg { width: 21px; height: 21px; }
 .fr-chip { display: inline-flex; align-items: center; gap: 6px; height: 40px; padding: 0 16px; border: 0; border-radius: 20px; font-size: 15px; font-weight: 900;
   background: rgba(245, 237, 214, .08); color: var(--moon-dim); }
 .fr-chip svg { width: 15px; height: 15px; }
@@ -868,8 +872,8 @@ const ICON = {
   coin: `<svg class="ic" viewBox="0 0 24 24"><circle cx="12" cy="12" r="10.5" fill="#ffcd66" stroke="#a8761c" stroke-width="1.6"/><circle cx="12" cy="12" r="6.5" fill="none" stroke="#d49a33" stroke-width="2"/></svg>`,
   music: (on) => `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M9 18V5l11-2v13"/><circle cx="6.5" cy="18" r="2.6" fill="currentColor"/><circle cx="17.5" cy="16" r="2.6" fill="currentColor"/>${on ? '' : '<path d="M3 3l18 18" stroke-width="2.6"/>'}</svg>`,
   share: `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.3" stroke-linecap="round" stroke-linejoin="round"><path d="M12 14V4M8 7.5L12 3.5l4 4M7 11H6a2 2 0 0 0-2 2v6a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2v-6a2 2 0 0 0-2-2h-1"/></svg>`,
-  // crossed swords: challenge a friend to a battle
-  battle: `<svg viewBox="0 0 24 24"><polygon points="2.6,2.6 17.3,14.7 14.7,17.3" fill="currentColor"/><path d="M13.3 18.7L18.7 13.3M16 16L19.8 19.8" stroke="currentColor" stroke-width="2.5" stroke-linecap="round"/><circle cx="21" cy="21" r="1.7" fill="currentColor"/><polygon points="21.4,2.6 6.7,14.7 9.3,17.3" fill="currentColor"/><path d="M10.7 18.7L5.3 13.3M8 16L4.2 19.8" stroke="currentColor" stroke-width="2.5" stroke-linecap="round"/><circle cx="3" cy="21" r="1.7" fill="currentColor"/></svg>`,
+  // a sword: challenge a friend to a battle
+  battle: `<svg viewBox="0 0 24 24"><path d="M20.5 3.5l-1 4.2-9.2 9.2-3-3 9.2-9.2z" fill="currentColor"/><path d="M5.6 12.6l5.8 5.8M8.5 15.5l-4 4" stroke="currentColor" stroke-width="2.6" stroke-linecap="round"/></svg>`,
   menu: `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round"><path d="M4 7h16M4 12h16M4 17h16"/></svg>`,
   chev: `<svg class="ic" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"><path d="M9 5l7 7-7 7"/></svg>`,
   x: `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.6" stroke-linecap="round"><path d="M7 7l10 10M17 7L7 17"/></svg>`,
@@ -2558,11 +2562,11 @@ function askDM() {
   return new Promise((done) => { try { TG.requestWriteAccess((ok) => { if (ok) ME.dm = true; done(); }); } catch { done(); } });
 }
 // Challenge a friend: pick the frogs, then your pond waits for them (they get a note and see it on their home page)
+// (the picker opens over their profile, if it's open, so closing it goes back there)
 async function challengeFriend(pid, name) {
-  $$('.sheet-wrap').forEach((w) => w.click()); // their profile, if it was open
   await askDM();
   pickSet(`Challenge ${name}`, async (set) => {
-    try { const r = await api('/api/challenge', { pid, set }); enterRoom(r); Snd.plop(); } catch (e) { toast(e.message); Snd.nope(); }
+    try { const r = await api('/api/challenge', { pid, set }); $$('.sheet-wrap').forEach((w) => w.click()); enterRoom(r); Snd.plop(); } catch (e) { toast(e.message); Snd.nope(); }
   });
 }
 // "Add me as a friend": in Telegram a card with an Add friend button for the share sheet; elsewhere a link to share
@@ -2825,7 +2829,7 @@ function showHome(msg, page) {
     $('#back').onclick = () => { Snd.tap(); showHome(); };
     let data = null, sig = '', first = true;
     const hidden = new Set(); // rows acted on, gone at once (a refresh in between won't bring them back)
-    const STATUS = { searching: 'Looking for a game', playing: 'In a game', online: 'Online' };
+    const STATUS = { searching: 'Looking for a game', playing: 'In a game', online: 'Online', offline: 'Offline' };
     const card = (f) => openCard({ of: f.pid, done: () => load(true) });
     const act = (f, what) => async (e) => {
       e.stopPropagation(); Snd.tap();
@@ -2838,7 +2842,7 @@ function showHome(msg, page) {
     // a row: their frog (a dot says what they're up to), name, rank (and status), and its round buttons
     const rowOf = (f, buttons, status) => {
       const n = el(`<div class="fr-row" role="button"><span class="mini">${avatarHTML(f.avatar, 30, { id: 40, centered: true })}${status ? `<span class="fdot ${status}"></span>` : ''}</span>
-        <span class="ht">${esc(f.name)}<small>${rankBadge(f.rank, 16)}<span>${esc(f.rank.name)}</span>${STATUS[status] ? `<span class="fst ${status}">${STATUS[status]}</span>` : ''}</small></span>
+        <span class="ht"><span class="fn"><span class="nm">${esc(f.name)}</span>${rankBadge(f.rank, 18)}<span class="rk">${esc(f.rank.name)}</span></span>${status ? `<small class="fst ${status}">${STATUS[status]}</small>` : ''}</span>
         <span class="fr-acts">${buttons.map(([k, icon, label]) => `<button class="rbtn ${k}" aria-label="${label}">${icon}</button>`).join('')}</span></div>`);
       n.onclick = () => { Snd.tap(); card(f); };
       return n;
