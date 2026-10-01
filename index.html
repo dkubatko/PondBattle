@@ -566,8 +566,8 @@ h1 { margin: 0; text-align: center; font-size: 40px; font-weight: 900; line-heig
 .fdot { position: absolute; right: -2px; bottom: -2px; width: 12px; height: 12px; border-radius: 50%; box-shadow: 0 0 0 2.5px #1f3a3e; }
 .fdot.online { background: #7cc467; } .fdot.searching { background: var(--firefly); } .fdot.playing { background: #6aa9e8; } .fdot.offline { display: none; }
 .fr-empty { margin: 10px auto 0; }
-.friends-page h1 { margin-bottom: 0; }
-.friends-page .lists { margin-top: -10px; } /* the first heading's gap, so the title spacing stays the page's own */
+.ponds-page.friends-page h1 { margin-bottom: 0; }
+.ponds-page.friends-page .lists { margin-top: -10px; } /* the first heading's gap, so the title spacing stays the page's own */
 .friends-page .label { margin-top: 10px; }
 /* a profile's friend controls: a chip (+ Add friend, Requested ✕, ✓ Friends) and round buttons; Share on your own */
 .card-top { position: relative; }
@@ -668,7 +668,7 @@ h1 { margin: 0; text-align: center; font-size: 40px; font-weight: 900; line-heig
 .tscene.tbattle { height: 520px; }
 .tscene.tbattle .arena { position: absolute; inset: 0; }
 .tscene.tresult { height: 367px; }
-.tscene.tresult .pl { position: absolute; }
+.tscene.tresult .pl { position: absolute; width: 178px; } /* as wide as in the game (half the shop's width), so the hearts have the same room */
 .tscene.tresult .b-result { position: absolute; left: 0; right: 0; top: 96px; text-align: center; opacity: 0; }
 .tdots { display: flex; justify-content: center; gap: 7px; margin-top: 16px; }
 .tdots button { width: 8px; height: 8px; padding: 0; border: 0; border-radius: 4px; background: var(--moon-faint); transition: width .25s, background-color .25s; }
@@ -4422,7 +4422,7 @@ function openTutorial() {
         ${plate({ av: mine, name: ME.name || 'You' }, 0, 5)}</div>`;
       const sc = $('.tscene', root), [opp, me] = $$('.pl', sc);
       const at = (n) => { const k = scaleOf(sc), r = n.getBoundingClientRect(), o = sc.getBoundingClientRect(); return { x: (r.left - o.left) / k, y: (r.top - o.top) / k, w: r.width / k, h: r.height / k }; };
-      Object.assign(opp.style, { right: '12px', top: '12px' }); Object.assign(me.style, { left: '12px', bottom: '14px' });
+      Object.assign(opp.style, { right: '14px', top: '12px' }); Object.assign(me.style, { left: '14px', bottom: '14px' });
       await wait(800, live); if (!live()) return;
       // the loser's heart goes (the game's pop and −1), the winner's plate lights up and its frog puts on the crown
       const ph = $('.ph', opp); ph.innerHTML = pips(5, 3, ICON.heart);
