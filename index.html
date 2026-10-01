@@ -1193,7 +1193,7 @@ const ART = {
     const p = pal('#9aabbf'), b = BODY.round(p);
     // Held in its right hand (drawn on the art's right), leaning over its head: in battle the stats sit on the other
     // side, so the umbrella never covers them (your frogs have stats on the left; your partner's are mirrored)
-    return compose(b, p, { brows: true, mouth: 'frown', over: umbrellaAt(handX(b, 67), 67, -25, p) });
+    return compose(b, p, { brows: true, mouth: 'frown', over: umbrella(b, p, 67) });
   },
   // Lucky toad: a jade money toad with gold spots and a gold coin (the Dragon is the red one)
   lucky: () => { const p = pal('#3fa58a'), b = BODY.toad(p); return compose(b, p, { under: dotsSVG(b.dots, '#f4c653'), inside: COIN(b.heart[0], b.heart[1]) }); },
@@ -1575,8 +1575,15 @@ const AV_PATTERNS = [
 // head: true = hidden while the winner's crown is on. small: how much bigger it's drawn on small avatars (player
 // plates, lobby rows; not the editor's option wheel, which shows them as on your frog), where the finer extras would
 // otherwise shrink to a few pixels. x gets that as k.
-// The umbrella extra: in the left hand, just off the body's side (bodies are symmetric), leaning over the head
-const umbrella = (b, p) => { const [, [, y2, r2]] = b.eyes, y = +(y2 + r2 + 14).toFixed(1); return umbrellaAt(+(100 - handX(b, y)).toFixed(1), y, 25, p); };
+// An umbrella in the right hand like every held thing, just off the body's side, leaning in a little over the head
+// (10°, or less where its stick would cross the body or an eye; the hand moves out if the head is wider up there)
+const umbrella = (b, p, y = b.eyes[1][1] + b.eyes[1][2] + 14) => {
+  const [, [ex, ey, r]] = b.eyes, edge = (h) => Math.max(sideAt(b, h), Math.abs(h - ey) < r ? ex + Math.sqrt(r * r - (h - ey) ** 2) : 0);
+  const along = Array.from({ length: 15 }, (_, i) => y - 6 - i * 3); // the stick, from the hand up to the canopy
+  const x = +Math.min(95, Math.max(handX(b, y), ...along.map((h) => edge(h) + 3))).toFixed(1);
+  const room = Math.min(...along.map((h) => Math.atan2(Math.max(0, x - edge(h) - 3), y - h))) * 180 / Math.PI;
+  return umbrellaAt(x, +y.toFixed(1), -Math.min(10, room).toFixed(1), p);
+};
 const LEAF_HAT = '<ellipse cy="-3" rx="17" ry="6.5" fill="#3f8a47"/><ellipse cy="-4.5" rx="16" ry="5.5" fill="#5cae5d"/><path d="M0-4.5L7-9.5L9.5-4.5z" fill="#3f8a47"/><path d="M-2-9c1-4 4-6 7-6" stroke="#4a9a50" stroke-width="2" fill="none" stroke-linecap="round"/>';
 const AV_ACCS = [
   { id: 'none', name: 'Nothing' },
