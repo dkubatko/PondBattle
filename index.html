@@ -199,8 +199,8 @@ input:focus { border-color: var(--firefly); outline: none; }
 .profile .pv .frog { margin-bottom: 12px; } /* feet near the middle of the pad, like on the landing page */
 /* the frog and its pad drawn bigger than their layout box (--pvk, set to fit under the sheet's top edge), growing up
    from the bottom, so the editor keeps its size; the drawing is scaled, not the frog, so its hop doesn't undo it */
-.profile .pv .frog .fbody { transform-origin: 50% 100%; transform: scale(var(--pvk, 1.2)); }
-.profile .pv .pv-pad { transform-origin: 50% 100%; transform: translateX(-50%) scale(var(--pvk, 1.2)); }
+.profile .pv .frog .fbody, .card-top .pv .frog .fbody { transform-origin: 50% 100%; transform: scale(var(--pvk, 1.2)); }
+.profile .pv .pv-pad, .card-top .pv .pv-pad { transform-origin: 50% 100%; transform: translateX(-50%) scale(var(--pvk, 1.2)); }
 .pv-pad { position: absolute; bottom: 0; left: 50%; width: 132px; height: 52px; transform: translateX(-50%); background: var(--leaf) center / contain no-repeat; }
 /* Frog / Extras / Lily pad: a larger switch above the tabs */
 .av-sections { display: flex; gap: 6px; }
@@ -3648,11 +3648,7 @@ function openProfile(done) {
   // Your frog standing on your lily pad
   const preview = (hop) => {
     pv.innerHTML = `<div class="pv-pad" style='${padStyle(av)}'></div>${avatarHTML(av, 92, { idle: true, id: 7 })}`;
-    // as big as fits under the sheet's top edge (tall hats and umbrellas reach highest), up to 1.22×
-    const k = parseFloat(pv.style.getPropertyValue('--pvk')) || 1.2, fr = $('.frog', pv), h = paintedHeight(fr, $('.fbody', fr)) / k;
-    // (leaving room for its 8px hop and its breathing, so a jump never reaches the edge)
-    const room = $('.fbody', fr).getBoundingClientRect().bottom - $('.sheet-body', s.el).getBoundingClientRect().top - 16;
-    if (h > 0) pv.style.setProperty('--pvk', Math.max(1, Math.min(1.22, room / h)).toFixed(3));
+    fitPreview(pv, s.el);
     if (hop) anim($('.frog', pv), [{ transform: 'none' }, { transform: 'translateY(-8px)', offset: .4 }, { transform: 'none' }], { duration: 260 });
   };
   const pick = (i) => {
@@ -3725,6 +3721,14 @@ function openProfile(done) {
     if (done) done();
   };
 }
+// A big frog on its pad (the editor's and the profile's): drawn up to 1.22× without moving anything, as big as fits
+// under the sheet's top edge (tall hats and umbrellas reach highest), leaving room for its 8px hop and its breathing
+function fitPreview(pv, sheetEl) {
+  const fr = $('.frog', pv); if (!fr) return;
+  const k = parseFloat(pv.style.getPropertyValue('--pvk')) || 1.2, h = paintedHeight(fr, $('.fbody', fr)) / k;
+  const room = $('.fbody', fr).getBoundingClientRect().bottom - $('.sheet-body', sheetEl).getBoundingClientRect().top - 16;
+  if (h > 0) pv.style.setProperty('--pvk', Math.max(1, Math.min(1.22, room / h)).toFixed(3));
+}
 async function saveProfile(name, avatar) {
   try { Object.assign(ME, await api('/api/profile', { name, avatar })); } catch (e) { toast(e.message); }
 }
@@ -3759,11 +3763,12 @@ async function openCard(o = {}) {
     </div>
     <div class="card-stats"><div><b>${st.played}</b><span>Played</span></div><div><b>${st.won}</b><span>Won</span></div><div><b>${st.played ? Math.round(st.won / st.played * 100) + '%' : '–'}</b><span>Win rate</span></div></div>
     ${c.history.length ? `<div class="guide-sec">Recent games</div><div>${c.history.map(game).join('')}</div>` : ''}`;
-  const s = sheet(html(), 'profile-sheet');
+  const s = sheet(html(), 'profile-sheet'), fit = () => fitPreview($('.card-top .pv', s.el), s.el);
+  fit();
   s.el.addEventListener('click', (e) => {
     const a = e.target.closest('[data-a]'), row = e.target.closest('[data-pid]');
     // the editor opens on top; saving (or closing) it comes back to this profile, redrawn with your changes
-    if (a && a.dataset.a === 'edit') { Snd.tap(); openProfile(() => { $('.sheet-body', s.el).innerHTML = html(); if (o.done) o.done(); }); }
+    if (a && a.dataset.a === 'edit') { Snd.tap(); openProfile(() => { $('.sheet-body', s.el).innerHTML = html(); fit(); if (o.done) o.done(); }); }
     if (a && a.dataset.a === 'board') { Snd.tap(); openRanks(rk); }
     if (row) { Snd.tap(); openCard({ of: row.dataset.pid }); } // stacks on top; closing it comes back here
   });
