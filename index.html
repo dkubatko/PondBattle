@@ -229,9 +229,6 @@ input:focus { border-color: var(--firefly); outline: none; }
 .lists { display: flex; flex-direction: column; gap: 8px; }
 .code-join { display: flex; justify-content: center; }
 .code-page { align-items: stretch; text-align: center; }
-/* The top gap is measured once in px when the page opens (codeStep): the 8dvh one would shrink when the keyboard
-   shrinks the viewport, pulling everything up */
-.code-page.home { padding-top: calc(env(safe-area-inset-top) + var(--code-top, 20px)); }
 .code-page .link { align-self: center; }
 /* equal room above and below the tiles; a wrong-code message floats in the room below, taking no space */
 .code-entry { position: relative; display: block; margin: 22px 0; }
@@ -2205,6 +2202,18 @@ function watchBattle(lb) {
     route();
   });
 }
+// While you type in a field, its page stays where it was. The keyboard shrinks the viewport, and the home pages'
+// top gap is measured in dvh, so it would shrink too and pull everything up; and iOS scrolls to a focused field
+// even when it's already in view. On focus the gap is frozen in px, and any scroll is put back.
+let pinPage = null;
+if (window.visualViewport) visualViewport.addEventListener('resize', () => pinPage?.());
+function keepPut(page, input) {
+  const pin = () => { if (!page.isConnected) { if (pinPage === pin) pinPage = null; return; } if (scrollY || page.scrollTop) { scrollTo(0, 0); page.scrollTop = 0; } };
+  input.addEventListener('focus', () => {
+    if (!page.style.paddingTop) page.style.paddingTop = getComputedStyle(page).paddingTop;
+    pinPage = pin; pin(); setTimeout(pin, 60); setTimeout(pin, 300);
+  });
+}
 function mount(name, node) {
   const root = $('#root'); root.innerHTML = ''; root.appendChild(node); screen = name; syncBack();
   const b = $('#bubble'); if (b) b.classList.remove('show');
@@ -2271,6 +2280,7 @@ function showHome(msg, page) {
     panel.innerHTML = `<input id="name" maxlength="14" autocomplete="off" placeholder="Your name" value="${esc(name)}">
       <button class="btn wide" id="go" ${name ? '' : 'disabled'}>Continue</button>`;
     const inp = $('#name'), go = $('#go');
+    keepPut(node, inp);
     inp.addEventListener('input', () => { go.disabled = !inp.value.trim(); });
     const next = async () => { const n = inp.value.trim(); if (!n) return; Snd.tap(); await saveProfile(n, myAvatar()); lobbyStep(); };
     go.onclick = next; inp.addEventListener('keydown', (e) => { if (e.key === 'Enter') next(); });
@@ -2379,6 +2389,7 @@ function showHome(msg, page) {
   };
   // Home: Play (it opens the ways to play: Ranked, Lobby, Practice), How to play, and your games in progress under them
   const lobbyStep = () => {
+    node.style.paddingTop = ''; // a name typed in (keepPut held the page): the home page sizes freely again
     panel.innerHTML = `
       <button class="btn wide" id="play">Play</button>
       <button class="btn ghost wide" id="howBtn">How to play</button>
@@ -2445,13 +2456,9 @@ function showHome(msg, page) {
       <button class="btn wide" id="join" disabled>Join</button>
       <button class="link" id="back">Back</button>
     </div>`);
-    page.style.setProperty('--code-top', `${Math.round(Math.min(84, Math.max(20, innerHeight * .08)))}px`);
     mount('code', page);
     const code = $('#code'), jb = $('#join'), tiles = $$('.code-tiles span', page), err = $('#codeErr');
-    // iOS scrolls the page to show a focused field even when it's already in view; keep it where it is
-    const pin = () => { if (scrollY || page.scrollTop) { scrollTo(0, 0); page.scrollTop = 0; } };
-    code.addEventListener('focus', () => { pin(); setTimeout(pin, 60); setTimeout(pin, 300); });
-    if (window.visualViewport) visualViewport.addEventListener('resize', () => { if (screen === 'code') pin(); });
+    keepPut(page, code);
     // A wrong code is said right under the tiles (not in the top message spot, which sits on the title)
     const tryJoin = async () => {
       if (code.value.length !== 4) return;
