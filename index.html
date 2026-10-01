@@ -3650,7 +3650,8 @@ function openProfile(done) {
     pv.innerHTML = `<div class="pv-pad" style='${padStyle(av)}'></div>${avatarHTML(av, 92, { idle: true, id: 7 })}`;
     // as big as fits under the sheet's top edge (tall hats and umbrellas reach highest), up to 1.22×
     const k = parseFloat(pv.style.getPropertyValue('--pvk')) || 1.2, fr = $('.frog', pv), h = paintedHeight(fr, $('.fbody', fr)) / k;
-    const room = $('.fbody', fr).getBoundingClientRect().bottom - $('.sheet-body', s.el).getBoundingClientRect().top - 4;
+    // (leaving room for its 8px hop and its breathing, so a jump never reaches the edge)
+    const room = $('.fbody', fr).getBoundingClientRect().bottom - $('.sheet-body', s.el).getBoundingClientRect().top - 16;
     if (h > 0) pv.style.setProperty('--pvk', Math.max(1, Math.min(1.22, room / h)).toFixed(3));
     if (hop) anim($('.frog', pv), [{ transform: 'none' }, { transform: 'translateY(-8px)', offset: .4 }, { transform: 'none' }], { duration: 260 });
   };
