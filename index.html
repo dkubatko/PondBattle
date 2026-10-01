@@ -1629,11 +1629,11 @@ const AV_EYES = [
 ];
 // Patterns are clipped to the body's outline (see avatarArt), so they never spill over the edges
 // Spot layout for the Spots pattern: [x, y, rx, ry, tilt], placed around the back and flanks (the belly covers the middle)
-const SPOTS = [[18, 58, 5.2, 4, -20], [26, 47, 3.8, 3, 15], [50, 40, 3, 2.4, 0], [74, 47, 4.4, 3.3, 25], [83, 60, 4.8, 3.7, -15],
-  [14, 72, 3.8, 3, 30], [87, 74, 4.1, 3.2, -25], [21, 83, 3.2, 2.5, 10], [80, 85, 3.5, 2.7, -5], [31, 57, 2.6, 2, 20], [69, 58, 2.8, 2.1, -20],
+const SPOTS = [[18, 58, 5.2, 4, -20], [26, 47, 3.8, 3, 15], [74, 47, 4.4, 3.3, 25], [83, 60, 4.8, 3.7, -15],
+  [14, 72, 3.8, 3, 30], [87, 74, 4.1, 3.2, -25], [21, 83, 3.2, 2.5, 10], [80, 85, 3.5, 2.7, -5],
   [30, 90, 2.6, 2, 0], [70, 91, 2.8, 2.1, 0], [9, 63, 2.1, 1.7, 0], [92, 65, 2.2, 1.8, 0],
-  // on the head, around the eyes
-  [19, 36, 2.6, 2, -30], [81, 35, 2.8, 2.1, 30], [42, 26, 2.2, 1.7, 0], [60, 27, 2.4, 1.8, 0], [50, 50, 1.9, 1.5, 0]];
+  // on the head, around the eyes (none on the face)
+  [19, 36, 2.6, 2, -30], [81, 35, 2.8, 2.1, 30], [42, 26, 2.2, 1.7, 0], [60, 27, 2.4, 1.8, 0]];
 // A band from (x0, y0), w wide, tapering to a point at (x1, y1); bend pushes its middle down so it follows the body's curve
 const taperBand = (x0, y0, x1, y1, w, bend) => { const mx = (x0 + x1) / 2, my = (y0 + y1) / 2 + bend;
   return `<path d="M${x0} ${y0 - w / 2}Q${mx} ${my - w / 3} ${x1} ${y1}Q${mx} ${my + w / 3} ${x0} ${y0 + w / 2}Z"/>`; };
@@ -1643,7 +1643,8 @@ const AV_PATTERNS = [
   { id: 'spots', name: 'Spots', bellyClear: true, art: (p) => `<g fill="${p.dark}" opacity=".68">${SPOTS.map(([x, y, rx, ry, a]) => E(x, y, rx, ry, p.dark, ` transform="rotate(${a} ${x} ${y})"`)).join('')}</g>` },
   // Stripes: tapered tiger-frog bands curving in from each side, thinning out towards the belly
   { id: 'bands', name: 'Stripes', bellyClear: true, art: (p) => `<g fill="${p.dark}" opacity=".62">${[[34, 7, 40], [46, 8.5, 38], [58, 9, 36], [70, 8.5, 35], [82, 7.5, 34], [93, 6, 33]].map(([y, w, x]) => taperBand(2, y, x, y + 6, w, 3) + taperBand(98, y, 100 - x, y + 6, w, 3)).join('')}</g>` },
-  { id: 'stripes', name: 'Tree Frog flanks', art: () => [[22, 1], [78, -1]].map(([x, dir]) => E(x, 67, 5.5, 12, '#3f86d6') + `<path d="M${x - 4 * dir} 61h${7 * dir}M${x - 4 * dir} 66.5h${7.5 * dir}M${x - 3.5 * dir} 72h${6.5 * dir}" stroke="#eef5ff" stroke-width="1.7" stroke-linecap="round"/>`).join('') },
+  // on the body's sides (measured), below the cheeks
+  { id: 'stripes', name: 'Tree Frog flanks', art: (p, b) => { const y = b.cheeks[1][1] + 11, xr = sideAt(b, y) - 4.5; return [[100 - xr, 1], [xr, -1]].map(([x, dir]) => `<g transform="translate(0 ${y - 67})">` + E(x, 67, 5.5, 12, '#3f86d6') + `<path d="M${x - 4 * dir} 61h${7 * dir}M${x - 4 * dir} 66.5h${7.5 * dir}M${x - 3.5 * dir} 72h${6.5 * dir}" stroke="#eef5ff" stroke-width="1.7" stroke-linecap="round"/></g>`).join(''); } },
   { id: 'freckles', name: 'Freckles', x: (b) => ({ face: b.cheeks.map(([x, y]) => dotsSVG([[x - 3.5, y - 1, 1.3], [x, y - 3, 1.3], [x + 3.5, y - 1, 1.3], [x + .5, y + 2, 1.1]], '#8a5a3a')).join('') }) },
   { id: 'glass', name: 'See-through', x: (b) => ({ glass: true, inside: heartSVG(b.heart, .8) }) },
 ];
@@ -1798,7 +1799,7 @@ function avatarArt(av, crown, centered, small) {
     // bellyClear patterns stay off the belly (like on a real frog): the belly is drawn again over them
     const belly = pat.bellyClear ? (b.torso.match(/<[^>]+\/>/g) || []).filter((el) => el.includes(`fill="${p.belly}"`)).join('') : '';
     // (they also go over the head, drawn after it; the others sit under the head)
-    if (pat.art) add({ [pat.bellyClear ? 'inside' : 'under']: `<defs><clipPath id="avclip-${av.b}">${b.torso}${b.head}</clipPath></defs><g clip-path="url(#avclip-${av.b})">${pat.art(p)}</g>${belly}` });
+    if (pat.art) add({ [pat.bellyClear ? 'inside' : 'under']: `<defs><clipPath id="avclip-${av.b}">${b.torso}${b.head}</clipPath></defs><g clip-path="url(#avclip-${av.b})">${pat.art(p, b)}</g>${belly}` });
     if (pat.x) add(pat.x(b, p));
     for (const k of Object.keys(EXTRAS)) { const acc = byId(AV_ACCS, av[k]); if (acc.x && !(crown && acc.head)) add(acc.x(b, p, small ? acc.small || 1 : 1)); }
     if (crown) add(wornHat(b, CROWN, 1));
