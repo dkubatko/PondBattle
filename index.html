@@ -908,8 +908,7 @@ const BODY = {
     front: `<path d="M40 79 37 91M60 79 63 91" stroke="${p.c}" stroke-width="6" stroke-linecap="round"/>`
       + C(33, 93, 3.4, p.toe || p.light) + C(40, 94, 3.4, p.toe || p.light) + C(60, 94, 3.4, p.toe || p.light) + C(67, 93, 3.4, p.toe || p.light),
     eyes: [[28, 34, 12.5], [72, 34, 12.5]], cheeks: [[28, 57], [72, 57]], mouth: [50, 56, 16], top: [50, 19], crown: [50, 30], neck: [50, 65, 20], heart: [50, 71],
-    // hats a size up, so they show over its big eyes
-    hs: 1.25,
+
   }),
   round: (p) => ({
     back: E(29, 91, 11, 5, p.dark) + E(71, 91, 11, 5, p.dark),
@@ -1032,8 +1031,10 @@ function compose(b, p, x = {}) {
 //
 // Hats are fitted to each head by measuring both, with the browser's own hit test (once per body shape and once per
 // hat): the hat's band is centred on the head, then the hat comes down until its underside meets the head (or the
-// eyes in front of it) all the way across, so no gap shows under a brim. A hat that would have to sink too far for
-// that (a wide brim on a domed head) is drawn a little smaller instead. b.hs: a body whose hats are drawn bigger.
+// eyes in front of it) all the way across, so no gap shows under a brim. It may not come down past the middle of the
+// eyes (onto the face); on a body whose eyes stand above its head (Big eyes), not past the top of the head.
+// Sizes: a hat worn as an extra is the same size on every body (wornHat: the largest that fits all of them, at most
+// its own size); a game frog's hat keeps the size it was drawn at for that frog.
 const probe = (() => {
   let svg;
   return (inner) => {
@@ -1076,18 +1077,34 @@ function hatProfile(art) {
   }
   return hatProfiles.get(art);
 }
-const HAT_SINK = 5, HAT_SEAT = 1.5; // how far below the top of the head a hat may sink to meet it; how far it sits in
-const hat = (b, art, s) => {
-  s *= b.hs || 1;
+const HAT_SEAT = 1.5; // how far into the head a hat sits once it meets it
+// Where a hat drawn k times its size sits on this head: its origin, and whether its band stays off the face
+function fitHat(b, art, k) {
   const top = headTop(b), { cols, low, mid } = hatProfile(art), cx = b.top[0];
   const head = (x) => { const i = Math.round(x); return i < 0 || i > 100 ? Infinity : top[i]; };
   const crown = Math.min(...[-2, -1, 0, 1, 2].map((d) => head(cx + d))); // the top of the head in the middle
-  let k = s, y = 0;
-  for (let i = 0; i < 8; i++, k *= .94) {
-    y = Math.max(...cols.map(([x, hb]) => head(cx + (x - mid) * k) - hb * k).filter(Number.isFinite));
-    if (y + low * k - crown <= HAT_SINK) break;
-  }
-  return { under: at([+(cx - mid * k).toFixed(2), +(y + HAT_SEAT).toFixed(2)], +k.toFixed(3), art) };
+  const y = Math.max(...cols.map(([x, hb]) => head(cx + (x - mid) * k) - hb * k).filter(Number.isFinite)) + HAT_SEAT;
+  const eyeLine = (b.eyes[0][1] + b.eyes[1][1]) / 2;
+  return { x: cx - mid * k, y, ok: y + low * k <= Math.max(eyeLine, crown + HAT_SEAT + 2) };
+}
+// The largest size (up to 2×) at which a hat fits this head
+const fitSizes = new Map();
+function maxHat(b, art) {
+  const key = headTop(b).join() + art;
+  if (!fitSizes.has(key)) { let lo = .3, hi = 2; if (fitHat(b, art, hi).ok) lo = hi; else for (let i = 0; i < 12; i++) { const m = (lo + hi) / 2; if (fitHat(b, art, m).ok) lo = m; else hi = m; } fitSizes.set(key, lo); }
+  return fitSizes.get(key);
+}
+// A hat k times its size (drawn smaller if it won't fit that big), behind the eyes
+const hat = (b, art, k) => {
+  k = Math.min(k, maxHat(b, art));
+  const { x, y } = fitHat(b, art, k);
+  return { under: at([+x.toFixed(2), +y.toFixed(2)], +k.toFixed(3), art) };
+};
+// A hat worn as an extra: the same size on every body (s at most), times `more` (small avatars draw extras bigger)
+const wornSizes = new Map();
+const wornHat = (b, art, s, more = 1) => {
+  if (!wornSizes.has(art)) wornSizes.set(art, Math.min(...BODIES.map((bd) => maxHat(BODY[bd](pal('#6cc46a')), art))));
+  return hat(b, art, Math.min(s, wornSizes.get(art)) * more);
 };
 const eyeCorner = (b, art, s) => { const [ex, ey, r] = b.eyes[1]; return { under: at([ex + r * .8, ey - r * .8], s, art) }; };
 const cheek = (b, art, s) => ({ face: at([b.cheeks[1][0], b.cheeks[1][1] - 1], s, art) });
@@ -1434,7 +1451,7 @@ Object.assign(ART, {
   // Squire: young and sandy, a plain steel cap and a small round shield
   squire: () => {
     const p = pal('#e2bd74'), b = BODY.tall(p);
-    return compose(b, p, { ...hat(b, STEEL_CAP, 1.05), over: at([14, 62], 1, SHIELD) + HAND(14, 62, p) });
+    return compose(b, p, { ...hat(b, STEEL_CAP, 1.45), over: at([14, 62], 1, SHIELD) + HAND(14, 62, p) });
   },
   cleric: () => { const p = pal('#d6c9ef'), b = BODY.round(p); return compose(b, p, { ...hat(b, MITRE, 1) }); },
   // Guard: a sturdy sage frog in an iron kettle hat, with a spear
@@ -1542,11 +1559,11 @@ const umbrella = (b, p) => `<g transform="translate(${b.cheeks[0][0] - 24} ${b.t
 const LEAF_HAT = '<ellipse cy="-3" rx="17" ry="6.5" fill="#3f8a47"/><ellipse cy="-4.5" rx="16" ry="5.5" fill="#5cae5d"/><path d="M0-4.5L7-9.5L9.5-4.5z" fill="#3f8a47"/><path d="M-2-9c1-4 4-6 7-6" stroke="#4a9a50" stroke-width="2" fill="none" stroke-linecap="round"/>';
 const AV_ACCS = [
   { id: 'none', name: 'Nothing' },
-  { id: 'crown', name: 'Prince’s crown', head: true, small: 1.4, x: (b, p, k) => hat(b, CROWN, k) },
-  { id: 'tiara', name: 'Princess’s tiara', head: true, small: 1.5, x: (b, p, k) => hat(b, TIARA, .95 * k) },
-  { id: 'helmet', name: 'Knight’s helmet', head: true, x: (b) => hat(b, HELMET, 1.3) },
-  { id: 'wizard', name: 'Wizard’s hat', head: true, x: (b) => hat(b, WIZARD_HAT, 1.12) },
-  { id: 'leaf', name: 'Leaf hat', head: true, small: 1.15, x: (b, p, k) => hat(b, LEAF_HAT, 1.2 * k) },
+  { id: 'crown', name: 'Prince’s crown', head: true, small: 1.4, x: (b, p, k) => wornHat(b, CROWN, 1, k) },
+  { id: 'tiara', name: 'Princess’s tiara', head: true, small: 1.5, x: (b, p, k) => wornHat(b, TIARA, .95, k) },
+  { id: 'helmet', name: 'Knight’s helmet', head: true, x: (b) => wornHat(b, HELMET, 1.3) },
+  { id: 'wizard', name: 'Wizard’s hat', head: true, x: (b) => wornHat(b, WIZARD_HAT, 1.12) },
+  { id: 'leaf', name: 'Leaf hat', head: true, small: 1.15, x: (b, p, k) => wornHat(b, LEAF_HAT, 1.2, k) },
   // tucked behind the top outer corner of the right eye, like a flower behind the ear
   { id: 'lily', name: 'Water lily', small: 1.5, x: (b, p, k) => eyeCorner(b, WATER_LILY, .9 * k) },
   // on the cheek: every body has one, and it's never on an eye
@@ -1558,16 +1575,16 @@ const AV_ACCS = [
   { id: 'bowtie', name: 'Bow tie', small: 1.6, x: (b, p, k) => ({ face: `<g transform="translate(${b.neck[0]} ${neckY(b) + 1}) scale(${k})"><path d="M0 0L-9-5.5V5.5zM0 0L9-5.5V5.5z" fill="#e5533d"/><circle r="2.6" fill="#b83e2d"/></g>` }) },
   { id: 'umbrella', name: 'Rain umbrella', x: (b, p) => ({ over: umbrella(b, p) }) },
   // from the Might & Magic frogs
-  { id: 'kingcrown', name: 'King’s crown', head: true, small: 1.2, x: (b, p, k) => hat(b, BIG_CROWN, 1.05 * k) },
+  { id: 'kingcrown', name: 'King’s crown', head: true, small: 1.2, x: (b, p, k) => wornHat(b, BIG_CROWN, 1.05, k) },
   { id: 'halo', name: 'Paladin’s halo', head: true, small: 1.2, x: (b, p, k) => halo(b, 1.15 * k) },
-  { id: 'jester', name: 'Jester’s hat', head: true, x: (b) => hat(b, JESTER_HAT, 1) },
-  { id: 'straw', name: 'Straw hat', head: true, x: (b) => hat(b, STRAW_HAT, 1.3) },
-  { id: 'robin', name: 'Archer’s cap', head: true, x: (b) => hat(b, ROBIN_HAT, 1.05) },
-  { id: 'turban', name: 'Merchant’s turban', head: true, small: 1.2, x: (b, p, k) => hat(b, TURBAN, k) },
-  { id: 'beret', name: 'Bard’s beret', head: true, x: (b) => hat(b, BERET, 1) },
-  { id: 'mitre', name: 'Cleric’s mitre', head: true, small: 1.2, x: (b, p, k) => hat(b, MITRE, k) },
-  { id: 'cap', name: 'Squire’s cap', head: true, x: (b) => hat(b, STEEL_CAP, 1.05) },
-  { id: 'kettle', name: 'Guard’s helmet', head: true, x: (b) => hat(b, KETTLE_HAT, 1.12) },
+  { id: 'jester', name: 'Jester’s hat', head: true, x: (b) => wornHat(b, JESTER_HAT, 1) },
+  { id: 'straw', name: 'Straw hat', head: true, x: (b) => wornHat(b, STRAW_HAT, 1.3) },
+  { id: 'robin', name: 'Archer’s cap', head: true, x: (b) => wornHat(b, ROBIN_HAT, 1.05) },
+  { id: 'turban', name: 'Merchant’s turban', head: true, small: 1.2, x: (b, p, k) => wornHat(b, TURBAN, 1, k) },
+  { id: 'beret', name: 'Bard’s beret', head: true, x: (b) => wornHat(b, BERET, 1) },
+  { id: 'mitre', name: 'Cleric’s mitre', head: true, small: 1.2, x: (b, p, k) => wornHat(b, MITRE, 1, k) },
+  { id: 'cap', name: 'Squire’s cap', head: true, x: (b) => wornHat(b, STEEL_CAP, 1.05) },
+  { id: 'kettle', name: 'Guard’s helmet', head: true, x: (b) => wornHat(b, KETTLE_HAT, 1.12) },
   { id: 'mask', name: 'Rogue’s mask', x: (b) => ({ inside: eyeMask(b) }) },
   { id: 'pendulum', name: 'Hypno’s watch', x: (b, p) => ({ over: PENDULUM(b, p) }) },
   { id: 'cape', name: 'King’s cape', x: (b) => ({ behind: KING_CAPE(b) }) },
@@ -1680,7 +1697,7 @@ function avatarArt(av, crown, centered, small) {
     if (pat.art) add({ [pat.bellyClear ? 'inside' : 'under']: `<defs><clipPath id="avclip-${av.b}">${b.torso}${b.head}</clipPath></defs><g clip-path="url(#avclip-${av.b})">${pat.art(p)}</g>${belly}` });
     if (pat.x) add(pat.x(b, p));
     for (const k of Object.keys(EXTRAS)) { const acc = byId(AV_ACCS, av[k]); if (acc.x && !(crown && acc.head)) add(acc.x(b, p, small ? acc.small || 1 : 1)); }
-    if (crown) add(hat(b, CROWN, 1));
+    if (crown) add(wornHat(b, CROWN, 1));
     const [cx, cy] = centered ? bodyCenter(av.b) : [50, 50];
     artCache.set(key, `<svg class="fsvg" viewBox="${(cx - 50).toFixed(1)} ${(cy - 50).toFixed(1)} 100 100" aria-hidden="true">${defs}${compose(b, p, x)}</svg>`);
   }
