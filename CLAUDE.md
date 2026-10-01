@@ -116,7 +116,8 @@ Home infrastructure (Tower, Docker, Nginx Proxy Manager, Cloudflare) is describe
   response.
 - Friends live on the profile (`friends`, `asked`, `askedBy`: `{ uid: when }`). Change both sides together
   (`befriend`, the `/api/friends/act` actions), read with `seen()` so a lookup never writes to a profile. Telegram
-  notes go through `ping()`: one per sender, kind and hour, and a friend's search alert respects `muteFriends`. With no
+  notes go through `ping()`: one per sender, kind and hour (times saved in `DATA_DIR/pings.json`, kept a day, flushed on
+  shutdown with rooms and profiles), and a friend's search alert respects `muteFriends`. With no
   bot token (test servers), `TG.notify` logs `telegram (off) to <id>: ...` to the server log instead, so check notes
   there.
 - Profiles and match history read `games.jsonl` at startup. Keep history lines backward compatible: old

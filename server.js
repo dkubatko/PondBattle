@@ -266,7 +266,16 @@ function forfeit(room, p) {
 // Notes on Telegram: a friend request, a challenge, and a ranked search (each friend at most once an hour).
 const FRIENDS_MAX = 100, PING_GAP = 3600e3;
 const seenAt = new Map(); // uid -> when they last asked the server anything (who is online)
-const pinged = new Map(); // "from>to" -> when a note last went (requests and search alerts)
+// When each note last went ("kind:from>to" -> ms), saved in pings.json so the hourly limits survive restarts and
+// deploys; kept for a day, which also leaves a record of recent notes to look at when debugging
+const PINGS = path.join(DATA, 'pings.json'), PINGS_KEEP = 864e5;
+let pinged = new Map();
+try { pinged = new Map(Object.entries(JSON.parse(fs.readFileSync(PINGS, 'utf8')))); } catch {}
+const savePings = saver(PINGS, () => {
+  const now = Date.now();
+  for (const [k, t] of pinged) if (now - t > PINGS_KEEP) pinged.delete(k);
+  return Object.fromEntries(pinged);
+});
 const book = (uid, k) => { const pr = profiles[uid] || (profiles[uid] = {}); return (pr[k] = pr[k] || {}); }; // to change
 const seen = (uid, k) => (profiles[uid] && profiles[uid][k]) || {}; // to read (adds nothing to the profile)
 const friendsOf = (uid) => Object.keys(seen(uid, 'friends'));
@@ -282,7 +291,7 @@ const person = (uid) => ({ pid: pidOf(uid), name: (profiles[uid] && profiles[uid
 function ping(from, to, kind, text, query, button, gap = PING_GAP) {
   const k = `${kind}:${from}>${to}`, now = Date.now();
   if (!tgId({ uid: to }) || now - (pinged.get(k) || 0) < gap) return false;
-  pinged.set(k, now); TG.notify(tgId({ uid: to }), text, query, button);
+  pinged.set(k, now); savePings(); TG.notify(tgId({ uid: to }), text, query, button);
   return true;
 }
 // Starting a ranked search tells your friends who aren't playing or searching already (unless they muted it)
@@ -646,7 +655,7 @@ setTimeout(() => Object.values(rooms).forEach(scheduleBot), 1000);
 fs.watchFile(INDEX, { interval: 2000 }, () => { for (const r of Object.values(rooms)) broadcast(r); });
 
 // Write ponds out before exiting so a restart never loses a move
-for (const sig of ['SIGTERM', 'SIGINT']) process.on(sig, () => { try { fs.writeFileSync(SAVE, JSON.stringify(rooms)); fs.writeFileSync(PROFILES, JSON.stringify(profiles)); } catch (e) { console.error(e); } process.exit(0); });
+for (const sig of ['SIGTERM', 'SIGINT']) process.on(sig, () => { try { fs.writeFileSync(SAVE, JSON.stringify(rooms)); fs.writeFileSync(PROFILES, JSON.stringify(profiles)); fs.writeFileSync(PINGS, JSON.stringify(Object.fromEntries(pinged))); } catch (e) { console.error(e); } process.exit(0); });
 
 // Drop rooms older than 2 days. A ranked game nobody has touched for a day ends: if one player is ready and
 // the other isn't, the one who stopped playing forfeits; otherwise it just ends unrated.
