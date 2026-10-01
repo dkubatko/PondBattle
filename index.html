@@ -129,7 +129,8 @@ input:focus { border-color: var(--firefly); outline: none; }
 .frog[class*="sz"] .lvl { top: calc((1 - var(--k)) * 100% - 15px); left: calc((1 - var(--k)) * 50% - 8px); }
 /* in your pond a tag sits just above a frog of its level (a standard 58px frog grown by --k), so all level 2
    tags share one line and all level 3 tags a higher one, whatever the frog type */
-.pad .frog .lvl { top: auto; bottom: calc(58px * var(--k) + 3px); left: 50%; transform: translateX(-50%); }
+/* (.onpad: a frog picked up off its pad keeps its tag, stats and dots where they were) */
+.pad .frog .lvl, .frog.onpad .lvl { top: auto; bottom: calc(58px * var(--k) + 3px); left: 50%; transform: translateX(-50%); }
 /* a Bubble wraps the frog at its size: centred on its body, 1.2× across */
 .frog[class*="sz"] .gear.frog-bubble { width: calc(var(--fs) * 1.2 * var(--k)); height: calc(var(--fs) * 1.2 * var(--k));
   left: calc(50% - var(--fs) * .6 * var(--k)); top: calc(var(--fs) * (1 - 1.1 * var(--k))); }
@@ -321,8 +322,8 @@ h1 { margin: 0; text-align: center; font-size: 40px; font-weight: 900; line-heig
 /* Your pond: each frog stands with its feet at the middle of its lily pad, as in battle, with its stats on the
    pad's lower half and its merge dots just under the pad, whatever its size */
 .pad .occ { margin-bottom: 48px; }
-.pad .frog .stats { position: absolute; top: 100%; left: 50%; transform: translateX(-50%); margin-top: 3px; }
-.pad .frog .xp { position: absolute; top: calc(100% + 30px); left: 50%; transform: translateX(-50%); margin: 0; }
+.pad .frog .stats, .frog.onpad .stats { position: absolute; top: 100%; left: 50%; transform: translateX(-50%); margin-top: 3px; }
+.pad .frog .xp, .frog.onpad .xp { position: absolute; top: calc(100% + 30px); left: 50%; transform: translateX(-50%); margin: 0; }
 .dir { display: flex; justify-content: flex-end; padding: 2px 10px 0; font-size: 13px; color: rgba(245, 237, 214, .35); }
 .dir span { display: flex; align-items: center; gap: 3px; }
 .banner { position: absolute; left: 0; right: 0; top: 0; height: calc(50% - 90px); min-height: 70px; display: grid; place-content: center; text-align: center; pointer-events: none; z-index: 5; opacity: 0; }
@@ -1293,7 +1294,20 @@ const eyeMask = (b) => { const [[x1, y1, r1], [x2, y2, r2]] = b.eyes, mx = (x1 +
     + `Q${mx - r * .3} ${b1 + 1} ${x1} ${b1 + 1.5}Q${L + 1} ${b1 + 1.5} ${L} ${b1 - 2}Q${L - 4} ${y1} ${L} ${t1 + 3}Z`;
   const tails = `<path d="M${L + 1} ${y1 - 1}l-8 -6l1.5 7zM${L + 1} ${y1 + 1}l-7 6l7 .5z" fill="#1f2328"/>`;
   return `${tails}<path d="${band}" fill="#1f2328"/>`; };
-const ROGUE_HOOD = ['#5a1f2e', '#76303f'];
+const ROGUE_HOOD = ['#5a1f2e', '#76303f'], NECRO_HOOD = ['#3b2f4d', '#54456b'];
+// The king's ermine collar, across the neck whatever its width
+const ERMINE = (b) => { const [nx, , w] = b.neck, y = neckY(b) - 1, hw = w * .75, on = (u) => [nx - hw + 2 * hw * u, y + 20 * u * (1 - u)];
+  return `<path d="M${nx - hw} ${y}Q${nx} ${y + 10} ${nx + hw} ${y}" stroke="#fbf7ee" stroke-width="6" fill="none" stroke-linecap="round"/>`
+    + dotsSVG([.15, .38, .62, .85].map((u) => [...on(u).map((v) => +v.toFixed(1)), 1]), '#2a211c'); };
+// Things held in a hand, drawn around the hand at (0, 0); the frogs place them by hand, avatars with held()
+const BOW = '<path d="M-7.5-22Q7.5 0-7.5 22" stroke="#8a5a2b" stroke-width="3.2" fill="none" stroke-linecap="round"/><path d="M-7.5-22V22" stroke="#f1e6c8" stroke-width="1.1"/>';
+const PURSE = '<path d="M-7 3.5q7-5 14 0l2 12q-9 6-18 0z" fill="#b88a5c"/><path d="M-6 4.5h12" stroke="#7a5534" stroke-width="2.2" stroke-linecap="round"/>' + C(0, 12.5, 2.6, '#f6c343');
+const HAMMER = '<path d="M1.7 8L-4.3-20" stroke="#8a5a2b" stroke-width="3.4" stroke-linecap="round"/><rect x="-13.3" y="-30" width="17" height="10" rx="2" transform="rotate(-12 -5.3 -25)" fill="#5d636e"/>';
+const LUTE = '<path d="M-10.5 16L4.5-8" stroke="#7a5534" stroke-width="3" stroke-linecap="round"/>' + E(-13.5, 20, 8.5, 10, '#c98a4b', ' transform="rotate(32 -13.5 20)"') + C(-12.5, 19, 2.6, '#5e4028') + '<path d="M3.5-6l3-2" stroke="#5e4028" stroke-width="2.6" stroke-linecap="round"/>';
+const SHIELD = C(-2, 12, 11, '#3f86d6', ' stroke="#8e98ab" stroke-width="2.4"') + C(-2, 12, 3.2, '#f6c343');
+const SPEAR = '<path d="M0 36V-36" stroke="#8a5a2b" stroke-width="3" stroke-linecap="round"/><path d="M0-50l5 14h-10z" fill="#c9d1dd"/>';
+const held = (b, p, dy, art) => { const [, [, y2, r2]] = b.eyes, bb = bodyBox(b), x = +Math.min(95, bb.x + bb.w + 1.5).toFixed(1), y = +(y2 + r2 + 14 + dy).toFixed(1);
+  return at([x, y], 1, art) + HAND(x, y, p); };
 // The outline of a body (legs, body and head, measured once per shape), so extras that hang off the body (wings,
 // a cape, a watch in hand) fit every shape
 const boxCache = new Map();
@@ -1335,27 +1349,23 @@ Object.assign(ART, {
   // Archer: forest green, a feathered cap and a bow held at its side
   archer: () => {
     const p = pal('#5aa65e'), b = BODY.slim(p);
-    const bow = '<path d="M86 44Q101 66 86 88" stroke="#8a5a2b" stroke-width="3.2" fill="none" stroke-linecap="round"/><path d="M86 44V88" stroke="#f1e6c8" stroke-width="1.1"/>';
-    return compose(b, p, { ...hat(b, ROBIN_HAT, 1.05, 1), over: bow + HAND(93.5, 66, p) });
+    return compose(b, p, { ...hat(b, ROBIN_HAT, 1.05, 1), over: at([93.5, 66], 1, BOW) + HAND(93.5, 66, p) });
   },
   // Merchant: round and orange, a jewelled turban and a fat purse of gold
   merchant: () => {
     const p = pal('#e38b4d'), b = BODY.round(p);
-    const purse = '<path d="M81 76q7-5 14 0l2 12q-9 6-18 0z" fill="#b88a5c"/><path d="M82 77h12" stroke="#7a5534" stroke-width="2.2" stroke-linecap="round"/>' + C(88, 85, 2.6, '#f6c343');
-    return compose(b, p, { ...hat(b, TURBAN, 1, 1), over: purse + HAND(88, 72.5, p) });
+    return compose(b, p, { ...hat(b, TURBAN, 1, 1), over: at([88, 72.5], 1, PURSE) + HAND(88, 72.5, p) });
   },
   // Blacksmith: burly and soot-grey, in a leather apron with a hammer
   blacksmith: () => {
     const p = pal('#8c9098'), b = BODY.bull(p);
     const apron = '<path d="M36 62h28l3 24q-17 6-34 0z" fill="#7a5534"/><path d="M38 62L33 51M62 62L67 51" stroke="#5e4028" stroke-width="2.4" stroke-linecap="round"/><path d="M42 70h16" stroke="#5e4028" stroke-width="1.8" stroke-linecap="round"/>';
-    const hammer = '<path d="M92 90L86 62" stroke="#8a5a2b" stroke-width="3.4" stroke-linecap="round"/><rect x="77" y="54" width="17" height="10" rx="2" transform="rotate(-12 85 59)" fill="#5d636e"/>';
-    return compose(b, p, { face: apron, over: hammer + HAND(90.3, 82, p) });
+    return compose(b, p, { face: apron, over: at([90.3, 82], 1, HAMMER) + HAND(90.3, 82, p) });
   },
   // Bard: slim and pink, a feathered beret and a little lute
   bard: () => {
     const p = pal('#963249'), b = BODY.slim(p);
-    const lute = '<path d="M77 72L92 48" stroke="#7a5534" stroke-width="3" stroke-linecap="round"/>' + E(74, 76, 8.5, 10, '#c98a4b', ' transform="rotate(32 74 76)"') + C(75, 75, 2.6, '#5e4028') + '<path d="M91 50l3-2" stroke="#5e4028" stroke-width="2.6" stroke-linecap="round"/>';
-    return compose(b, p, { ...hat(b, BERET, 1, 2), over: lute + HAND(87.5, 56, p) });
+    return compose(b, p, { ...hat(b, BERET, 1, 2), over: at([87.5, 56], 1, LUTE) + HAND(87.5, 56, p) });
   },
   jester: () => { const p = pal('#c9d64f'), b = BODY.classic(p); return compose(b, p, { ...hat(b, JESTER_HAT, 1, 1), mouth: 'open' }); },
   // Rogue: charcoal, hooded, with a mask across its eyes
@@ -1363,26 +1373,23 @@ Object.assign(ART, {
   // Squire: young and sandy, a plain steel cap and a small round shield
   squire: () => {
     const p = pal('#e2bd74'), b = BODY.tall(p);
-    const shield = C(12, 74, 11, '#3f86d6', ' stroke="#8e98ab" stroke-width="2.4"') + C(12, 74, 3.2, '#f6c343');
-    return compose(b, p, { ...hat(b, STEEL_CAP, 1.3, 1), over: shield + HAND(14, 62, p) });
+    return compose(b, p, { ...hat(b, STEEL_CAP, 1.3, 1), over: at([14, 62], 1, SHIELD) + HAND(14, 62, p) });
   },
   cleric: () => { const p = pal('#d6c9ef'), b = BODY.round(p); return compose(b, p, { ...hat(b, MITRE, 1, 0) }); },
   // Guard: a sturdy sage frog in an iron kettle hat, with a spear
   guard: () => {
     const p = pal('#7f9d86'), b = BODY.flat(p);
-    const spear = '<path d="M95 94V22" stroke="#8a5a2b" stroke-width="3" stroke-linecap="round"/><path d="M95 8l5 14h-10z" fill="#c9d1dd"/>';
-    return compose(b, p, { ...hat(b, KETTLE_HAT, 1.12, 1), brows: true, mouth: 'flat', over: spear + HAND(95, 58, p) });
+    return compose(b, p, { ...hat(b, KETTLE_HAT, 1.12, 1), brows: true, mouth: 'flat', over: at([95, 58], 1, SPEAR) + HAND(95, 58, p) });
   },
   // Necromancer: dusky and hooded, with glowing green eyes
   necro: () => {
     const p = pal('#6d6082'), b = BODY.tall(p);
-    return compose(b, p, { inside: hood(b, '#3b2f4d', '#54456b') + b.eyes.map(([x, y, r]) => C(x, y, r + 2.5, '#7dffa6', ' opacity=".25"')).join(''), eyes: 'iris:#3ed27a', noCheeks: true, mouth: 'flat' });
+    return compose(b, p, { inside: hood(b, ...NECRO_HOOD) + b.eyes.map(([x, y, r]) => C(x, y, r + 2.5, '#7dffa6', ' opacity=".25"')).join(''), eyes: 'iris:#3ed27a', noCheeks: true, mouth: 'flat' });
   },
   // Frog King: a plump green frog in a big crown, a red cape and an ermine collar
   king: () => {
     const p = pal('#62b95f'), b = BODY.round(p);
-    const ermine = `<path d="M26 ${neckY(b) - 1}Q50 ${neckY(b) + 9} 74 ${neckY(b) - 1}" stroke="#fbf7ee" stroke-width="6" fill="none" stroke-linecap="round"/>` + dotsSVG([[33, neckY(b) + 2.2, 1], [44, neckY(b) + 4.4, 1], [56, neckY(b) + 4.4, 1], [67, neckY(b) + 2.2, 1]], '#2a211c');
-    return compose(b, p, { behind: KING_CAPE(b), ...hat(b, BIG_CROWN, 1.05, 0), face: ermine });
+    return compose(b, p, { behind: KING_CAPE(b), ...hat(b, BIG_CROWN, 1.05, 0), face: ERMINE(b) });
   },
   // Dragon Frog: fiery red with an orange belly, little wings and horns
   dragon: () => {
@@ -1504,6 +1511,16 @@ const AV_ACCS = [
   { id: 'pendulum', name: 'Hypno’s watch', x: (b, p) => ({ over: PENDULUM(b, p) }) },
   { id: 'cape', name: 'King’s cape', x: (b) => ({ behind: KING_CAPE(b) }) },
   { id: 'wings', name: 'Dragon wings', x: (b, p) => ({ behind: DRAGON_WINGS(b, p.dark) }) },
+  { id: 'hood', name: 'Rogue’s hood', head: true, x: (b) => ({ inside: hood(b, ...ROGUE_HOOD) }) },
+  { id: 'necrohood', name: 'Necromancer’s hood', head: true, x: (b) => ({ inside: hood(b, ...NECRO_HOOD) }) },
+  { id: 'ermine', name: 'King’s collar', x: (b) => ({ face: ERMINE(b) }) },
+  // held in the right hand, beside the body (see held)
+  { id: 'bow', name: 'Archer’s bow', x: (b, p) => ({ over: held(b, p, 0, BOW) }) },
+  { id: 'lute', name: 'Bard’s lute', x: (b, p) => ({ over: held(b, p, -4, LUTE) }) },
+  { id: 'shield', name: 'Squire’s shield', x: (b, p) => ({ over: held(b, p, 0, SHIELD) }) },
+  { id: 'purse', name: 'Merchant’s purse', x: (b, p) => ({ over: held(b, p, 6, PURSE) }) },
+  { id: 'hammer', name: 'Blacksmith’s hammer', x: (b, p) => ({ over: held(b, p, 14, HAMMER) }) },
+  { id: 'spear', name: 'Guard’s spear', x: (b, p) => ({ over: held(b, p, -4, SPEAR) }) },
 ];
 const byId = (list, id) => list.find((o) => o.id === id) || list[0];
 // patterns that were folded into Polka dots keep a dotted look
@@ -3058,7 +3075,7 @@ function onMove(e) {
     drag.started = true; drag.vis = vis; drag.t0 = performance.now();
     const r = vis.getBoundingClientRect();
     drag.ox = drag.x0 - r.left; drag.oy = drag.y0 - r.top;
-    drag.ghost = vis.cloneNode(true); drag.ghost.classList.add('flyer'); drag.ghost.style.width = r.width + 'px';
+    drag.ghost = vis.cloneNode(true); drag.ghost.classList.add('flyer'); drag.ghost.classList.toggle('onpad', !!vis.closest('.pad')); drag.ghost.style.width = r.width + 'px';
     if (drag.ghost.matches('.frog')) syncIdle(drag.ghost);
     drag.ghost.style.transform = `translate3d(${r.left}px,${r.top}px,0)`;
     document.body.appendChild(drag.ghost);
@@ -3723,7 +3740,7 @@ function openTutorial() {
       const offX = bx - a.x, offY = by - a.y; // where in the copy its body is
       await hover(bx, by, live); if (!live()) return null;
       await press(); if (!live()) return null;
-      const ghost = vis.cloneNode(true); ghost.classList.add('tghost'); ghost.style.width = a.w + 'px';
+      const ghost = vis.cloneNode(true); ghost.classList.add('tghost'); ghost.classList.toggle('onpad', !!vis.closest('.pad')); ghost.style.width = a.w + 'px';
       const put = (x, y, k) => { ghost.style.transform = `translate(${x - offX}px, ${y - offY - LIFT * k}px) scale(${1 + .1 * k})`; };
       sc.appendChild(ghost); put(bx, by, 0); vis.style.opacity = .25;
       // the pickup: up and a little bigger, easing out
