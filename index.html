@@ -553,7 +553,8 @@ h1 { margin: 0; text-align: center; font-size: 40px; font-weight: 900; line-heig
 .fdot { position: absolute; right: -3px; bottom: -3px; width: 13px; height: 13px; border-radius: 50%; box-shadow: 0 0 0 2.5px #24473f; }
 .fdot.online { background: #7cc467; } .fdot.searching { background: var(--firefly); } .fdot.playing { background: #6aa9e8; } .fdot.offline { display: none; }
 .fr-empty { margin: 10px auto 0; }
-.friends-page h1 { margin-bottom: 14px; }
+.friends-page h1 { margin-bottom: 4px; }
+.fr-share { position: absolute; top: calc(env(safe-area-inset-top) + 10px); right: 14px; color: var(--moon-dim); }
 .friends-page .lists { margin-top: 10px; }
 /* a profile's friend buttons: Add friend / Request sent / Accept, or "Friends" and Challenge */
 .card-friend { display: flex; align-items: center; justify-content: center; gap: 12px; width: 100%; margin-top: 10px; }
@@ -851,6 +852,7 @@ const ICON = {
   cup: (on) => `<svg class="ic" viewBox="0 0 24 24" fill="${on ? '#ffcd66' : 'rgba(245,237,214,.2)'}"><path d="M6 2h12v5.5a6 6 0 0 1-12 0z"/><path d="M6 4H2.5v1.5A4.5 4.5 0 0 0 7 10M18 4h3.5v1.5A4.5 4.5 0 0 1 17 10" fill="none" stroke="${on ? '#ffcd66' : 'rgba(245,237,214,.2)'}" stroke-width="2"/><rect x="10.5" y="13" width="3" height="5"/><rect x="6.5" y="18" width="11" height="3.5" rx="1.2"/></svg>`,
   coin: `<svg class="ic" viewBox="0 0 24 24"><circle cx="12" cy="12" r="10.5" fill="#ffcd66" stroke="#a8761c" stroke-width="1.6"/><circle cx="12" cy="12" r="6.5" fill="none" stroke="#d49a33" stroke-width="2"/></svg>`,
   music: (on) => `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M9 18V5l11-2v13"/><circle cx="6.5" cy="18" r="2.6" fill="currentColor"/><circle cx="17.5" cy="16" r="2.6" fill="currentColor"/>${on ? '' : '<path d="M3 3l18 18" stroke-width="2.6"/>'}</svg>`,
+  share: `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.3" stroke-linecap="round" stroke-linejoin="round"><path d="M12 14V4M8 7.5L12 3.5l4 4M7 11H6a2 2 0 0 0-2 2v6a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2v-6a2 2 0 0 0-2-2h-1"/></svg>`,
   menu: `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round"><path d="M4 7h16M4 12h16M4 17h16"/></svg>`,
   chev: `<svg class="ic" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"><path d="M9 5l7 7-7 7"/></svg>`,
   x: `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.6" stroke-linecap="round"><path d="M7 7l10 10M17 7L7 17"/></svg>`,
@@ -2789,12 +2791,12 @@ function showHome(msg, page) {
     if (lobbyCache) { lobby = lobbyCache; last = JSON.stringify(lobbyCache); render(true); } else last = '';
     load(); clearInterval(pondTimer); pondTimer = setInterval(load, 2500);
   };
-  // Friends: requests sent to you (decline / accept), your friends with what they're up to (tap for their profile,
+  // Friends: a share button in the corner (your profile, for people to add you), requests sent to you (decline / accept), your friends with what they're up to (tap for their profile,
   // Challenge, swipe left to remove) and requests you sent (cancel). Refreshed every few seconds.
   const friendsStep = () => {
     const page = el(`<div class="screen home ponds-page friends-page fade-in">
+      <button class="ib fr-share" id="addMe" aria-label="Share my profile">${ICON.share}</button>
       <h1 class="h-sm">Friends</h1>
-      <button class="btn ghost wide" id="addMe">Add me as a friend</button>
       <div id="flists" class="lists"></div>
       <button class="link" id="back">Back</button>
     </div>`);
@@ -2848,7 +2850,7 @@ function showHome(msg, page) {
         $('.rbtn.no', n).onclick = act(f, 'cancel');
         return n;
       } });
-      if (!items.length) items.push({ key: 'empty', sig: 'empty', make: () => el('<p class="lede fr-empty">No friends yet. Add players from their profile, or send them your link.</p>') });
+      if (!items.length) items.push({ key: 'empty', sig: 'empty', make: () => el('<p class="lede fr-empty">No friends yet. Add players from their profile, or share yours.</p>') });
       place(box, items, first); first = false;
     };
     const load = async (force) => {
