@@ -4443,14 +4443,20 @@ function openTutorial() {
     <div class="tdots">${SCENES.map((x, i) => `<button aria-label="${x[0]}"${i ? '' : ' class="on"'}></button>`).join('')}</div>
     <div class="tut-more"><button class="link" data-a="all">All frogs and items</button></div>`, 'tut');
   const track = $('.tut-track', sh.el), dots = $$('.tdots button', sh.el), stages = $$('.tstage', sh.el);
+  // Every slide shows its opening frame (a scene builds it at once, and stops there when it isn't live), so the
+  // slides beside the one in view are never blank mid-swipe. Only the one in view plays; one you swipe away from
+  // stops where it is and goes back to its opening frame once it's out of sight.
   let at = -1, run = 0;
+  const still = (i) => { const st = stages[i]; st.getAnimations().forEach((x) => x.cancel()); st.style.opacity = ''; SCENES[i][2](st, () => false); st.dataset.still = '1'; };
   const play = async (k) => {
     const my = ++run, live = () => my === run && sh.el.isConnected && !sh.el.classList.contains('closing');
     const st = stages[k];
-    while (live()) {
-      st.getAnimations().forEach((x) => x.cancel()); st.style.opacity = 0;
+    for (let first = true; live(); first = false) {
+      st.getAnimations().forEach((x) => x.cancel());
+      if (!first || st.dataset.still !== '1') st.style.opacity = 0; // (its opening frame is already showing: no fade)
+      delete st.dataset.still;
       const scene = SCENES[k][2](st, live); // builds its first frame at once, then plays
-      await anim(st, [{ opacity: 0 }, { opacity: 1 }], { duration: 240, easing: 'ease-out' }); st.style.opacity = '';
+      if (st.style.opacity === '0') { await anim(st, [{ opacity: 0 }, { opacity: 1 }], { duration: 240, easing: 'ease-out' }); st.style.opacity = ''; }
       await scene; if (!live()) break;
       await anim(st, [{ opacity: 1 }, { opacity: 0 }], { duration: 260, easing: 'ease-in', fill: 'forwards' });
     }
@@ -4458,10 +4464,16 @@ function openTutorial() {
   const show = (k) => {
     if (k === at) return;
     at = k; dots.forEach((d, i) => d.classList.toggle('on', i === k));
-    stages.forEach((st, i) => { if (i !== k) st.innerHTML = ''; });
     play(k);
   };
-  track.addEventListener('scroll', () => show(Math.round(track.scrollLeft / track.clientWidth)), { passive: true });
+  // once a swipe settles, the slides out of sight go back to their opening frames
+  let settle = 0;
+  const tidy = () => stages.forEach((st, i) => { if (i !== at && st.dataset.still !== '1') still(i); });
+  track.addEventListener('scroll', () => {
+    show(Math.round(track.scrollLeft / track.clientWidth));
+    clearTimeout(settle); settle = setTimeout(tidy, 180);
+  }, { passive: true });
+  stages.forEach((_, i) => still(i));
   dots.forEach((d, i) => { d.onclick = () => { Snd.tap(); track.scrollTo({ left: i * track.clientWidth, behavior: 'smooth' }); }; });
   sh.el.addEventListener('keydown', (e) => { const d = { ArrowRight: 1, ArrowLeft: -1 }[e.key]; if (d) track.scrollTo({ left: Math.max(0, Math.min(SCENES.length - 1, at + d)) * track.clientWidth, behavior: 'smooth' }); });
   sh.el.tabIndex = -1; sh.el.focus({ preventScroll: true });
