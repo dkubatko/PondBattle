@@ -551,18 +551,17 @@ h1 { margin: 0; text-align: center; font-size: 40px; font-weight: 900; line-heig
 .fn { display: flex; align-items: center; gap: 6px; min-width: 0; }
 .fn .nm { min-width: 0; font-size: 17px; font-weight: 800; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
 .fn svg { flex: none; }
+.fn .sep { flex: none; width: 1.5px; height: 14px; margin: 0 2px; border-radius: 1px; background: rgba(245, 237, 214, .22); }
 .fn .rk { flex: none; font-size: 13px; font-weight: 800; color: var(--moon-dim); white-space: nowrap; }
 .fst { font-size: 13px; font-weight: 700; color: var(--moon-dim); }
 .fst.searching { color: var(--firefly); } .fst.online { color: #8fd67a; } .fst.playing { color: #8fc4f2; }
 .fr-acts { display: flex; gap: 8px; flex: none; }
-/* round buttons, small versions of the main buttons: green (accept, challenge) and ghost (decline, cancel) */
+/* round buttons in the main buttons' colors, flat: green (accept, challenge) and ghost (decline, cancel) */
 .rbtn { width: 42px; height: 42px; border-radius: 50%; border: 0; display: grid; place-items: center; padding: 0; flex: none; transition: transform .08s; }
 .rbtn svg { width: 20px; height: 20px; }
-.rbtn.yes, .rbtn.battle { background: #a6dc7f; color: #17271f; box-shadow: 0 4px 0 #5f9848; }
-.rbtn.no { background: rgba(245, 237, 214, .05); color: var(--moon-dim); box-shadow: inset 0 0 0 2px rgba(245, 237, 214, .14), 0 4px 0 rgba(0, 0, 0, .26); }
-.rbtn:active { transform: translateY(2px); }
-.rbtn.yes:active, .rbtn.battle:active { box-shadow: 0 2px 0 #5f9848; }
-.rbtn.no:active { box-shadow: inset 0 0 0 2px rgba(245, 237, 214, .14), 0 2px 0 rgba(0, 0, 0, .26); }
+.rbtn.yes, .rbtn.battle { background: #a6dc7f; color: #17271f; }
+.rbtn.no { background: rgba(245, 237, 214, .1); color: var(--moon-dim); }
+.rbtn:active { transform: scale(.92); }
 .rbtn.battle svg { width: 22px; height: 22px; }
 .fdot { position: absolute; right: -2px; bottom: -2px; width: 12px; height: 12px; border-radius: 50%; box-shadow: 0 0 0 2.5px #1f3a3e; }
 .fdot.online { background: #7cc467; } .fdot.searching { background: var(--firefly); } .fdot.playing { background: #6aa9e8; } .fdot.offline { display: none; }
@@ -2842,7 +2841,7 @@ function showHome(msg, page) {
     // a row: their frog (a dot says what they're up to), name, rank (and status), and its round buttons
     const rowOf = (f, buttons, status) => {
       const n = el(`<div class="fr-row" role="button"><span class="mini">${avatarHTML(f.avatar, 30, { id: 40, centered: true })}${status ? `<span class="fdot ${status}"></span>` : ''}</span>
-        <span class="ht"><span class="fn"><span class="nm">${esc(f.name)}</span>${rankBadge(f.rank, 18)}<span class="rk">${esc(f.rank.name)}</span></span>${status ? `<small class="fst ${status}">${STATUS[status]}</small>` : ''}</span>
+        <span class="ht"><span class="fn"><span class="nm">${esc(f.name)}</span><span class="sep"></span>${rankBadge(f.rank, 18)}<span class="rk">${esc(f.rank.name)}</span></span>${status ? `<small class="fst ${status}">${STATUS[status]}</small>` : ''}</span>
         <span class="fr-acts">${buttons.map(([k, icon, label]) => `<button class="rbtn ${k}" aria-label="${label}">${icon}</button>`).join('')}</span></div>`);
       n.onclick = () => { Snd.tap(); card(f); };
       return n;
