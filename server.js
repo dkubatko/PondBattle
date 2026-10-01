@@ -132,8 +132,8 @@ function view(room, me, have) {
   };
 }
 // The emoji a player can send (the page shows the same list); the Pond Bot picks from the friendly ones
-const REACTIONS = ['😂', '😍', '😮', '😡', '👍'];
-const BOT_REACTIONS = ['😂', '😮', '👍'];
+const REACTIONS = ['😂', '👀', '🔥', '😡', '🐸'];
+const BOT_REACTIONS = ['😂', '👀', '🔥', '🐸'];
 function broadcast(room) {
   for (const s of subs.get(room.code) || []) { s.res.write(`data: ${JSON.stringify(view(room, s.p, s.have))}\n\n`); s.have = room.lastBattle && room.lastBattle.id; }
 }

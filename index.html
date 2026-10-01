@@ -468,11 +468,11 @@ h1 { margin: 0; text-align: center; font-size: 40px; font-weight: 900; line-heig
 .guide-sec { margin: 18px 0 8px; font-size: 15px; color: var(--firefly); font-weight: 900; overflow-wrap: anywhere; }
 .guide-row { display: flex; align-items: center; gap: 12px; padding: 6px 0; }
 .guide-row .gfrog { flex: none; width: 60px; display: flex; justify-content: center; }
-.react-pick { position: fixed; z-index: 85; display: flex; gap: 2px; padding: 6px; border-radius: 16px; background: #fbf1d6; box-shadow: 0 10px 28px rgba(0, 0, 0, .38); transform-origin: var(--ax, 50%) 0; }
-/* the pointer at the top, under your avatar (like .bubble's) */
-.react-pick::after { content: ''; position: absolute; left: var(--ax, 50%); top: -6px; width: 14px; height: 14px; background: #fbf1d6; border-radius: 3px; transform: translateX(-50%) rotate(45deg); }
-.react-btn { position: relative; z-index: 1; width: 44px; height: 44px; border: 0; border-radius: 12px; background: none; color: #253021; font-size: 26px; line-height: 1; padding: 0; }
-.react-btn:active { background: rgba(37, 48, 33, .1); transform: scale(.9); }
+.react-pick { position: fixed; z-index: 85; display: flex; gap: 2px; padding: 6px; border-radius: 18px; background: #20383f; box-shadow: 0 8px 24px rgba(0, 0, 0, .35); transform-origin: var(--ax, 50%) 0; }
+/* the pointer at the top, under your avatar (like a frog's info bubble's) */
+.react-pick::after { content: ''; position: absolute; left: var(--ax, 50%); top: -6px; width: 14px; height: 14px; background: #20383f; border-radius: 3px; transform: translateX(-50%) rotate(45deg); }
+.react-btn { position: relative; z-index: 1; width: 44px; height: 44px; border: 0; border-radius: 12px; background: none; font-size: 26px; line-height: 1; padding: 0; }
+.react-btn:active { background: rgba(245, 237, 214, .12); transform: scale(.9); }
 .react-float { position: fixed; z-index: 86; font-size: 38px; line-height: 1; pointer-events: none; text-shadow: 0 3px 8px rgba(0, 0, 0, .35); }
 .snd-row { display: flex; justify-content: space-between; gap: 12px; padding: 7px 0; border-bottom: 1px solid rgba(245, 237, 214, .08); font-size: 15px; color: var(--moon-dim); }
 .snd-row b { color: var(--moon); font-weight: 800; text-align: right; }
@@ -2878,10 +2878,10 @@ function updateHeader() {
   }
 }
 // ----- Emoji reactions -----
-// Tap your plaque while shopping: a row of emoji opens under it in a bubble pointing at your avatar (like a frog's
-// info bubble); the one you pick floats up from your plaque, and
+// Tap your plaque while shopping: a row of emoji opens under it, in a dark bubble pointing at your avatar; the one
+// you pick floats up from your plaque, and
 // your partner sees it float up from yours on their screen (the server keeps the list: server.js REACTIONS)
-const REACTIONS = ['😂', '😍', '😮', '😡', '👍'];
+const REACTIONS = ['😂', '👀', '🔥', '😡', '🐸'];
 let reactAt = 0;
 function closeReactions() { $$('.react-pick').forEach((n) => n.remove()); document.removeEventListener('pointerdown', reactOutside, true); }
 function reactOutside(e) { if (!e.target.closest('.react-pick, #meCard')) closeReactions(); }
