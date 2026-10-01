@@ -1434,22 +1434,33 @@ const DRAGON_WINGS = (b, c) => {
 // outline measured there), slopes out from behind them and flares out, hanging straight below the body's widest
 // point, and ends behind the bottom of the body. Wavy folds run down the cloth and its hem is wavy; a gold trim
 // edges it.
+// A smooth curve through points (Catmull-Rom, as cubic Béziers)
+const smoothPath = (pts) => {
+  const f = (v) => v.toFixed(1);
+  let d = `M${f(pts[0][0])} ${f(pts[0][1])}`;
+  for (let i = 0; i < pts.length - 1; i++) {
+    const [a, b0, c, e] = [pts[i - 1] || pts[i], pts[i], pts[i + 1], pts[i + 2] || pts[i + 1]];
+    d += `C${f(b0[0] + (c[0] - a[0]) / 6)} ${f(b0[1] + (c[1] - a[1]) / 6)} ${f(c[0] - (e[0] - b0[0]) / 6)} ${f(c[1] - (e[1] - b0[1]) / 6)} ${f(c[0])} ${f(c[1])}`;
+  }
+  return d;
+};
 const KING_CAPE = (b) => {
   const top = Math.max(...b.eyes.map(([, y, r]) => y + r)) + 1, bb = bodyBox(b), tb = probe(b.torso).bb, n = 40, f = (v) => v.toFixed(1);
   const bot = Math.min(tb.y + tb.height, bb.y + bb.h - 7) - 3; // ends behind the bottom of the body, above the feet
   let widest = 0;
   const edge = Array.from({ length: n + 1 }, (_, i) => { const y = top + (bot - top) * i / n, t = i / n; widest = Math.max(widest, sideAt(b, y));
     return [Math.min(97, widest - 4 + 12 * t ** .75), y]; });
-  const [xb] = edge[n], hem = []; // a gentle wave along the hem, right to left
-  for (let x = xb; x >= 100 - xb - .01; x -= (2 * xb - 100) / 48) hem.push(`${f(x)} ${f(bot + 1.3 * Math.sin((x - 50) * .42))}`);
-  const right = edge.map(([x, y]) => `${f(x)} ${f(y)}`), left = edge.map(([x, y]) => `${f(100 - x)} ${f(y)}`).reverse();
-  const outline = `M${left[left.length - 1]}L${right.join('L')}L${hem.join('L')}L${left.join('L')}Z`;
+  // the outline: down the right side, along the hem (a whole number of gentle waves, so it's level at both corners)
+  // and up the left side, as one smooth curve
+  const side = edge.filter((_, i) => i % 5 === 0), xb = edge[n][0], span = 2 * xb - 100, waves = Math.max(2, Math.round(span / 14)), m = waves * 4;
+  const hem = Array.from({ length: m - 1 }, (_, k) => [xb - span * (k + 1) / m, bot + 1.2 * Math.sin(2 * Math.PI * waves * (k + 1) / m)]);
+  const rim = smoothPath([...side, ...hem, ...side.map(([x, y]) => [100 - x, y]).reverse()]);
   // wavy folds down each side, just inside the outer edge, where the cape shows beside the body
-  const fold = (k, w) => [1, -1].map((d) => 'M' + edge.slice(9).map(([x, y]) => `${f(50 + d * (x - 50 - k - w * Math.sin(y * .4)))} ${f(y)}`).join('L')).join('');
-  return `<path d="${outline}" fill="#c0392b"/>`
-    + `<path d="${fold(2.4, 1) + fold(6, 1.2)}" stroke="#9e2b22" stroke-width="1.3" fill="none" stroke-linecap="round" stroke-linejoin="round"/>`
-    + `<path d="${fold(4.2, 1.1)}" stroke="#d65446" stroke-width="1" fill="none" stroke-linecap="round" stroke-linejoin="round" opacity=".8"/>`
-    + `<path d="M${right.join('L')}L${hem.join('L')}L${left.join('L')}" stroke="#e2b13c" stroke-width="1.5" fill="none" stroke-linejoin="round"/>`;
+  const fold = (k, w) => [1, -1].map((d) => smoothPath(edge.slice(9).filter((_, i) => i % 2 === 0).map(([x, y]) => [50 + d * (x - 50 - k - w * Math.sin(y * .4)), y]))).join('');
+  return `<path d="${rim}Z" fill="#c0392b"/>`
+    + `<path d="${fold(2.4, 1) + fold(6, 1.2)}" stroke="#9e2b22" stroke-width="1.3" fill="none" stroke-linecap="round"/>`
+    + `<path d="${fold(4.2, 1.1)}" stroke="#d65446" stroke-width="1" fill="none" stroke-linecap="round" opacity=".8"/>`
+    + `<path d="${rim}" stroke="#e2b13c" stroke-width="1.5" fill="none" stroke-linecap="round"/>`;
 };
 // A gold pocket watch hanging on its chain from the frog's right hand (the art's right, where no stats sit); the
 // hand floats just off the body's side
