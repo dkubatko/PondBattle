@@ -80,7 +80,7 @@ const PAD_COLORS = 12, AV_COLORS = 18, AV_BODIES = ['classic', 'slim', 'tall', '
 const optId = (v, dflt) => (/^[a-z]{1,12}$/.test(String(v || '')) ? v : dflt);
 const cleanAvatar = (a) => ({
   b: AV_BODIES.includes(a && a.b) ? a.b : 'classic', c: Math.max(0, Math.min(AV_COLORS - 1, (a && a.c) | 0)),
-  e: optId(a && a.e, 'dark'), t: optId(a && a.t, 'none'),
+  m: optId(a && a.m, 'smile'), e: optId(a && a.e, 'dark'), t: optId(a && a.t, 'none'),
   // extras, one per slot (an avatar from before slots has one extra, `a`: it goes to its slot)
   ...Object.fromEntries(Object.entries(R.EXTRAS).map(([k, ids]) => { const v = a && (a[k] === undefined ? a.a : a[k]); return [k, ids.includes(v) ? v : 'none']; })),
   // lily pad: style id and color (one of PAD_COLORS on the page)

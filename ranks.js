@@ -64,7 +64,7 @@ const EXTRAS = {
   bk: ['cape', 'wings'],
 };
 // Avatar options earned with rank; anything not listed is open to everyone. Keys are the avatar fields: b body,
-// c color (index; 13-17 are the gradients), e eyes, t pattern, the extras' slots (above), l lily pad style, lc lily
+// c color (index; 13-17 are the gradients), m mouth, e eyes, t pattern, the extras' slots (above), l lily pad style, lc lily
 // pad color (index). The page gets this table too (it lists each setting's options by the rank that unlocks them);
 // the server enforces it.
 const RANK_IDS = [...TIERS.map((t) => t.id), LEGEND.id];
@@ -74,7 +74,7 @@ const UNLOCKS = {
   master: { b: ['flat'], c: [14, 16], e: ['red'], t: ['stripes'], h: ['crown'], n: ['ermine'], hd: ['pendulum'], bk: ['wings'], l: ['heart'], lc: [11] },
   legend: { b: ['bull'], c: [17], e: ['spiral'], t: ['glass'], h: ['kingcrown', 'halo'], bk: ['cape'], l: ['lotus'], lc: [9] },
 };
-const AVATAR_DEFAULTS = { b: 'classic', c: 0, e: 'dark', t: 'none', h: 'none', f: 'none', n: 'none', hd: 'none', bk: 'none', l: 'classic', lc: 0 };
+const AVATAR_DEFAULTS = { b: 'classic', c: 0, m: 'smile', e: 'dark', t: 'none', h: 'none', f: 'none', n: 'none', hd: 'none', bk: 'none', l: 'classic', lc: 0 };
 // The rank an option needs, or '' if it's open
 const needs = (key, id) => Object.keys(UNLOCKS).find((tier) => (UNLOCKS[tier][key] || []).includes(id)) || '';
 // An avatar with everything the rank hasn't earned yet put back to the default

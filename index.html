@@ -221,6 +221,7 @@ input:focus { border-color: var(--firefly); outline: none; }
   opacity: .5; transform: scale(.84); transition: opacity .18s, transform .18s, background-color .18s, box-shadow .18s; }
 .wheel-item.on { opacity: 1; transform: none; background: rgba(255, 205, 102, .12); box-shadow: inset 0 0 0 2px var(--firefly); }
 .wheel-item.face .fbody { transform: scale(1.75) translateY(20%); } /* eyes tab: zoom in on the face */
+.wheel-item.mouth .fbody { transform: scale(1.9) translateY(4%); } /* mouth tab: zoom in on the mouth */
 /* options not earned yet: faded, with the badge of the rank that unlocks them */
 .wheel-item { position: relative; }
 .wheel-item.locked > :not(.wheel-lock) { opacity: .35; filter: grayscale(.5); }
@@ -998,6 +999,12 @@ function mouthSVG(kind, [x, y, w], line) {
   if (kind === 'open') return `<path d="M${x - w / 2} ${y - 2}q${w / 2} ${w * .85} ${w} 0z" fill="#6b2a2e"/><path d="M${x - w * .25} ${y + w * .24}q${w * .25} ${w * .2} ${w * .5} 0q${-w * .25} ${-w * .15} ${-w * .5} 0z" fill="#ff8da1"/>`;
   if (kind === 'frown') return `<path d="M${x - w / 2} ${y + 2.5}q${w / 2} ${-w * .3} ${w} 0" ${stroke}/>`;
   if (kind === 'flat') return `<path d="M${x - w / 2} ${y}q${w / 2} ${w * .14} ${w} 0" ${stroke}/>`;
+  if (kind === 'o') return E(x, y + w * .12, w * .17, w * .21, '#6b2a2e'); // surprised
+  if (kind === 'cat') return `<path d="M${x - w / 2} ${y}q${w / 4} ${w * .34} ${w / 2} 0q${w / 4} ${w * .34} ${w / 2} 0" ${stroke}/>`; // :3
+  if (kind === 'smirk') return `<path d="M${x - w * .4} ${y + w * .1}q${w * .5} ${w * .2} ${w * .85} ${-w * .18}" ${stroke}/>`;
+  if (kind === 'tongue') return `<path d="M${x - w * .02} ${y + w * .17}v${w * .2}a${w * .19} ${w * .19} 0 0 0 ${w * .38} 0v${-w * .26}z" fill="#ff8da1" stroke="${line}" stroke-width="1.8" stroke-linejoin="round"/>`
+    + `<path d="M${x + w * .17} ${y + w * .2}v${w * .16}" stroke="#e0607a" stroke-width="1.4" stroke-linecap="round"/>`
+    + `<path d="M${x - w / 2} ${y}q${w / 2} ${w * .39} ${w} 0" ${stroke}/>`;
   return `<path d="M${x - w / 2} ${y}q${w / 2} ${w * .39} ${w} 0" ${stroke}/>`;
 }
 const browsSVG = (list, line) => list.map(([x, y, r], i) => {
@@ -1207,7 +1214,7 @@ const ART = {
     return compose(b, p, { under: hat(b, CROWN, 1).under + pad(15, 49, -32) + pad(85, 49, 32) });
   },
   // Glass frog: see-through, with its little heart showing
-  glass: () => { const p = pal('#cdeee2'), b = BODY.tall(p); return compose(b, p, { glass: true, inside: heartSVG(b.heart, .9) + dotsSVG([[36, 56, 1.3], [63, 54, 1.2], [58, 80, 1.1], [42, 82, 1.1], [70, 68, 1]], '#f4fff9') }); },
+  glass: () => { const p = pal('#cdeee2'), b = BODY.tall(p); return compose(b, p, { glass: true, noCheeks: true, inside: heartSVG(b.heart, .9) + dotsSVG([[36, 56, 1.3], [63, 54, 1.2], [58, 80, 1.1], [42, 82, 1.1], [70, 68, 1]], '#f4fff9') }); },
   // Pac-man frog: a round mouth on legs, horned eyelids, mottled back
   hungry: () => {
     const p = pal('#b3c94b'), b = BODY.round(p);
@@ -1218,7 +1225,7 @@ const ART = {
     const p = pal('#9aabbf'), b = BODY.round(p);
     // Held in its right hand (drawn on the art's right), leaning over its head: in battle the stats sit on the other
     // side, so the umbrella never covers them (your frogs have stats on the left; your partner's are mirrored)
-    return compose(b, p, { brows: true, mouth: 'frown', over: umbrella(b, p, 67) });
+    return compose(b, p, { brows: true, mouth: 'frown', noCheeks: true, over: umbrella(b, p, 67) });
   },
   // Lucky toad: a jade money toad with gold spots and a gold coin (the Dragon is the red one)
   lucky: () => { const p = pal('#3fa58a'), b = BODY.toad(p); return compose(b, p, { spots: dotsSVG([[17, 74, 2.4], [26, 80, 2.1], [12, 66, 1.8], [83, 74, 2.4], [74, 80, 2.1], [88, 66, 1.8]], '#f4c653'), inside: COIN(b.heart[0], b.heart[1]) }); },
@@ -1319,7 +1326,7 @@ Object.assign(ART, {
       const X = side ? 100 - x : x, d = side ? 1 : -1;
       return `<path d="M${X - d * 3} ${y - 2}q${d * 4} ${2 + (k % 2)} ${d * 3} ${5}t${d * 2} ${4.5}" stroke="${mix('#86493f', '#f0dcc4', .38)}" stroke-width="1.9" fill="none" stroke-linecap="round"/>`;
     }).join('');
-    return compose(b, p, { spots: dotsSVG([[18, 70, 2.4], [26, 80, 2.2], [82, 70, 2.6], [74, 80, 2.2], [14, 62, 1.8], [86, 62, 1.8]], mix('#86493f', '#1b1410', .3)), over: strands(0) + strands(1), brows: true, mouth: 'flat' });
+    return compose(b, p, { spots: dotsSVG([[18, 70, 2.4], [26, 80, 2.2], [82, 70, 2.6], [74, 80, 2.2], [14, 62, 1.8], [86, 62, 1.8]], mix('#86493f', '#1b1410', .3)), over: strands(0) + strands(1), brows: true, mouth: 'flat', noCheeks: true });
   },
   // Mossy frog: lumpy, bumpy skin in moss green with dark blotches, so it looks like a clump of moss
   goliath: () => {
@@ -1330,7 +1337,7 @@ Object.assign(ART, {
       spots: dotsSVG([[27, 58, 4.4], [70, 55, 5], [60, 78, 4], [38, 80, 3.6], [82, 68, 3.4], [18, 70, 3.4]], blotch)
         + dotsSVG([[33, 66, 2], [64, 66, 2.2], [46, 60, 1.8], [74, 76, 1.8], [24, 78, 1.8], [56, 86, 1.6], [42, 71, 1.5]], '#a9d86e'),
       marks: dotsSVG([[22, 30, 2.4], [78, 30, 2.4], [44, 24, 1.8], [58, 23, 2]], blotch),
-      eyes: 'iris:#b0512f',
+      eyes: 'iris:#b0512f', noCheeks: true,
     });
   },
   // Midwife toad: a sandy, warty toad carrying strings of yellow eggs wrapped around its back legs
@@ -1531,7 +1538,7 @@ Object.assign(ART, {
     // below the mouth, its straps going round the neck to the sides (not up to the eyes)
     const apron = '<path d="M38.5 70.5Q30 66.5 21 66.5M61.5 70.5Q70 66.5 79 66.5" stroke="#5e4028" stroke-width="2.4" fill="none" stroke-linecap="round"/>'
       + '<path d="M37 70h26l3 17q-16 5-32 0z" fill="#7a5534"/><path d="M43 77h14" stroke="#5e4028" stroke-width="1.8" stroke-linecap="round"/>';
-    return compose(b, p, { face: apron, over: at([90.3, 82], 1, HAMMER) + HAND(90.3, 82, p) });
+    return compose(b, p, { face: apron, noCheeks: true, over: at([90.3, 82], 1, HAMMER) + HAND(90.3, 82, p) });
   },
   // Bard: slim and pink, a feathered beret and a little lute
   bard: () => {
@@ -1540,7 +1547,7 @@ Object.assign(ART, {
   },
   jester: () => { const p = pal('#c9d64f'), b = BODY.classic(p); return compose(b, p, { ...hat(b, JESTER_HAT, 1), mouth: 'open' }); },
   // Rogue: charcoal, with a bandit mask across its eyes
-  rogue: () => { const p = pal('#56646c'), b = BODY.slim(p); return compose(b, p, { inside: eyeMask(b), mouth: 'flat' }); },
+  rogue: () => { const p = pal('#56646c'), b = BODY.slim(p); return compose(b, p, { inside: eyeMask(b), mouth: 'flat', noCheeks: true }); },
   // Squire: young and sandy, a plain steel cap and a small round shield
   squire: () => {
     const p = pal('#e2bd74'), b = BODY.tall(p);
@@ -1550,7 +1557,7 @@ Object.assign(ART, {
   // Guard: a sturdy sage frog in an iron kettle hat, with a spear
   guard: () => {
     const p = pal('#7f9d86'), b = BODY.flat(p);
-    return compose(b, p, { ...hat(b, KETTLE_HAT, 1.12), brows: true, mouth: 'flat', over: at([95, 58], 1, SPEAR) + HAND(95, 58, p) });
+    return compose(b, p, { ...hat(b, KETTLE_HAT, 1.12), brows: true, mouth: 'flat', noCheeks: true, over: at([95, 58], 1, SPEAR) + HAND(95, 58, p) });
   },
   // Necromancer: dusky and hooded, with glowing green eyes
   necro: () => {
@@ -1566,13 +1573,13 @@ Object.assign(ART, {
   // Dragon Frog: fiery red with an orange belly, little wings and horns
   dragon: () => {
     const p = pal('#dc5f3c', { belly: '#f6b35c' }), b = BODY.bull(p);
-    return compose(b, p, { behind: DRAGON_WINGS(b, mix('#dc5f3c', '#1b2a22', .25)), horns: 1.4, spots: dotsSVG([[30, 52, 2.2], [70, 52, 2.2], [24, 62, 1.8], [76, 62, 1.8]], mix('#dc5f3c', '#1b2a22', .3)) });
+    return compose(b, p, { behind: DRAGON_WINGS(b, mix('#dc5f3c', '#1b2a22', .25)), horns: 1.4, noCheeks: true, spots: dotsSVG([[30, 52, 2.2], [70, 52, 2.2], [24, 62, 1.8], [76, 62, 1.8]], mix('#dc5f3c', '#1b2a22', .3)) });
   },
   // Paladin: cream-white, a golden halo and a blue tabard
   paladin: () => {
     const p = pal('#eee7d4'), b = BODY.bull(p);
     const tabard = '<path d="M39 64h22l2 25q-13 4-26 0z" fill="#3f73c4"/><path d="M50 68v17M44 74h12" stroke="#f6c343" stroke-width="3" stroke-linecap="round"/>';
-    return compose(b, p, { ...halo(b, 1.15), face: tabard, brows: true });
+    return compose(b, p, { ...halo(b, 1.15), face: tabard, brows: true, noCheeks: true });
   },
 });
 // Cricket: front-on and round like the other bugs: folded wings behind, big jumping legs at its sides, long antennae
@@ -1616,6 +1623,17 @@ const needs = (key, id) => Object.keys(UNLOCKS).find((t) => (UNLOCKS[t][key] || 
 // the original order within a rank)
 const byRank = (key, opts) => opts.map((o, i) => [o, i, RANK_ORDER.indexOf(needs(key, o.id) || 'tadpole')]).sort((x, y) => x[2] - y[2] || x[1] - y[1]).map(([o]) => o);
 const unlocked = (key, id) => { const t = needs(key, id); return !t || RANK_ORDER.indexOf((ME && ME.rank && ME.rank.id) || 'tadpole') >= RANK_ORDER.indexOf(t); };
+// Mouths (the game frogs' own, and a few more)
+const AV_MOUTHS = [
+  { id: 'smile', name: 'Smile' },
+  { id: 'open', name: 'Big smile' },
+  { id: 'tongue', name: 'Tongue out' },
+  { id: 'cat', name: 'Cat smile' },
+  { id: 'smirk', name: 'Smirk' },
+  { id: 'o', name: 'Surprised' },
+  { id: 'flat', name: 'Calm' },
+  { id: 'frown', name: 'Grumpy' },
+];
 const AV_EYES = [
   { id: 'dark', name: 'Classic eyes' },
   { id: 'blue', name: 'Blue eyes', x: { eyes: 'iris:#3f86d6' } },
@@ -1757,7 +1775,7 @@ function cleanAv(a) {
   a = a || {};
   return {
     b: BODIES.includes(a.b) ? a.b : 'classic', c: Math.max(0, Math.min(AV_COLORS.length - 1, a.c | 0)),
-    e: byId(AV_EYES, a.e).id, t: byId(AV_PATTERNS, OLD_PATTERNS[a.t] || a.t).id,
+    m: byId(AV_MOUTHS, a.m).id, e: byId(AV_EYES, a.e).id, t: byId(AV_PATTERNS, OLD_PATTERNS[a.t] || a.t).id,
     // one extra per slot (an avatar from before slots has one, `a`, which goes to its slot)
     ...Object.fromEntries(Object.entries(EXTRAS).map(([k, ids]) => { const v = a[k] === undefined ? a.a : a[k]; return [k, ids.includes(v) ? v : 'none']; })),
     l: byId(PAD_STYLES, a.l).id, lc: Math.max(0, Math.min(PAD_COLORS.length - 1, a.lc | 0)),
@@ -1790,11 +1808,12 @@ function avatarPal(ci) {
 }
 function avatarArt(av, crown, centered, small) {
   av = cleanAv(av);
-  const key = `av:${av.b}:${av.c}:${av.e}:${av.t}:${Object.keys(EXTRAS).map((k) => av[k]).join(',')}:${crown ? 1 : 0}:${centered ? 1 : 0}:${small ? 1 : 0}`;
+  const key = `av:${av.b}:${av.c}:${av.m}:${av.e}:${av.t}:${Object.keys(EXTRAS).map((k) => av[k]).join(',')}:${crown ? 1 : 0}:${centered ? 1 : 0}:${small ? 1 : 0}`;
   if (!artCache.has(key)) {
     const { p, defs } = avatarPal(av.c), b = BODY[av.b](p), x = {};
     const add = (more) => { for (const [k, v] of Object.entries(more || {})) x[k] = typeof v === 'string' ? (x[k] || '') + v : v; };
     add(byId(AV_EYES, av.e).x);
+    x.mouth = av.m;
     const pat = byId(AV_PATTERNS, av.t);
     // a pattern is clipped to the body outline (one clip per body shape, shared by every avatar with that body)
     // bellyClear patterns stay off the belly (like on a real frog): the belly is drawn again over them
@@ -3589,6 +3608,7 @@ const COLOR_NAMES = ['Leaf green', 'Mint', 'Teal', 'Sky blue', 'Lavender', 'Pink
 const AV_TABS = [
   { key: 'b', label: 'Body', opts: BODIES.map((id) => ({ id, name: BODY_NAMES[id] || id })) },
   { key: 'c', label: 'Color', opts: AV_COLORS.map((_, i) => ({ id: i, name: COLOR_NAMES[i] })) },
+  { key: 'm', label: 'Mouth', opts: AV_MOUTHS, mouth: true },
   { key: 'e', label: 'Eyes', opts: AV_EYES, face: true },
   { key: 't', label: 'Pattern', opts: AV_PATTERNS },
 ].map((t) => ({ ...t, opts: byRank(t.key, t.opts) }));
@@ -3652,7 +3672,7 @@ function openProfile(done) {
       const look = tab.pad ? `<span class="wheel-pad" style='${padStyle({ ...av, [tab.key]: o.id })}'></span>`
         : tab.extra ? (o.id === 'none' ? '<span class="wheel-none"></span>' : `<span class="wheel-thing">${extraArt(av, o.id)}</span>`)
         : avatarHTML({ ...av, [tab.key]: o.id }, 52, { id: 300 + i, small: false });
-      return `<button class="wheel-item${tab.face ? ' face' : ''}${tab.pad ? ' padopt' : ''}${tab.extra ? ' thing' : ''}${lock ? ' locked' : ''}" data-i="${i}" aria-label="${esc(o.name)}">${look}${lock ? `<span class="wheel-lock">${rankBadge({ id: lock, pips: 5 }, 22)}</span>` : ''}</button>`;
+      return `<button class="wheel-item${tab.face ? ' face' : ''}${tab.mouth ? ' mouth' : ''}${tab.pad ? ' padopt' : ''}${tab.extra ? ' thing' : ''}${lock ? ' locked' : ''}" data-i="${i}" aria-label="${esc(o.name)}">${look}${lock ? `<span class="wheel-lock">${rankBadge({ id: lock, pips: 5 }, 22)}</span>` : ''}</button>`;
     }).join('');
     current = -1;
     center(Math.max(0, tab.opts.findIndex((o) => o.id === av[tab.key])), false);
