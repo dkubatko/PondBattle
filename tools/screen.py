@@ -41,7 +41,8 @@ Scene game: a whole two-player game in the page, round after round to game over 
   default 4); every battle's result is checked like --check and errors are reported (--rounds N stops early)
   --sizes all|WxH,.. default 393x710; all = 393x710,440x820,375x600
   --webkit / --both  WebKit only / Chromium and WebKit (default Chromium)
-  --do STEP          (repeatable) tap:CSS | press:CSS (a visible tap) | click:TEXT | drag:CSS>CSS (at hand speed) | eval:JS (prints its result) | wait:MS |
+  --do STEP          (repeatable) tap:CSS | press:CSS (a visible tap) | swipe:CSS (a real finger swipe left; Chromium) |
+                     click:TEXT | drag:CSS>CSS (at hand speed) | eval:JS (prints its result) | wait:MS |
                      until:JS (wait for it) | rival:ACTION (--pvp: Rival does it, e.g. rival:ready)
   --fresh            a first-time player (onboarding hints on)
   --text             print the text on screen
@@ -325,6 +326,14 @@ def step(p, s):
         if r is not None: print(f'  eval: {json.dumps(r)[:200000]}')
     elif kind == 'wait': p.wait_for_timeout(int(arg))
     elif kind == 'until': p.wait_for_function(arg, timeout=60000, polling=50)
+    elif kind == 'swipe':  # a real finger swipe (Chromium: touch input through the DevTools protocol), left over CSS
+        r = p.locator(arg).first.bounding_box(); y = r['y'] + r['height'] / 2; vw = p.viewport_size['width']; x0, x1 = vw * .88, vw * .12  # across most of the screen, starting on the element's row
+        # a touch scroll gesture the browser's own scrolling handles, like a finger
+        cdp = p.context.new_cdp_session(p)
+        cdp.send('Emulation.setTouchEmulationEnabled', {'enabled': True, 'maxTouchPoints': 1})
+        cdp.send('Input.dispatchTouchEvent', {'type': 'touchStart', 'touchPoints': [{'x': x0, 'y': y}]})
+        for k in range(1, 13): cdp.send('Input.dispatchTouchEvent', {'type': 'touchMove', 'touchPoints': [{'x': x0 + (x1 - x0) * k / 12, 'y': y}]}); p.wait_for_timeout(16)
+        cdp.send('Input.dispatchTouchEvent', {'type': 'touchEnd', 'touchPoints': []})
     elif kind == 'press':  # a tap that you can see (press, hold briefly, release)
         r = p.locator(arg).first.bounding_box(); p.mouse.move(r['x'] + r['width'] / 2, r['y'] + r['height'] / 2); p.mouse.down(); p.wait_for_timeout(140); p.mouse.up()
     elif kind == 'rival' and RIVAL: RIVAL[0].act(RIVAL[1], {'type': arg})

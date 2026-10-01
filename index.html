@@ -604,7 +604,11 @@ h1 { margin: 0; text-align: center; font-size: 40px; font-weight: 900; line-heig
 .tscene .tmsg { position: absolute; left: 0; right: 0; top: 6px; z-index: 6; text-align: center; font-size: 16px; font-weight: 800; opacity: 0; }
 .tscene .bubble { position: absolute; transition: none; }
 .tghost { position: absolute; left: 0; top: 0; z-index: 50; pointer-events: none; margin: 0; will-change: transform; }
-.tfinger { position: absolute; left: 0; top: 0; z-index: 60; width: 46px; height: 46px; margin: -23px 0 0 -23px; border-radius: 50%; background: rgba(255, 255, 255, .28); box-shadow: inset 0 0 0 2px rgba(255, 255, 255, .7); pointer-events: none; opacity: 0; will-change: transform; }
+/* the finger: the outer element is where it is (its transform), the circle inside presses and fades (its scale and opacity) */
+.tfinger { position: absolute; left: 0; top: 0; z-index: 60; width: 0; height: 0; pointer-events: none; will-change: transform; }
+.tfinger i { position: absolute; left: -24px; top: -24px; width: 48px; height: 48px; border-radius: 50%; opacity: 0; background: radial-gradient(circle, rgba(255, 255, 255, .42), rgba(255, 255, 255, .2) 70%); box-shadow: inset 0 0 0 2px rgba(255, 255, 255, .72), 0 4px 14px rgba(0, 0, 0, .25); }
+/* the scene is only to watch: touches go through it to the slides (the game's pads and slots would otherwise keep a swipe) */
+.tstage, .tstage * { pointer-events: none !important; touch-action: pan-x pan-y !important; }
 .tscene.tbattle { height: 520px; }
 .tscene.tbattle .arena { position: absolute; inset: 0; }
 .tscene.tresult { height: 367px; }
@@ -3651,40 +3655,69 @@ function openTutorial() {
     // where something is, in the scene's own pixels
     const K = scaleOf(sc), at = (n) => { const r = n.getBoundingClientRect(), o = sc.getBoundingClientRect(); return { x: (r.left - o.left) / K, y: (r.top - o.top) / K, w: r.width / K, h: r.height / K }; };
     const fx = sceneFx(sc, at);
-    // The finger: it presses down (shrinks a little as it lands), moves, and lifts off
-    const finger = el('<div class="tfinger"></div>'); sc.appendChild(finger);
-    // (it moves by its transform; pressing and lifting animate only its scale and opacity, so they never pin it in place)
-    const fingerAt = (x, y) => { finger.style.transform = `translate(${x}px, ${y}px)`; };
-    const press = (x, y) => { fingerAt(x, y); finger.style.opacity = 1; return anim(finger, [{ opacity: 0, scale: '1.35' }, { opacity: 1, scale: '1' }], { duration: 160, easing: 'ease-out' }); };
-    const release = () => { finger.style.opacity = 0; anim(finger, [{ opacity: 1, scale: '1' }, { opacity: 0, scale: '1.25' }], { duration: 200, easing: 'ease-out' }); };
-    const mid = (n) => { const r = at(n); return [r.x + r.w / 2, r.y + r.h / 2]; };
-    const LIFT = 26; // as the game's drag: what you carry rides above your finger
-    // A finger picks `vis` up (it lifts and grows over 120 ms, like the game's drag) and carries it so its body ends
-    // at `dest` (scene x, y of where its body should be); returns the carried copy
-    const carry = async (vis, dest, live, okPads = []) => {
-      const body = $('.fbody', vis) || $('.bug', vis) || vis, a = at(vis), [bx, by] = mid(body);
-      const offX = bx - a.x, offY = by - a.y; // where in the copy its body is
-      const ghost = vis.cloneNode(true); ghost.classList.add('tghost'); ghost.style.width = a.w + 'px';
-      const put = (x, y, k) => { ghost.style.transform = `translate(${x - offX}px, ${y - offY - LIFT * k}px) scale(${1 + .1 * k})`; fingerAt(x, y); };
-      await press(bx, by); if (!live()) return ghost;
-      sc.appendChild(ghost); put(bx, by, 0); vis.style.opacity = .25;
-      okPads.forEach((i) => pad(i).classList.add('ok'));
-      const [tx, ty] = [dest[0], dest[1] + LIFT], t0 = performance.now(), PICK = 120, MOVE = Math.max(480, Math.min(760, Math.hypot(tx - bx, ty - by) * 2.6));
-      const ease = (m) => (m < .5 ? 4 * m * m * m : 1 - Math.pow(-2 * m + 2, 3) / 2);
-      await new Promise((done) => {
+    // The hand: one finger that glides in, hovers (faint), presses (solid, a little smaller), carries, lets go, and
+    // drifts on to the next thing, so every scene reads as one continuous gesture
+    const finger = el('<div class="tfinger"><i></i></div>'), dot = $('i', finger); sc.appendChild(finger);
+    let hx = 0, hy = 0, hop = 0, hsc = 1, shown = false;
+    const fingerAt = (x, y) => { hx = x; hy = y; finger.style.transform = `translate(${x}px, ${y}px)`; };
+    const look = (op, k, ms) => { const from = { opacity: hop, transform: `scale(${hsc})` }; hop = op; hsc = k; Object.assign(dot.style, { opacity: op, transform: `scale(${k})` }); return anim(dot, [from, { opacity: op, transform: `scale(${k})` }], { duration: ms, easing: 'cubic-bezier(.3, 0, .2, 1)' }); };
+    // a cubic-bezier easing, as in CSS
+    const bez = (x1, y1, x2, y2) => (t) => {
+      let u = t;
+      for (let i = 0; i < 8; i++) { const x = 3 * (1 - u) ** 2 * u * x1 + 3 * (1 - u) * u * u * x2 + u ** 3 - t, d = 3 * (1 - u) ** 2 * x1 + 6 * (1 - u) * u * (x2 - x1) + 3 * u * u * (1 - x2); if (Math.abs(x) < 1e-4 || !d) break; u = Math.min(1, Math.max(0, u - x / d)); }
+      return 3 * (1 - u) ** 2 * u * y1 + 3 * (1 - u) * u * u * y2 + u ** 3;
+    };
+    const GLIDE = bez(.45, 0, .15, 1); // slow start, smooth middle, long soft settle
+    // move the finger to (x, y) along a gentle arc; each frame also calls `with` (to carry something along)
+    const glide = (x, y, live, { arc = 0, ms, with: carry } = {}) => {
+      const x0 = hx, y0 = hy, dist = Math.hypot(x - x0, y - y0), dur = ms || Math.max(420, Math.min(1000, 380 + dist * 2.2)), t0 = performance.now();
+      return new Promise((done) => {
         const tick = (now) => {
           if (!live()) return done();
-          const t = now - t0, k = Math.min(1, t / PICK), m = Math.max(0, Math.min(1, (t - PICK * .5) / MOVE)), e = ease(m);
-          put(bx + (tx - bx) * e, by + (ty - by) * e, k);
-          const over = e > .75 ? $$('.pad', sc).find((p) => { const r = at($('.leaf', p)); return Math.abs(r.x + r.w / 2 - (bx + (tx - bx) * e)) < r.w / 2; }) : null;
-          $$('.pad', sc).forEach((p) => p.classList.toggle('hover', p === over));
+          const m = Math.min(1, (now - t0) / dur), e = GLIDE(m), lift = arc * 4 * e * (1 - e);
+          fingerAt(x0 + (x - x0) * e, y0 + (y - y0) * e - lift);
+          if (carry) carry(hx, hy, e);
           if (m < 1) requestAnimationFrame(tick); else done();
         };
         requestAnimationFrame(tick);
       });
-      await wait(90, live); // a beat over the spot before letting go
+    };
+    // bring the hand to (x, y), hovering: in from below-right the first time, from where it is after that
+    const hover = async (x, y, live) => {
+      if (!shown) { shown = true; fingerAt(x + 46, y + 70); look(0, 1.15, 0); look(.5, 1, 360); return glide(x, y, live, { ms: 620 }); }
+      return glide(x, y, live, { arc: 22 });
+    };
+    const press = () => look(1, .84, 150);
+    const lift = () => look(.5, 1, 170);
+    const leave = (live) => { look(0, 1.1, 420); return glide(hx + 36, hy + 54, live, { ms: 520 }); };
+    const mid = (n) => { const r = at(n); return [r.x + r.w / 2, r.y + r.h / 2]; };
+    const LIFT = 26; // as the game's drag: what you carry rides above your finger
+    // Pick `vis` up and carry it so its body ends at `dest`: the hand comes over it, presses, the frog lifts and
+    // grows (the game's pickup), a beat, then one smooth arcing glide, a moment over the spot; returns the carried copy
+    const carry = async (vis, dest, live, okPads = []) => {
+      const body = $('.fbody', vis) || $('.bug', vis) || vis, a = at(vis), [bx, by] = mid(body);
+      const offX = bx - a.x, offY = by - a.y; // where in the copy its body is
+      await hover(bx, by, live); if (!live()) return null;
+      await press(); if (!live()) return null;
+      const ghost = vis.cloneNode(true); ghost.classList.add('tghost'); ghost.style.width = a.w + 'px';
+      const put = (x, y, k) => { ghost.style.transform = `translate(${x - offX}px, ${y - offY - LIFT * k}px) scale(${1 + .1 * k})`; };
+      sc.appendChild(ghost); put(bx, by, 0); vis.style.opacity = .25;
+      // the pickup: up and a little bigger, easing out
+      await new Promise((done) => { const t0 = performance.now(); const tick = (now) => { const m = Math.min(1, (now - t0) / 220), k = 1 - (1 - m) ** 3; put(hx, hy, k); if (m < 1 && live()) requestAnimationFrame(tick); else done(); }; requestAnimationFrame(tick); });
+      okPads.forEach((i) => pad(i).classList.add('ok'));
+      await wait(110, live);
+      const [tx, ty] = [dest[0], dest[1] + LIFT];
+      // (the pads are measured once, so the glide itself never asks the page for layout)
+      const pads = $$('.pad', sc).map((p) => { const r = at($('.leaf', p)); return [p, r.x + r.w / 2, r.y, r.w / 2]; });
+      let lit = null;
+      await glide(tx, ty, live, { arc: Math.min(46, Math.hypot(tx - bx, ty - by) * .22), with: (x, y, e) => {
+        put(x, y, 1);
+        const over = e > .7 ? (pads.find(([, cx, top, half]) => Math.abs(cx - x) < half && Math.abs(top - y + LIFT) < 90) || [])[0] || null : null;
+        if (over !== lit) { if (lit) lit.classList.remove('hover'); if (over) over.classList.add('hover'); lit = over; }
+      } });
+      await wait(160, live); // a moment over the spot before letting go
       $$('.pad', sc).forEach((p) => p.classList.remove('hover', 'ok'));
-      release();
+      lift();
       return ghost;
     };
     // where a frog's body sits when it stands on pad i (measured from a hidden stand-in)
@@ -3696,7 +3729,7 @@ function openTutorial() {
       const g = at(ghost); ghost.remove();
       const fr = put(i, f), to = at(fr);
       fr.style.transformOrigin = '0 0'; fr.style.zIndex = 20;
-      anim(fr, hopFrames(g.x - to.x, g.y - to.y, 6, g.w / to.w, 1), { duration: 220, easing: 'linear' }).then(() => { fr.style.transformOrigin = ''; fr.style.zIndex = ''; });
+      anim(fr, hopFrames(g.x - to.x, g.y - to.y, 6, g.w / to.w, 1), { duration: 260, easing: 'linear' }).then(() => { fr.style.transformOrigin = ''; fr.style.zIndex = ''; });
       return fr;
     };
     // The carried frog or bug goes into a frog that's already there (a merge, a meal); its numbers go up
@@ -3709,9 +3742,9 @@ function openTutorial() {
       for (const [cls, d] of [['atk', f.atk - was.atk], ['hp', f.hp - was.hp]]) { const n = d && $(`.st.${cls}`, fr); if (n) anim(n, [{ transform: 'scale(1.5)' }, { transform: 'scale(1)' }], { duration: 300 }); }
     };
     const say = (text) => { const m = q('.tmsg'); m.textContent = text; anim(m, [{ opacity: 0, transform: 'translateY(6px)' }, { opacity: 1, transform: 'none', offset: .15 }, { opacity: 1, offset: .85 }, { opacity: 0 }], { duration: 2200, fill: 'forwards' }); };
-    // a tap you can see: the finger presses on the frog's body and lifts off
-    const tap = async (n, live) => { const [x, y] = mid($('.fbody', n) || n); await press(x, y); await wait(140, live); release(); await wait(120, live); };
-    return { sc, q, pad, slot, put, at, fx, drag, dragInto, land, into, setGold, say, tap, frog: (i) => $('.frog', pad(i)), shopFrog: (i) => $('.frog', slot(i)), bug: () => $('.food-ic', q('.item.food')) };
+    // a tap you can see: the hand comes over the frog, presses and lets go
+    const tap = async (n, live) => { const [x, y] = mid($('.fbody', n) || n); await hover(x, y, live); await wait(120, live); await press(); await wait(90, live); await lift(); };
+    return { sc, q, pad, slot, put, at, fx, drag, dragInto, land, into, setGold, say, tap, leave, frog: (i) => $('.frog', pad(i)), shopFrog: (i) => $('.frog', slot(i)), bug: () => $('.food-ic', q('.item.food')) };
   };
   // ---- the battle: the battle screen's own layout (two zig-zag lines of pads meeting in the middle), framed on the middle ----
   const W = 393, H = 520, s = Math.min(1.45, W / 300, H / (8.16 * 56)), mid = H / 2, U = Math.round(56 * s), lift = .42 * U;
@@ -3776,7 +3809,8 @@ function openTutorial() {
       await wait(700, live); if (!live()) return;
       const g = await t.drag(t.shopFrog(1), 1, F('glass'), live, [1, 2, 3, 4]); if (!live()) return;
       t.land(g, 1, F('glass')); $('.price', t.slot(1)).innerHTML = ''; $('.occ', t.slot(1)).innerHTML = ''; t.setGold(7, true);
-      await wait(2000, live);
+      await wait(350, live); t.leave(live);
+      await wait(1900, live);
     }],
     ['Level up', 'Drop a matching frog on yours to make it stronger. Two more make it level 2.', async (root, live) => {
       let glass = F('glass');
@@ -3787,8 +3821,8 @@ function openTutorial() {
         const was = glass; glass = { ...glass, atk: glass.atk + 1, hp: glass.hp + 1, xp: glass.xp + 1 }; glass.lvl = glass.xp >= 2 ? 2 : 1;
         $('.price', t.slot(k)).innerHTML = ''; $('.occ', t.slot(k)).innerHTML = '';
         await t.into(g, t.frog(1), glass, was); t.setGold(gold, true);
-        if (glass.lvl > was.lvl) setTimeout(() => { if (!live()) return; t.fx.sparkles(t.frog(1), 14); t.say(`${NAMES.glass} is now level 2`); }, 200);
-        await wait(k ? 2400 : 900, live); if (!live()) return;
+        if (glass.lvl > was.lvl) { setTimeout(() => { if (!live()) return; t.fx.sparkles(t.frog(1), 14); t.say(`${NAMES.glass} is now level 2`); }, 200); await wait(300, live); t.leave(live); }
+        await wait(k ? 2300 : 500, live); if (!live()) return;
       }
     }],
     ['Front fights first', 'Your frogs fight from right to left. Put the one you want to lead on the right.', async (root, live) => {
@@ -3797,8 +3831,9 @@ function openTutorial() {
       const g = await t.drag(t.frog(3), 0, F('toad', { atk: 3, hp: 5 }), live, [0, 4]); if (!live()) return;
       $('.occ', t.pad(3)).innerHTML = '';
       t.land(g, 0, F('toad', { atk: 3, hp: 5 }));
-      await wait(500, live); if (!live()) return;
-      t.pad(0).classList.add('sel'); await wait(1600, live);
+      await wait(350, live); t.leave(live);
+      await wait(250, live); if (!live()) return;
+      t.pad(0).classList.add('sel'); await wait(1900, live);
     }],
     ['Battle', 'Press Ready. The front frogs hit each other until one pond is empty.', async (root, live) => {
       const b = battle(root, [[F('toad', { atk: 3, hp: 6 }), F('spitter')], [F('glass'), F('peeper')]]);
@@ -3814,7 +3849,7 @@ function openTutorial() {
       const was = toad; toad = { ...toad, atk: toad.atk + 1, hp: toad.hp + 1 };
       $('.price', t.q('.item.food')).innerHTML = ''; $('.occ', t.q('.item.food')).innerHTML = '';
       await t.into(g, t.frog(0), toad, was); t.setGold(7, true);
-      await wait(1000, live); if (!live()) return;
+      await wait(600, live); if (!live()) return;
       // a tap on a frog shows what it does (the game's bubble)
       const fr = t.frog(1); await t.tap(fr, live); if (!live()) return;
       t.pad(1).classList.add('sel');
@@ -3822,8 +3857,9 @@ function openTutorial() {
       t.sc.appendChild(bub); const r = t.at($('.fbody', fr));
       bub.style.left = Math.max(8, Math.min(393 - 8 - bub.offsetWidth, r.x + r.w / 2 - bub.offsetWidth / 2)) + 'px'; bub.style.top = r.y + r.h + 10 + 'px';
       bub.style.setProperty('--ax', `${r.x + r.w / 2 - parseFloat(bub.style.left)}px`);
-      anim(bub, [{ opacity: 0, transform: 'translateY(-6px) scale(.96)' }, { opacity: 1, transform: 'none' }], { duration: 160 });
-      await wait(2600, live);
+      anim(bub, [{ opacity: 0, transform: 'translateY(-6px) scale(.96)' }, { opacity: 1, transform: 'none' }], { duration: 180 });
+      await wait(300, live); t.leave(live);
+      await wait(2500, live);
     }],
     ['Hearts', 'Lose a round and you lose a heart. The last pond with hearts wins.', async (root, live) => {
       root.innerHTML = `<div class="tscene tresult" style='--leaf:${padURL(mine)}'>${plate({ av: bot, name: 'Rival' }, 1, 4)}<div class="b-result win">You win!</div>
