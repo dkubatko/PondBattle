@@ -542,6 +542,7 @@ h1 { margin: 0; text-align: center; font-size: 40px; font-weight: 900; line-heig
 .lb-gap { text-align: center; color: var(--moon-dim); line-height: 1; padding: 2px 0 6px; }
 .hist-row.tap { cursor: pointer; }
 .card-rank { border: 0; background: none; color: inherit; padding: 0; }
+.corner[hidden] { display: none; } /* (its display: flex would otherwise keep it over the game's own buttons) */
 .corner { position: fixed; top: calc(env(safe-area-inset-top) + 10px); right: max(14px, calc(50vw - 240px + 14px)); z-index: 5; display: flex; gap: 8px; } /* at the screens' right edge (they're 480px at most) */
 .corner .ib { color: var(--moon-dim); }
 /* Friends: a card per person: frog (a dot for what they're up to), rank badge and name, what they're up to below, round
