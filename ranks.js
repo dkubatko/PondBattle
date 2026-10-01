@@ -57,7 +57,7 @@ function rankOf(uid, profiles) {
 // and on the back), so a hat never takes the place of a cape. Avatars made before this had one extra, `a`; it
 // moves to its slot (see cleanAvatar).
 const EXTRAS = {
-  h: ['crown', 'tiara', 'helmet', 'wizard', 'leaf', 'lily', 'horns', 'kingcrown', 'halo', 'jester', 'straw', 'robin', 'turban', 'beret', 'mitre', 'cap', 'kettle', 'hood', 'necrohood'],
+  h: ['crown', 'tiara', 'helmet', 'wizard', 'leaf', 'lily', 'horns', 'kingcrown', 'halo', 'jester', 'straw', 'robin', 'turban', 'beret', 'mitre', 'cap', 'kettle'],
   f: ['glasses', 'mask', 'bandaid'],
   n: ['pearls', 'bowtie', 'coin', 'ermine'],
   hd: ['umbrella', 'pendulum', 'bow', 'lute', 'shield', 'purse', 'hammer', 'spear'],
@@ -70,8 +70,8 @@ const EXTRAS = {
 const RANK_IDS = [...TIERS.map((t) => t.id), LEGEND.id];
 const UNLOCKS = {
   froglet: { b: ['tadpole'], c: [13], e: ['lashes', 'brows'], t: ['freckles'], h: ['horns', 'robin', 'turban'], n: ['coin', 'pearls'], hd: ['umbrella', 'purse', 'hammer'], l: ['clover'], lc: [5, 6] },
-  frog: { b: ['tall'], c: [15], e: ['violet'], t: ['bands'], h: ['tiara', 'helmet', 'wizard', 'jester', 'mitre', 'kettle', 'hood'], f: ['mask'], hd: ['spear'], l: ['dew'], lc: [7, 8] },
-  master: { b: ['flat'], c: [14, 16], e: ['red'], t: ['stripes'], h: ['crown', 'necrohood'], n: ['ermine'], hd: ['pendulum'], bk: ['wings'], l: ['heart'], lc: [11] },
+  frog: { b: ['tall'], c: [15], e: ['violet'], t: ['bands'], h: ['tiara', 'helmet', 'wizard', 'jester', 'mitre', 'kettle'], f: ['mask'], hd: ['spear'], l: ['dew'], lc: [7, 8] },
+  master: { b: ['flat'], c: [14, 16], e: ['red'], t: ['stripes'], h: ['crown'], n: ['ermine'], hd: ['pendulum'], bk: ['wings'], l: ['heart'], lc: [11] },
   legend: { b: ['bull'], c: [17], e: ['spiral'], t: ['glass'], h: ['kingcrown', 'halo'], bk: ['cape'], l: ['lotus'], lc: [9] },
 };
 const AVATAR_DEFAULTS = { b: 'classic', c: 0, e: 'dark', t: 'none', h: 'none', f: 'none', n: 'none', hd: 'none', bk: 'none', l: 'classic', lc: 0 };

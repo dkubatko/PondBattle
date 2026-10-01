@@ -947,9 +947,11 @@ const BODY = {
       + E(48, 86, 7, 3.8, p.dark) + E(67, 86, 7, 3.8, p.dark),
     torso: E(57, 60, 31, 27, p.c) + E(59, 70, 18, 12, p.belly),
     head: '', front: '',
-    eyes: [[45, 48, 8.5], [69, 48, 8.5]], cheeks: [[35, 62], [79, 62]], mouth: [57, 63, 12], top: [57, 33], crown: [57, 37], neck: [57, 70, 16], heart: [59, 70], hat: [57, 35],
+    eyes: [[45, 48, 8.5], [69, 48, 8.5]], cheeks: [[35, 62], [79, 62]], mouth: [57, 63, 12], top: [57, 33], crown: [57, 37], neck: [57, 70, 16], heart: [59, 70], hat: [57, 41],
     // the round body without its tail (wings, cape and watch hang off this), and where its hand holds an umbrella
     core: { x: 26, y: 33, w: 62, h: 57 }, grip: [16, 8],
+    // it has no front feet, so it's drawn this much lower to stand where the other bodies do
+    drop: 5,
   }),
 };
 const BODIES = Object.keys(BODY);
@@ -1511,8 +1513,6 @@ const AV_ACCS = [
   { id: 'pendulum', name: 'Hypno’s watch', x: (b, p) => ({ over: PENDULUM(b, p) }) },
   { id: 'cape', name: 'King’s cape', x: (b) => ({ behind: KING_CAPE(b) }) },
   { id: 'wings', name: 'Dragon wings', x: (b, p) => ({ behind: DRAGON_WINGS(b, p.dark) }) },
-  { id: 'hood', name: 'Rogue’s hood', head: true, x: (b) => ({ inside: hood(b, ...ROGUE_HOOD) }) },
-  { id: 'necrohood', name: 'Necromancer’s hood', head: true, x: (b) => ({ inside: hood(b, ...NECRO_HOOD) }) },
   { id: 'ermine', name: 'King’s collar', x: (b) => ({ face: ERMINE(b) }) },
   // held in the right hand, beside the body (see held)
   { id: 'bow', name: 'Archer’s bow', x: (b, p) => ({ over: held(b, p, 0, BOW) }) },
@@ -1593,7 +1593,7 @@ function bodyCenter(bd) {
     svg.innerHTML = b.back + b.torso + b.head + b.front + b.eyes.map(([x, y, r]) => C(x, y, r, '#000')).join('');
     document.body.appendChild(svg);
     const bb = svg.getBBox(); svg.remove();
-    bodyCenters[bd] = [bb.x + bb.width / 2, bb.y + bb.height / 2];
+    bodyCenters[bd] = [bb.x + bb.width / 2, bb.y + bb.height / 2 + (b.drop || 0)];
   }
   return bodyCenters[bd];
 }
@@ -1621,7 +1621,8 @@ function avatarArt(av, crown, centered, small) {
     for (const k of Object.keys(EXTRAS)) { const acc = byId(AV_ACCS, av[k]); if (acc.x && !(crown && acc.head)) add(acc.x(b, p, small ? acc.small || 1 : 1)); }
     if (crown) add(hat(b, CROWN, 1, 0));
     const [cx, cy] = centered ? bodyCenter(av.b) : [50, 50];
-    artCache.set(key, `<svg class="fsvg" viewBox="${(cx - 50).toFixed(1)} ${(cy - 50).toFixed(1)} 100 100" aria-hidden="true">${defs}${compose(b, p, x)}</svg>`);
+    const art = compose(b, p, x);
+    artCache.set(key, `<svg class="fsvg" viewBox="${(cx - 50).toFixed(1)} ${(cy - 50).toFixed(1)} 100 100" aria-hidden="true">${defs}${b.drop ? `<g transform="translate(0 ${b.drop})">${art}</g>` : art}</svg>`);
   }
   return artCache.get(key);
 }
