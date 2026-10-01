@@ -1341,8 +1341,8 @@ Object.assign(ART, {
   },
 });
 // ----- Might & Magic: new frogs, told apart by color and what they wear or carry -----
-const STRAW_HAT = '<ellipse cy="-2" rx="24" ry="5.5" fill="#dcb95e"/><path d="M-12-2C-12-17 12-17 12-2z" fill="#ecd07c"/><path d="M-12.5-5.5h25v3.5h-25z" fill="#b5553d"/>'
-  + '<path d="M-20-1.5l-3 3M-14 1l-2 3M16 1l2 3M21-1l3 3" stroke="#c9a54c" stroke-width="1.4" stroke-linecap="round"/>';
+const STRAW_HAT = '<ellipse cy="-2" rx="19.5" ry="5" fill="#dcb95e"/><path d="M-12-2C-12-17 12-17 12-2z" fill="#ecd07c"/><path d="M-12.5-5.5h25v3.5h-25z" fill="#b5553d"/>'
+  + '<path d="M-16.5-1l-2.5 2.5M-11 1.5l-1.5 2.5M12 1.5l1.5 2.5M17-.5l2.5 2.5" stroke="#c9a54c" stroke-width="1.4" stroke-linecap="round"/>';
 const ROBIN_HAT = '<path d="M-18 0C-13-15 5-21 19-6L15 0z" fill="#4f8a3c"/><path d="M-18 0h33v-3.5h-33z" fill="#3d6e2f"/><path d="M5-11C10-26 21-29 26-27 20-21 14-15 8-9z" fill="#e5533d"/>';
 const TURBAN = '<path d="M-16 0C-17-16 17-16 16 0z" fill="#7d4ec0"/><path d="M-16-3C-6-10 6-10 16-3M-14-9C-4-15 6-15 14-9" stroke="#5f369c" stroke-width="2.4" fill="none"/><circle cy="-9" r="3" fill="#f6c343" stroke="#c48b22" stroke-width="1"/>';
 const BERET = '<ellipse cx="3" cy="-4" rx="18" ry="6.5" fill="#2f4f8a"/><circle cx="3" cy="-10" r="1.8" fill="#2f4f8a"/><path d="M8-8C15-22 25-24 29-22 22-18 16-13 11-8z" fill="#f6c343"/>';
@@ -1350,7 +1350,7 @@ const JESTER_HAT = '<path d="M-15 0C-18-10-26-19-33-15-26-12-21-6-15 0z" fill="#
   + '<path d="M-9 0C-8-14-3-25 1-31 4-22 7-12 9 0z" fill="#f6c343"/><path d="M-17 0h34v-4.5h-34z" fill="#7d4ec0"/>'
   + '<circle cx="-33" cy="-15" r="3.2" fill="#ffd76a"/><circle cx="33" cy="-15" r="3.2" fill="#ffd76a"/><circle cx="1" cy="-31" r="3.2" fill="#ff8a8a"/>';
 const STEEL_CAP = '<path d="M-15 1C-15-17 15-17 15 1z" fill="#b9c2d3"/><path d="M-15 1C-15-17 15-17 15 1" fill="none" stroke="#8e98ab" stroke-width="1.6"/><path d="M-16-1h32v3.5h-32z" fill="#8e98ab"/><circle cx="-7" cy="-9" r="1.4" fill="#eef2f8"/>';
-const KETTLE_HAT = '<ellipse cy="-1" rx="23" ry="4.8" fill="#8e98ab"/><path d="M-13-2C-13-19 13-19 13-2z" fill="#b9c2d3"/><path d="M-13-2C-13-19 13-19 13-2" fill="none" stroke="#8e98ab" stroke-width="1.5"/><path d="M-1-17v14" stroke="#a3adc0" stroke-width="2.2"/>';
+const KETTLE_HAT = '<ellipse cy="-1" rx="18.5" ry="4.4" fill="#8e98ab"/><path d="M-13-2C-13-19 13-19 13-2z" fill="#b9c2d3"/><path d="M-13-2C-13-19 13-19 13-2" fill="none" stroke="#8e98ab" stroke-width="1.5"/><path d="M-1-17v14" stroke="#a3adc0" stroke-width="2.2"/>';
 const MITRE = '<path d="M-12 0V-15Q0-32 12-15V0z" fill="#fbf7ee" stroke="#d9c89a" stroke-width="1.5"/><path d="M0-4v-20M-6-15h12" stroke="#e0a82e" stroke-width="2.8" stroke-linecap="round"/>';
 const BIG_CROWN = '<path d="M-19 0V-17l9.5 8L0-22l9.5 13L19-17V0z" fill="#f6c343"/><path d="M-19 0h38v-5.5h-38z" fill="#dea02a"/>'
   + '<circle cx="-19" cy="-18" r="2.8" fill="#ffe08a"/><circle cy="-23" r="3" fill="#ffe08a"/><circle cx="19" cy="-18" r="2.8" fill="#ffe08a"/>'
@@ -1384,8 +1384,22 @@ const HAMMER = '<path d="M1.7 8L-4.3-20" stroke="#8a5a2b" stroke-width="3.4" str
 const LUTE = '<path d="M-10.5 16L4.5-8" stroke="#7a5534" stroke-width="3" stroke-linecap="round"/>' + E(-13.5, 20, 8.5, 10, '#c98a4b', ' transform="rotate(32 -13.5 20)"') + C(-12.5, 19, 2.6, '#5e4028') + '<path d="M3.5-6l3-2" stroke="#5e4028" stroke-width="2.6" stroke-linecap="round"/>';
 const SHIELD = C(-2, 12, 11, '#3f86d6', ' stroke="#8e98ab" stroke-width="2.4"') + C(-2, 12, 3.2, '#f6c343');
 const SPEAR = '<path d="M0 36V-36" stroke="#8a5a2b" stroke-width="3" stroke-linecap="round"/><path d="M0-50l5 14h-10z" fill="#c9d1dd"/>';
-const held = (b, p, dy, art) => { const [, [, y2, r2]] = b.eyes, bb = bodyBox(b), x = +Math.min(95, bb.x + bb.w + 1.5).toFixed(1), y = +(y2 + r2 + 14 + dy).toFixed(1);
-  return at([x, y], 1, art) + HAND(x, y, p); };
+// The right edge of the body (body and head, not legs) at height y, measured once per body shape and height; a hand
+// floats just off it there
+const sides = new Map();
+function sideAt(b, y) {
+  const key = (b.torso + b.head).replace(/ (fill|opacity)="[^"]*"/g, '') + '@' + Math.round(y);
+  if (!sides.has(key)) {
+    const { hit, bb } = probe(b.torso + b.head);
+    let x = bb.x + bb.width; while (x > 50 && !hit(x, Math.round(y))) x -= .5;
+    sides.set(key, x);
+  }
+  return sides.get(key);
+}
+const handX = (b, y) => +Math.min(95, sideAt(b, y) + 7).toFixed(1);
+// held: the item in the right hand, beside the body (hand: false when the item covers the hand, like a shield)
+const held = (b, p, dy, art, hand = true) => { const [, [, y2, r2]] = b.eyes, y = +(y2 + r2 + 14 + dy).toFixed(1), x = handX(b, y);
+  return at([x, y], 1, art) + (hand ? HAND(x, y, p) : ''); };
 // The outline of a body (legs, body and head, measured once per shape), so extras that hang off the body (wings,
 // a cape, a watch in hand) fit every shape
 const boxCache = new Map();
@@ -1417,7 +1431,7 @@ const KING_CAPE = (b) => {
 // A gold pocket watch hanging on its chain from the frog's right hand (the art's right, where no stats sit); the
 // hand floats just off the body's side
 const PENDULUM = (b, p) => {
-  const [, [, y2, r2]] = b.eyes, bb = bodyBox(b), hx = Math.min(95, bb.x + bb.w + 1.5), hy = y2 + r2 + 10, wx = hx + 1.5, wy = hy + 21;
+  const [, [, y2, r2]] = b.eyes, hy = y2 + r2 + 10, hx = handX(b, hy), wx = hx + 1.5, wy = hy + 21;
   return `<path d="M${hx} ${hy}L${wx} ${wy - 3}" stroke="#c9a54c" stroke-width="1.6"/>` + C(wx, wy, 6, '#f6c343', ' stroke="#c48b22" stroke-width="1.5"') + C(wx, wy, 3.6, '#fff6d8')
     + `<path d="M${wx} ${wy}v-2.4M${wx} ${wy}h2" stroke="#8a6a2c" stroke-width="1" stroke-linecap="round"/>` + HAND(hx, hy, p);
 };
@@ -1427,7 +1441,7 @@ Object.assign(ART, {
   // Archer: forest green, a feathered cap and a bow held at its side
   archer: () => {
     const p = pal('#5aa65e'), b = BODY.slim(p);
-    return compose(b, p, { ...hat(b, ROBIN_HAT, 1.05), over: at([93.5, 66], 1, BOW) + HAND(93.5, 66, p) });
+    return compose(b, p, { ...hat(b, ROBIN_HAT, 1.05), over: at([88.5, 66], 1, BOW) + HAND(88.5, 66, p) });
   },
   // Merchant: round and orange, a jewelled turban and a fat purse of gold
   merchant: () => {
@@ -1451,7 +1465,7 @@ Object.assign(ART, {
   // Squire: young and sandy, a plain steel cap and a small round shield
   squire: () => {
     const p = pal('#e2bd74'), b = BODY.tall(p);
-    return compose(b, p, { ...hat(b, STEEL_CAP, 1.45), over: at([14, 62], 1, SHIELD) + HAND(14, 62, p) });
+    return compose(b, p, { ...hat(b, STEEL_CAP, 1.45), over: at([14, 62], 1, SHIELD) });
   },
   cleric: () => { const p = pal('#d6c9ef'), b = BODY.round(p); return compose(b, p, { ...hat(b, MITRE, 1) }); },
   // Guard: a sturdy sage frog in an iron kettle hat, with a spear
@@ -1551,7 +1565,8 @@ const AV_PATTERNS = [
 ];
 // Accessories hang off the body's anchor points (see hat/eyeCorner/cheek/neckY), so they fit every body.
 // head: true = hidden while the winner's crown is on. small: how much bigger it's drawn on small avatars (player
-// plates, lobby rows, the picker wheel), where the finer extras would otherwise shrink to a few pixels. x gets that as k.
+// plates, lobby rows; not the editor's option wheel, which shows them as on your frog), where the finer extras would
+// otherwise shrink to a few pixels. x gets that as k.
 const umbrella = (b, p) => `<g transform="translate(${b.cheeks[0][0] - 24} ${b.top[1] - 23})">`
   + `<g transform="translate(24 12) rotate(-12) scale(1.18)">${UMBRELLA_CANOPY}</g><path d="M11.5 75L22 13" stroke="#6b5a4c" stroke-width="2.4" stroke-linecap="round"/>`
   + `<path d="M11.5 75c-.6 3.6 3.6 4.8 4.8 1.6" stroke="#6b5a4c" stroke-width="2.4" fill="none" stroke-linecap="round"/>`
@@ -1559,8 +1574,8 @@ const umbrella = (b, p) => `<g transform="translate(${b.cheeks[0][0] - 24} ${b.t
 const LEAF_HAT = '<ellipse cy="-3" rx="17" ry="6.5" fill="#3f8a47"/><ellipse cy="-4.5" rx="16" ry="5.5" fill="#5cae5d"/><path d="M0-4.5L7-9.5L9.5-4.5z" fill="#3f8a47"/><path d="M-2-9c1-4 4-6 7-6" stroke="#4a9a50" stroke-width="2" fill="none" stroke-linecap="round"/>';
 const AV_ACCS = [
   { id: 'none', name: 'Nothing' },
-  { id: 'crown', name: 'Prince’s crown', head: true, small: 1.4, x: (b, p, k) => wornHat(b, CROWN, 1, k) },
-  { id: 'tiara', name: 'Princess’s tiara', head: true, small: 1.5, x: (b, p, k) => wornHat(b, TIARA, .95, k) },
+  { id: 'crown', name: 'Prince’s crown', head: true, small: 1.4, x: (b, p, k) => wornHat(b, CROWN, 1.2, k) },
+  { id: 'tiara', name: 'Princess’s tiara', head: true, small: 1.5, x: (b, p, k) => wornHat(b, TIARA, 1.45, k) },
   { id: 'helmet', name: 'Knight’s helmet', head: true, x: (b) => wornHat(b, HELMET, 1.3) },
   { id: 'wizard', name: 'Wizard’s hat', head: true, x: (b) => wornHat(b, WIZARD_HAT, 1.12) },
   { id: 'leaf', name: 'Leaf hat', head: true, small: 1.15, x: (b, p, k) => wornHat(b, LEAF_HAT, 1.2, k) },
@@ -1580,10 +1595,10 @@ const AV_ACCS = [
   { id: 'jester', name: 'Jester’s hat', head: true, x: (b) => wornHat(b, JESTER_HAT, 1) },
   { id: 'straw', name: 'Straw hat', head: true, x: (b) => wornHat(b, STRAW_HAT, 1.3) },
   { id: 'robin', name: 'Archer’s cap', head: true, x: (b) => wornHat(b, ROBIN_HAT, 1.05) },
-  { id: 'turban', name: 'Merchant’s turban', head: true, small: 1.2, x: (b, p, k) => wornHat(b, TURBAN, 1, k) },
+  { id: 'turban', name: 'Merchant’s turban', head: true, small: 1.2, x: (b, p, k) => wornHat(b, TURBAN, 1.2, k) },
   { id: 'beret', name: 'Bard’s beret', head: true, x: (b) => wornHat(b, BERET, 1) },
   { id: 'mitre', name: 'Cleric’s mitre', head: true, small: 1.2, x: (b, p, k) => wornHat(b, MITRE, 1, k) },
-  { id: 'cap', name: 'Squire’s cap', head: true, x: (b) => wornHat(b, STEEL_CAP, 1.05) },
+  { id: 'cap', name: 'Squire’s cap', head: true, x: (b) => wornHat(b, STEEL_CAP, 1.25) },
   { id: 'kettle', name: 'Guard’s helmet', head: true, x: (b) => wornHat(b, KETTLE_HAT, 1.12) },
   { id: 'mask', name: 'Rogue’s mask', x: (b) => ({ inside: eyeMask(b) }) },
   { id: 'pendulum', name: 'Hypno’s watch', x: (b, p) => ({ over: PENDULUM(b, p) }) },
@@ -1593,7 +1608,7 @@ const AV_ACCS = [
   // held in the right hand, beside the body (see held)
   { id: 'bow', name: 'Archer’s bow', x: (b, p) => ({ over: held(b, p, 0, BOW) }) },
   { id: 'lute', name: 'Bard’s lute', x: (b, p) => ({ over: held(b, p, -4, LUTE) }) },
-  { id: 'shield', name: 'Squire’s shield', x: (b, p) => ({ over: held(b, p, 0, SHIELD) }) },
+  { id: 'shield', name: 'Squire’s shield', x: (b, p) => ({ over: held(b, p, 0, SHIELD, false) }) },
   { id: 'purse', name: 'Merchant’s purse', x: (b, p) => ({ over: held(b, p, 6, PURSE) }) },
   { id: 'hammer', name: 'Blacksmith’s hammer', x: (b, p) => ({ over: held(b, p, 14, HAMMER) }) },
   { id: 'spear', name: 'Guard’s spear', x: (b, p) => ({ over: held(b, p, -4, SPEAR) }) },
@@ -1713,7 +1728,7 @@ function paintedHeight(box, ref) {
   return top === Infinity ? 0 : ref.getBoundingClientRect().bottom - top;
 }
 function avatarHTML(av, size = 40, o = {}) {
-  return `<div class="frog avatar ${o.idle ? 'idle' : ''}" data-fid="${o.id || 0}" style="--fs:${size}px;${idleVars(o.id || 0)}"><div class="fbody">${avatarArt(av, o.crown, o.centered, size <= 52)}</div></div>`;
+  return `<div class="frog avatar ${o.idle ? 'idle' : ''}" data-fid="${o.id || 0}" style="--fs:${size}px;${idleVars(o.id || 0)}"><div class="fbody">${avatarArt(av, o.crown, o.centered, o.small ?? size <= 52)}</div></div>`;
 }
 
 function xpHTML(f) {
@@ -3478,7 +3493,7 @@ function openProfile(done) {
     track.innerHTML = tab.opts.map((o, i) => {
       const lock = unlocked(tab.key, o.id) ? '' : needs(tab.key, o.id);
       return `<button class="wheel-item${tab.face ? ' face' : ''}${tab.pad ? ' padopt' : ''}${lock ? ' locked' : ''}" data-i="${i}" aria-label="${esc(o.name)}">${tab.pad
-        ? `<span class="wheel-pad" style='${padStyle({ ...av, [tab.key]: o.id })}'></span>` : avatarHTML({ ...av, [tab.key]: o.id }, 52, { id: 300 + i })}${lock ? `<span class="wheel-lock">${rankBadge({ id: lock, pips: 5 }, 22)}</span>` : ''}</button>`;
+        ? `<span class="wheel-pad" style='${padStyle({ ...av, [tab.key]: o.id })}'></span>` : avatarHTML({ ...av, [tab.key]: o.id }, 52, { id: 300 + i, small: false })}${lock ? `<span class="wheel-lock">${rankBadge({ id: lock, pips: 5 }, 22)}</span>` : ''}</button>`;
     }).join('');
     current = -1;
     center(Math.max(0, tab.opts.findIndex((o) => o.id === av[tab.key])), false);
