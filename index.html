@@ -2768,15 +2768,17 @@ function showHome(msg, page) {
       lobby = lobbyCache = l; render(); easeCount($('#friendsCount'), l.requests);
     } catch {}
   };
-  // Home: Play (it opens the ways to play: Ranked, Lobby, Practice), Friends, and your games in progress under them (How
-  // to play is in the menu)
+  // Home: Play (it opens the ways to play: Ranked, Lobby, Practice), Friends, How to play, and your games in progress
+  // under them
   const lobbyStep = () => {
     node.style.paddingTop = ''; // a name typed in (keepPut held the page): the home page sizes freely again
     panel.innerHTML = `
       <button class="btn wide" id="play">Play</button>
       <button class="btn ghost wide" id="friendsBtn">Friends<span class="count" id="friendsCount"></span></button>
+      <button class="btn ghost wide" id="howBtn">How to play</button>
       <div id="lists" class="lists home-lists"></div>`;
     $('#friendsBtn').onclick = () => { Snd.tap(); friendsStep(); };
+    $('#howBtn').onclick = () => { Snd.tap(); openTutorial(); };
     chip();
     api('/api/card', {}).then((c) => { ME.rank = c.rank; chip(); }).catch(() => {});
     const bot = { b: 'round', c: 3, l: 'dew', lc: 3 }, friend = { b: 'classic', c: 5 };
