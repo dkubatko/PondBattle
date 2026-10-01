@@ -1430,20 +1430,32 @@ const DRAGON_WINGS = (b, c) => {
     return `<path d="M${X(0)} ${ry}C${X(8)} ${ry - 10} ${X(15)} ${ry - 24} ${X(22)} ${ry - 33}C${X(22)} ${ry - 25} ${X(25)} ${ry - 20} ${X(29)} ${ry - 17}C${X(24)} ${ry - 14} ${X(23)} ${ry - 9} ${X(25)} ${ry - 4}C${X(16)} ${ry - 6} ${X(8)} ${ry - 3} ${X(0)} ${ry + 5}z" fill="${c}"/>`
       + `<path d="M${X(2)} ${ry}L${X(21)} ${ry - 30}M${X(4)} ${ry + 1}L${X(26)} ${ry - 16}" stroke="${mix(c, '#1b1410', .25)}" stroke-width="1.4" fill="none" stroke-linecap="round"/>`; }).join('');
 };
-// A royal cape hung from the shoulders behind the body: its sides follow the body's own outline (measured), a little
-// out from it at the shoulders and flaring towards the ground, and hang straight below the body's widest point, like
-// cloth; soft folds where it shows at the sides and a gold trim along its edges and hem
+// A royal cape hung from the shoulders behind the body: it starts at the body's sides just below the eyes (measured
+// from the body itself, not the eye bumps), slopes out from behind them and flares a little, hanging straight below
+// the body's widest point, and ends behind the legs. Wavy folds run down the cloth and its hem is wavy; a gold trim
+// edges it.
+const capeSides = new Map();
+const torsoSide = (b, y) => { // the right edge of the body (not head or eyes) at height y
+  const key = b.torso.replace(/ (fill|opacity)="[^"]*"/g, '') + '@' + y.toFixed(1);
+  if (!capeSides.has(key)) { const { hit, bb } = probe(b.torso); let x = bb.x + bb.width; while (x > 50 && !hit(x, y)) x -= .5; capeSides.set(key, x); }
+  return capeSides.get(key);
+};
 const KING_CAPE = (b) => {
-  const [[, y1, r1]] = b.eyes, bb = bodyBox(b), top = y1 + r1 * .4, bot = Math.min(96, bb.y + bb.h - 1), n = 12;
+  const top = Math.max(...b.eyes.map(([, y, r]) => y + r)) + 1, bb = bodyBox(b), tb = probe(b.torso).bb, n = 40, f = (v) => v.toFixed(1);
+  const bot = Math.min(tb.y + tb.height, bb.y + bb.h - 7) - 3; // ends behind the bottom of the body, above the feet
   let widest = 0;
-  const edge = Array.from({ length: n + 1 }, (_, i) => { const y = top + (bot - top) * i / n, t = i / n; widest = Math.max(widest, sideAt(b, y)); return [Math.min(99, widest - 4 + 11 * t ** .75), y]; }); // from behind the shoulders (out of sight), sloping out
-  const f = (v) => v.toFixed(1), right = edge.map(([x, y]) => `${f(x)} ${f(y)}`), left = edge.map(([x, y]) => `${f(100 - x)} ${f(y)}`);
-  const [xb, yb] = edge[n], hem = `Q50 ${f(yb + 3)} ${f(100 - xb)} ${f(yb)}`;
-  const outline = `M${left[0]}L${right.join('L')}${hem}L${left.slice().reverse().join('L')}Z`;
-  // folds: two soft lines down each side, just inside its outer edge, from halfway down to the hem
-  const fold = (k) => [1, -1].map((d) => `M${edge.slice(n / 2).map(([x, y]) => `${f(50 + d * (x - 50 - k))} ${f(y)}`).join('L')}`).join('');
-  return `<path d="${outline}" fill="#c0392b"/><path d="${fold(2.6) + fold(5.2)}" stroke="#a52f24" stroke-width="1.2" fill="none" stroke-linecap="round"/>`
-    + `<path d="M${right.join('L')}${hem}L${left.slice().reverse().join('L')}" stroke="#e2b13c" stroke-width="1.6" fill="none" stroke-linejoin="round"/>`;
+  const edge = Array.from({ length: n + 1 }, (_, i) => { const y = top + (bot - top) * i / n, t = i / n; widest = Math.max(widest, torsoSide(b, y));
+    return [Math.min(97, widest - 4 + 10 * t ** .75), y]; });
+  const [xb] = edge[n], hem = []; // a gentle wave along the hem, right to left
+  for (let x = xb; x >= 100 - xb - .01; x -= (2 * xb - 100) / 48) hem.push(`${f(x)} ${f(bot + 1.3 * Math.sin((x - 50) * .42))}`);
+  const right = edge.map(([x, y]) => `${f(x)} ${f(y)}`), left = edge.map(([x, y]) => `${f(100 - x)} ${f(y)}`).reverse();
+  const outline = `M${left[left.length - 1]}L${right.join('L')}L${hem.join('L')}L${left.join('L')}Z`;
+  // wavy folds down each side, just inside the outer edge, where the cape shows beside the body
+  const fold = (k, w) => [1, -1].map((d) => 'M' + edge.slice(9).map(([x, y]) => `${f(50 + d * (x - 50 - k - w * Math.sin(y * .4)))} ${f(y)}`).join('L')).join('');
+  return `<path d="${outline}" fill="#c0392b"/>`
+    + `<path d="${fold(2.4, 1) + fold(6, 1.2)}" stroke="#9e2b22" stroke-width="1.3" fill="none" stroke-linecap="round" stroke-linejoin="round"/>`
+    + `<path d="${fold(4.2, 1.1)}" stroke="#d65446" stroke-width="1" fill="none" stroke-linecap="round" stroke-linejoin="round" opacity=".8"/>`
+    + `<path d="M${right.join('L')}L${hem.join('L')}L${left.join('L')}" stroke="#e2b13c" stroke-width="1.5" fill="none" stroke-linejoin="round"/>`;
 };
 // A gold pocket watch hanging on its chain from the frog's right hand (the art's right, where no stats sit); the
 // hand floats just off the body's side
