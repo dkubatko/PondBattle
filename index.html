@@ -588,82 +588,35 @@ h1 { margin: 0; text-align: center; font-size: 40px; font-weight: 900; line-heig
 .search-vs .nm { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .over-rank { display: flex; align-items: center; justify-content: center; gap: 8px; font-size: 18px; font-weight: 900; }
 .over-rank .up-note { color: var(--firefly); }
-/* How to play from the home page: swipe through the steps of a game, each a small looping scene made of the game's
-   own frogs, pads, shop tray, coins and hearts. Only the slide in view plays (.on restarts it). */
+/* How to play from the home page: swipe through the steps of a game. Each scene is a smaller copy of the real shop or
+   battle (the game's own markup and styles, scaled to the slide) played by a short script with the game's own animations */
 .tut .sheet-body { padding-left: 0; padding-right: 0; }
 .tut h2 { padding-left: 18px; }
 .tut-track { display: flex; overflow-x: auto; scroll-snap-type: x mandatory; scrollbar-width: none; overscroll-behavior-x: contain; }
 .tut-track::-webkit-scrollbar { display: none; }
 .tslide { flex: 0 0 100%; scroll-snap-align: center; display: flex; flex-direction: column; align-items: center; gap: 6px; padding: 8px 18px 0; }
 .tslide h3 { margin: 12px 0 0; font-size: 21px; font-weight: 900; text-align: center; }
-.tslide p { margin: 0; max-width: 30ch; min-height: 2.8em; text-align: center; color: var(--moon-dim); font-size: 15px; line-height: 1.4; }
-.tstage { position: relative; width: 300px; height: 200px; flex: none; overflow: hidden; border-radius: 22px;
-  background: radial-gradient(120% 90% at 50% 20%, #23545a, #16353d 60%, #12252d); box-shadow: inset 0 0 0 1px rgba(245, 237, 214, .06); }
+.tslide p { margin: 0; max-width: 31ch; min-height: 2.8em; text-align: center; color: var(--moon-dim); font-size: 15px; line-height: 1.4; }
+.tstage { position: relative; width: 300px; height: 280px; flex: none; overflow: hidden; border-radius: 22px; background: radial-gradient(120% 90% at 50% 30%, #1d4249, #12252d 70%); box-shadow: inset 0 0 0 1px rgba(245, 237, 214, .06); }
+.tscene { position: absolute; left: 0; top: 0; width: 393px; transform: scale(.7634); transform-origin: 0 0; }
+.tscene .pond { padding-top: 30px; min-height: 0; flex: none; }
+.tscene .bank { margin: 2px 8px 0; }
+.tscene .tmsg { position: absolute; left: 0; right: 0; top: 6px; z-index: 6; text-align: center; font-size: 16px; font-weight: 800; opacity: 0; }
+.tscene .bubble { position: absolute; transition: none; }
+.tghost { position: absolute; left: 0; top: 0; z-index: 50; pointer-events: none; margin: 0; will-change: transform; }
+.tfinger { position: absolute; left: 0; top: 0; z-index: 60; width: 46px; height: 46px; margin: -23px 0 0 -23px; border-radius: 50%; background: rgba(255, 255, 255, .28); box-shadow: inset 0 0 0 2px rgba(255, 255, 255, .7); pointer-events: none; opacity: 0; will-change: transform; }
+.tscene.tbattle { height: 520px; }
+.tscene.tbattle .arena { position: absolute; inset: 0; }
+.tscene.tresult { height: 367px; }
+.tscene.tresult .pl { position: absolute; }
+.tscene.tresult .b-result { position: absolute; left: 0; right: 0; top: 96px; text-align: center; opacity: 0; }
 .tdots { display: flex; justify-content: center; gap: 7px; margin-top: 16px; }
 .tdots button { width: 8px; height: 8px; padding: 0; border: 0; border-radius: 4px; background: var(--moon-faint); transition: width .25s, background-color .25s; }
 .tdots button.on { width: 22px; background: var(--moon); }
 .tut-more { display: flex; justify-content: center; margin-top: 12px; }
-/* scene parts: a pad, a frog with its stats under it (.tu, placed by its centre --x and the height of its feet --y) */
-.tpad { position: absolute; width: 66px; height: 36px; margin-left: -33px; background: var(--leaf) center / contain no-repeat; }
-.tu { position: absolute; width: 70px; margin-left: -35px; display: flex; flex-direction: column; align-items: center; transform-origin: 50% 100%; }
-.tu .tst { display: flex; gap: 3px; margin-top: 20px; } /* the frog stands on its pad, the stats sit under the pad */
-.tu .tst .st { position: relative; }
-.tu .frog .lvl { top: -12px; left: -2px; }
-.tswap { position: relative; display: inline-grid; }
-.tswap > * { grid-area: 1 / 1; }
-.ttray { position: absolute; left: 10px; right: 10px; bottom: 0; height: 92px; border-radius: 18px 18px 0 0; background: linear-gradient(180deg, #3e3027, #33271f); }
-.tgold { position: absolute; left: 22px; bottom: 60px; display: flex; align-items: center; gap: 5px; font-size: 19px; font-weight: 900; color: var(--firefly); }
-.tgold .ic { width: 18px; height: 18px; }
-.tfront { position: absolute; right: 16px; bottom: 16px; font-size: 13px; font-weight: 800; color: var(--moon-dim); }
-.tring { position: absolute; width: 76px; height: 44px; margin-left: -38px; border: 3px solid var(--firefly); border-radius: 50%; opacity: 0; }
-.tplus { position: absolute; font-size: 15px; font-weight: 900; color: #b8f08c; text-shadow: 0 1px 6px rgba(5, 15, 18, .7); opacity: 0; }
-.tpl { position: absolute; left: 16px; right: 16px; display: flex; align-items: center; gap: 10px; padding: 8px 12px; border-radius: 16px; background: rgba(5, 15, 18, .28); }
-.tpl .nm { font-size: 15px; font-weight: 900; }
-.tpl .pips .ic { width: 18px; height: auto; }
-.tpl .tbreak { position: relative; display: inline-grid; }
-.tpl .tbreak > * { grid-area: 1 / 1; }
-.tslide .t-anim { animation-duration: 3.6s; animation-iteration-count: infinite; animation-timing-function: ease-in-out; animation-fill-mode: both; }
-.tslide:not(.on) .t-anim, .tslide:not(.on) .t-anim * { animation-play-state: paused; }
-@media (prefers-reduced-motion: reduce) { .tslide .t-anim { animation: none !important; } }
-/* 1 Buy: a frog goes from the shop to your pond, and the gold goes down */
-.s-buy .buyer { animation-name: tBuy; }
-@keyframes tBuy { 0%, 14% { transform: none; opacity: 1; } 22% { transform: translate(0, -14px); } 50% { transform: translate(45px, -90px); }
-  56% { transform: translate(45px, -84px) scale(1.12, .88); } 62%, 88% { transform: translate(45px, -84px); opacity: 1; } 94%, 100% { transform: translate(45px, -84px); opacity: 0; } }
-.s-buy .g10 { animation-name: tFirst; } .s-buy .g7 { animation-name: tSecond; }
-@keyframes tFirst { 0%, 50% { opacity: 1; } 54%, 96% { opacity: 0; } 100% { opacity: 1; } }
-@keyframes tSecond { 0%, 50% { opacity: 0; transform: none; } 54% { opacity: 1; transform: scale(1.25); } 60%, 94% { opacity: 1; transform: none; } 98%, 100% { opacity: 0; } }
-/* 2 Level up: a matching frog lands on yours; they become one, bigger and at level 2 */
-.s-lvl .mover { animation-name: tMerge; }
-@keyframes tMerge { 0%, 14% { transform: none; opacity: 1; } 22% { transform: translate(0, -14px); } 46% { transform: translate(0, -84px); opacity: 1; } 50%, 100% { transform: translate(0, -84px); opacity: 0; } }
-.s-lvl .old { animation-name: tFirst; }
-.s-lvl .merged { animation-name: tPop; }
-@keyframes tPop { 0%, 48% { opacity: 0; transform: scale(.6); } 54% { opacity: 1; transform: scale(1.22); } 60%, 92% { opacity: 1; transform: none; } 98%, 100% { opacity: 0; } }
-/* 3 The front: the frog on the right hops and gets a ring */
-.s-front .fronter { animation-name: tHop; }
-@keyframes tHop { 0%, 30%, 60%, 100% { transform: none; } 40% { transform: translateY(-16px); } 50% { transform: scale(1.08, .92); } }
-.s-front .tring { animation-name: tRing; }
-@keyframes tRing { 0%, 25% { opacity: 0; transform: scale(.8); } 40%, 80% { opacity: .9; transform: none; } 100% { opacity: 0; transform: scale(1.1); } }
-/* 4 Battle: the front frogs hit each other, one is knocked out, the next steps up */
-.s-bat .me { animation-name: tLungeR; } .s-bat .foe { animation-name: tLungeL; }
-@keyframes tLungeR { 0%, 18% { transform: none; } 26% { transform: translateX(14px); } 34%, 100% { transform: none; } }
-@keyframes tLungeL { 0%, 18% { transform: none; opacity: 1; } 26% { transform: translateX(-14px); } 34%, 42% { transform: none; opacity: 1; } 58%, 100% { transform: translate(24px, 26px) rotate(40deg) scale(.6); opacity: 0; } }
-.s-bat .h1 { animation-name: tHitOld; } .s-bat .h2 { animation-name: tHitNew; }
-@keyframes tHitOld { 0%, 26% { opacity: 1; } 28%, 96% { opacity: 0; } 100% { opacity: 1; } }
-@keyframes tHitNew { 0%, 26% { opacity: 0; transform: none; } 28% { opacity: 1; transform: scale(1.35); } 36%, 94% { opacity: 1; transform: none; } 98%, 100% { opacity: 0; } }
-.s-bat .next { animation-name: tStepUp; }
-@keyframes tStepUp { 0%, 60% { transform: none; } 72% { transform: translate(-32px, -12px); } 80%, 94% { transform: translateX(-63px); opacity: 1; } 98% { opacity: 0; transform: translateX(-63px); } 100% { opacity: 0; transform: none; } }
-.s-bat .allgone { animation-name: tFadeLoop; }
-@keyframes tFadeLoop { 0%, 94% { opacity: 1; } 98% { opacity: 0; } 100% { opacity: 1; } }
-/* 5 Bugs: a fly flies from the shop onto a frog, which gets +1/+1 */
-.s-bug .fly { animation-name: tFly; }
-@keyframes tFly { 0%, 14% { transform: none; opacity: 1; } 22% { transform: translate(0, -16px) rotate(-8deg); } 46% { transform: translate(40px, -118px) rotate(6deg); opacity: 1; } 50%, 100% { transform: translate(40px, -118px); opacity: 0; } }
-.s-bug .n1 { animation-name: tFirst; } .s-bug .n2 { animation-name: tSecond; }
-.s-bug .tplus { animation-name: tRise; }
-@keyframes tRise { 0%, 48% { opacity: 0; transform: none; } 54% { opacity: 1; } 78% { opacity: 1; transform: translateY(-20px); } 88%, 100% { opacity: 0; transform: translateY(-24px); } }
-/* 6 Hearts: the round's loser loses a heart */
-.s-hearts .hfull { animation-name: tHeartGo; } .s-hearts .hempty { animation-name: tSecond; }
-@keyframes tHeartGo { 0%, 36% { opacity: 1; transform: none; } 44% { opacity: 1; transform: scale(1.5); } 52%, 96% { opacity: 0; transform: scale(.4); } 100% { opacity: 1; transform: none; } }
-.s-hearts .winner { animation-name: tHop; }
+/* the game's floating numbers and sparkles show over the How to play sheet while it's open */
+.tscene .float, .tscene .spark { position: absolute; z-index: 70; }
+@media (max-height: 640px) { .tstage { width: 270px; height: 252px; } .tscene { transform: scale(.687); } } /* short screens: it all fits without scrolling */
 .rules { list-style: none; display: flex; flex-direction: column; gap: 7px; margin: 0; padding: 0; color: var(--moon-dim); line-height: 1.5; font-size: 15px; }
 .rules li { position: relative; padding-left: 16px; }
 .rules li::before { content: ''; position: absolute; left: 3px; top: .62em; width: 5px; height: 5px; border-radius: 50%; background: var(--moon-dim); opacity: .7; }
@@ -3648,64 +3601,278 @@ function setFrogsHTML(set) {
   const frogs = SETS[setId(set)].frogs;
   return tiers.map(([n, lbl]) => `<div class="guide-sec">${lbl}</div>` + frogs.filter((t) => TIER[t] === n).map(row).join('')).join('');
 }
-// How to play from the home page: the steps of a game as slides (swipe, or tap the dots), each with a little looping
-// scene made of the game's own frogs, pads, shop tray, coins and hearts. In a game, How to play is the full guide.
+// How to play from the home page: the steps of a game as slides (swipe, or tap the dots). Each scene is a smaller copy
+// of the real shop or battle, drawn with the game's own markup, and a short script plays it with the game's own
+// animations (the drag's lift, the landing hop, stat floats, sparkles, battle hits and knockouts). Only the slide in
+// view plays; it starts over each time you come to it.
 function openTutorial() {
+  // the scenes are the game's own size (393 wide), scaled to the slide (smaller on short screens)
+  const scaleOf = (sc) => sc.getBoundingClientRect().width / 393;
   const mine = myAvatar(), bot = { b: 'round', c: 3, l: 'dew', lc: 3 };
-  const leaf = (av) => `--leaf:${padURL(av)}`;
-  const st = (a, h) => `<span class="st atk">${a}</span><span class="st hp">${h}</span>`;
-  // a frog (stats under it) with its feet at x, y (from the stage's bottom-left); stats can be two states that swap
-  const unit = (type, x, y, stats, o = {}) => `<div class="tu ${o.cls || ''}" style="left:${x}px;bottom:${y}px">${frogHTML({ type, lvl: o.lvl || 1, id: o.id || 0 }, { size: o.size || 48, stats: false, flip: o.flip, grow: !!o.lvl })}<div class="tst">${stats}</div></div>`;
-  const pad = (x, y, av = mine) => `<div class="tpad" style='left:${x}px;bottom:${y}px;${leaf(av)}'></div>`; // (single quotes: the pad's url has double ones)
-  const swap = (a, b, ca, cb) => `<span class="tswap"><span class="t-anim ${ca}">${a}</span><span class="t-anim ${cb}">${b}</span></span>`;
-  const slides = [
-    ['s-buy', 'Buy frogs', 'You get 10 gold every round. Drag frogs from the shop into your pond.',
-      `${pad(75, 118)}${pad(150, 118)}${pad(225, 118)}<div class="ttray"></div>
-       <div class="tgold">${ICON.coin}${swap('10', '7', 'g10', 'g7')}</div>
-       ${unit('peeper', 180, 8, st(2, 2), { cls: 't-anim buyer', id: 3 })}`],
-    ['s-lvl', 'Level up', 'Drop a frog on a matching one. They become one stronger frog.',
-      `${pad(75, 118)}${pad(150, 118)}${pad(225, 118)}<div class="ttray"></div>
-       ${unit('glass', 150, 92, st(2, 3), { cls: 't-anim old', id: 5 })}
-       ${unit('glass', 150, 92, st(3, 4), { cls: 't-anim merged', id: 5, lvl: 2 })}
-       ${unit('glass', 150, 8, st(2, 3), { cls: 't-anim mover', id: 6 })}`],
-    ['s-front', 'Front fights first', 'Your frogs fight from right to left. The one on the right goes first.',
-      `${pad(70, 70)}${pad(150, 70)}${pad(230, 70)}<div class="tring t-anim" style="left:230px;bottom:66px"></div>
-       ${unit('lily', 70, 44, st(1, 2), { id: 8 })}${unit('spitter', 150, 44, st(1, 2), { id: 9 })}${unit('toad', 230, 44, st(2, 4), { cls: 't-anim fronter', id: 10 })}
-       <div class="tfront">Front ›</div>`],
-    ['s-bat', 'Battle', 'Press Ready. Front frogs hit each other until one pond is empty.',
-      `<div class="t-anim allgone" style="position:absolute;inset:0">${pad(45, 70)}${pad(108, 70)}${pad(192, 70, bot)}${pad(255, 70, bot)}
-       ${unit('peeper', 45, 44, st(2, 2), { id: 12 })}
-       ${unit('toad', 108, 44, st(3, swap(4, 2, 'h1', 'h2')), { cls: 't-anim me', id: 13 })}
-       ${unit('bouncy', 255, 44, st(2, 2), { cls: 't-anim next', id: 15, flip: true })}
-       ${unit('glass', 192, 44, st(2, swap(3, 0, 'h1', 'h2')), { cls: 't-anim foe', id: 14, flip: true })}</div>`],
-    ['s-bug', 'Abilities and bugs', 'Every frog has an ability: tap one to read it. Bugs from the shop make frogs stronger.',
-      `${pad(110, 118)}${pad(190, 118)}<div class="ttray"></div>
-       ${unit('spitter', 110, 92, st(1, 2), { id: 17 })}
-       ${unit('tree', 190, 92, st(swap(2, 3, 'n1', 'n2'), swap(3, 4, 'n1', 'n2')), { id: 18 })}
-       <div class="tplus t-anim" style="left:214px;bottom:168px">+1/+1</div>
-       <div class="t-anim fly" style="position:absolute;left:128px;bottom:14px;width:44px">${foodHTML('fly')}</div>`],
-    ['s-hearts', 'Hearts', 'Lose a round and you lose a heart. The last pond with hearts wins.',
-      `<div class="tpl" style="bottom:112px"><span class="t-anim winner">${avatarHTML(mine, 40, { id: 40, centered: true })}</span><span class="nm">You</span>${pips(5, 4, ICON.heart)}</div>
-       <div class="tpl" style="bottom:40px">${avatarHTML(bot, 40, { id: 41, centered: true })}<span class="nm">Rival</span><span class="pips">${ICON.heart(true)}${ICON.heart(true)}<span class="tbreak"><span class="t-anim hempty">${ICON.heart(false)}</span><span class="t-anim hfull">${ICON.heart(true)}</span></span>${ICON.heart(false)}${ICON.heart(false)}</span></div>`],
+  let id = 5000;
+  const F = (type, o = {}) => ({ id: ++id, type, atk: BASE[type][0], hp: BASE[type][1], xp: 0, lvl: 1, ...o });
+  const wait = (ms, live) => new Promise((r) => setTimeout(r, live() ? ms : 0));
+  // The game's floating numbers and sparkles, drawn inside the scene (so they stay in the slide and scale with it)
+  const sceneFx = (sc, at) => {
+    const float = (x, y, html, rise = 36) => {
+      const f = el(`<div class="float">${html}</div>`); Object.assign(f.style, { left: x + 'px', top: y + 'px' }); sc.appendChild(f);
+      anim(f, [{ opacity: 0, transform: 'translate(-50%,-30%) scale(.7)' }, { opacity: 1, transform: 'translate(-50%,-60%) scale(1.1)', offset: .2 }, { opacity: 0, transform: `translate(-50%, calc(-50% - ${rise}px))` }], { duration: 1000, easing: 'ease-out' }).then(() => f.remove());
+    };
+    const c = (n) => { const r = at(n); return [r.x + r.w / 2, r.y + r.h / 2]; };
+    return {
+      float,
+      stat: (n, da, dh) => { const parts = []; if (da) parts.push(`<span class="${da > 0 ? 'a' : 'x'}">${da > 0 ? '+' : ''}${da}</span>`); if (dh) parts.push(`<span class="${dh > 0 ? 'h' : 'x'}">${dh > 0 ? '+' : ''}${dh}</span>`); const [x, y] = c(n); if (parts.length) float(x, y - 24, parts.join('')); },
+      sparkles: (n, count = 14) => {
+        const [x, y] = c(n);
+        for (let i = 0; i < count; i++) {
+          const sp = el('<div class="spark"></div>'); Object.assign(sp.style, { left: x + 'px', top: y + 'px' }); sc.appendChild(sp);
+          const a = (i / count) * Math.PI * 2 + Math.random() * .5, d = 30 + Math.random() * 26;
+          anim(sp, [{ transform: 'translate(-50%,-50%) scale(1)', opacity: 1 }, { transform: `translate(calc(-50% + ${Math.cos(a) * d}px), calc(-50% + ${Math.sin(a) * d}px)) scale(.2)`, opacity: 0 }], { duration: 650 + Math.random() * 250, easing: 'cubic-bezier(.2,.8,.3,1)' }).then(() => sp.remove());
+        }
+      },
+    };
+  };
+  // ---- the shop: the pond's five pads (slot 0, the front, on the right), the tray with four frogs and a bug ----
+  const shopHTML = () => `<div class="tscene" style='--leaf:${padURL(mine)}'>
+    <section class="pond"><div class="pads">${[4, 3, 2, 1, 0].map((i) => `<div class="pad" data-i="${i}"><div class="ring"></div><div class="leaf"></div><div class="occ"></div></div>`).join('')}</div>
+      <div class="dir"><span>Front ${ICON.chev}</span></div><div class="tmsg note"></div></section>
+    <section class="bank"><div class="bank-head"><span class="gold"></span><div class="shop-acts"><span class="roll">${ICON.lockSm}Lock${coinBadge(1)}</span><span class="roll">${ICON.roll}Roll${coinBadge(1)}</span></div></div>
+      <div class="items">${[0, 1, 2, 3].map((i) => `<div class="item" data-i="${i}"><div class="slot"><div class="ring"></div><div class="stone"></div><div class="occ"></div></div><div class="price"></div></div>`).join('')}<div class="item food"><div class="slot"><div class="ring"></div><div class="stone"></div><div class="occ"></div></div><div class="price"></div></div></div></section></div>`;
+  const shop = (root, { team = [], frogs = [], food = 'worm', gold = 10 }) => {
+    root.innerHTML = shopHTML();
+    const sc = $('.tscene', root), q = (sel) => $(sel, sc);
+    const pad = (i) => q(`.pad[data-i="${i}"]`), slot = (i) => q(`.item[data-i="${i}"]`);
+    const put = (i, f) => { $('.occ', pad(i)).innerHTML = f ? frogHTML(f, { xp: true, size: 58, grow: true }) : ''; return f && $('.frog', pad(i)); };
+    team.forEach((f, i) => put(i, f));
+    frogs.forEach((f, i) => { $('.occ', slot(i)).innerHTML = f ? frogHTML(f) : ''; $('.price', slot(i)).innerHTML = f ? coinBadge(3) : ''; });
+    const fi = q('.item.food'); $('.occ', fi).innerHTML = food ? foodHTML(food) : ''; $('.price', fi).innerHTML = food ? coinBadge(FOODS[food].cost) : '';
+    const setGold = (n, bump) => { const g = q('.gold'); g.innerHTML = `${ICON.coin}<span>${n}</span>`; if (bump) anim(g, [{ transform: 'scale(1.2)' }, { transform: 'scale(1)' }], { duration: 250, easing: 'ease-out' }); };
+    setGold(gold);
+    // where something is, in the scene's own pixels
+    const K = scaleOf(sc), at = (n) => { const r = n.getBoundingClientRect(), o = sc.getBoundingClientRect(); return { x: (r.left - o.left) / K, y: (r.top - o.top) / K, w: r.width / K, h: r.height / K }; };
+    const fx = sceneFx(sc, at);
+    // The finger: it presses down (shrinks a little as it lands), moves, and lifts off
+    const finger = el('<div class="tfinger"></div>'); sc.appendChild(finger);
+    // (it moves by its transform; pressing and lifting animate only its scale and opacity, so they never pin it in place)
+    const fingerAt = (x, y) => { finger.style.transform = `translate(${x}px, ${y}px)`; };
+    const press = (x, y) => { fingerAt(x, y); finger.style.opacity = 1; return anim(finger, [{ opacity: 0, scale: '1.35' }, { opacity: 1, scale: '1' }], { duration: 160, easing: 'ease-out' }); };
+    const release = () => { finger.style.opacity = 0; anim(finger, [{ opacity: 1, scale: '1' }, { opacity: 0, scale: '1.25' }], { duration: 200, easing: 'ease-out' }); };
+    const mid = (n) => { const r = at(n); return [r.x + r.w / 2, r.y + r.h / 2]; };
+    const LIFT = 26; // as the game's drag: what you carry rides above your finger
+    // A finger picks `vis` up (it lifts and grows over 120 ms, like the game's drag) and carries it so its body ends
+    // at `dest` (scene x, y of where its body should be); returns the carried copy
+    const carry = async (vis, dest, live, okPads = []) => {
+      const body = $('.fbody', vis) || $('.bug', vis) || vis, a = at(vis), [bx, by] = mid(body);
+      const offX = bx - a.x, offY = by - a.y; // where in the copy its body is
+      const ghost = vis.cloneNode(true); ghost.classList.add('tghost'); ghost.style.width = a.w + 'px';
+      const put = (x, y, k) => { ghost.style.transform = `translate(${x - offX}px, ${y - offY - LIFT * k}px) scale(${1 + .1 * k})`; fingerAt(x, y); };
+      await press(bx, by); if (!live()) return ghost;
+      sc.appendChild(ghost); put(bx, by, 0); vis.style.opacity = .25;
+      okPads.forEach((i) => pad(i).classList.add('ok'));
+      const [tx, ty] = [dest[0], dest[1] + LIFT], t0 = performance.now(), PICK = 120, MOVE = Math.max(480, Math.min(760, Math.hypot(tx - bx, ty - by) * 2.6));
+      const ease = (m) => (m < .5 ? 4 * m * m * m : 1 - Math.pow(-2 * m + 2, 3) / 2);
+      await new Promise((done) => {
+        const tick = (now) => {
+          if (!live()) return done();
+          const t = now - t0, k = Math.min(1, t / PICK), m = Math.max(0, Math.min(1, (t - PICK * .5) / MOVE)), e = ease(m);
+          put(bx + (tx - bx) * e, by + (ty - by) * e, k);
+          const over = e > .75 ? $$('.pad', sc).find((p) => { const r = at($('.leaf', p)); return Math.abs(r.x + r.w / 2 - (bx + (tx - bx) * e)) < r.w / 2; }) : null;
+          $$('.pad', sc).forEach((p) => p.classList.toggle('hover', p === over));
+          if (m < 1) requestAnimationFrame(tick); else done();
+        };
+        requestAnimationFrame(tick);
+      });
+      await wait(90, live); // a beat over the spot before letting go
+      $$('.pad', sc).forEach((p) => p.classList.remove('hover', 'ok'));
+      release();
+      return ghost;
+    };
+    // where a frog's body sits when it stands on pad i (measured from a hidden stand-in)
+    const bodyOnPad = (i, f) => { const occ = $('.occ', pad(i)), keep = occ.innerHTML; occ.innerHTML = frogHTML(f, { xp: true, size: 58, grow: true }); occ.style.visibility = 'hidden'; const m = mid($('.fbody', occ)); occ.innerHTML = keep; occ.style.visibility = ''; return m; };
+    const drag = (vis, i, f, live, okPads) => carry(vis, bodyOnPad(i, f), live, okPads);
+    const dragInto = (vis, fr, live) => carry(vis, mid($('.fbody', fr)), live);
+    // Let go over pad i: the frog drops the last few pixels with the game's little landing hop
+    const land = (ghost, i, f) => {
+      const g = at(ghost); ghost.remove();
+      const fr = put(i, f), to = at(fr);
+      fr.style.transformOrigin = '0 0'; fr.style.zIndex = 20;
+      anim(fr, hopFrames(g.x - to.x, g.y - to.y, 6, g.w / to.w, 1), { duration: 220, easing: 'linear' }).then(() => { fr.style.transformOrigin = ''; fr.style.zIndex = ''; });
+      return fr;
+    };
+    // The carried frog or bug goes into a frog that's already there (a merge, a meal); its numbers go up
+    const into = async (ghost, fr, f, was) => {
+      const g = at(ghost), [cx, cy] = mid($('.fbody', fr));
+      await anim(ghost, [{ transform: ghost.style.transform, opacity: 1 }, { transform: `translate(${cx - g.w / 2}px, ${cy - g.h / 2}px) scale(.5)`, opacity: 0 }], { duration: 200, easing: 'ease-in', fill: 'forwards' });
+      ghost.remove();
+      patchFrog(fr, f);
+      fx.stat($('.fbody', fr), f.atk - was.atk, f.hp - was.hp); bump(fr);
+      for (const [cls, d] of [['atk', f.atk - was.atk], ['hp', f.hp - was.hp]]) { const n = d && $(`.st.${cls}`, fr); if (n) anim(n, [{ transform: 'scale(1.5)' }, { transform: 'scale(1)' }], { duration: 300 }); }
+    };
+    const say = (text) => { const m = q('.tmsg'); m.textContent = text; anim(m, [{ opacity: 0, transform: 'translateY(6px)' }, { opacity: 1, transform: 'none', offset: .15 }, { opacity: 1, offset: .85 }, { opacity: 0 }], { duration: 2200, fill: 'forwards' }); };
+    // a tap you can see: the finger presses on the frog's body and lifts off
+    const tap = async (n, live) => { const [x, y] = mid($('.fbody', n) || n); await press(x, y); await wait(140, live); release(); await wait(120, live); };
+    return { sc, q, pad, slot, put, at, fx, drag, dragInto, land, into, setGold, say, tap, frog: (i) => $('.frog', pad(i)), shopFrog: (i) => $('.frog', slot(i)), bug: () => $('.food-ic', q('.item.food')) };
+  };
+  // ---- the battle: the battle screen's own layout (two zig-zag lines of pads meeting in the middle), framed on the middle ----
+  const W = 393, H = 520, s = Math.min(1.45, W / 300, H / (8.16 * 56)), mid = H / 2, U = Math.round(56 * s), lift = .42 * U;
+  const padW = 70 * s * 56 / 58, padH = 38 * s * 56 / 58, SS = s * .9;
+  const dy = Math.min(.76 * U, (H - U * 1.84) / 8), dx = Math.max(10 * s, Math.min(26 * s, (W / 2 - 42 * s - U * 1.05) / 4));
+  const pos = (side, i) => [W / 2 + (side ? 1 : -1) * (42 * s + i * dx), mid - lift + (side ? -1 : 1) * i * dy];
+  const battle = (root, ponds) => {
+    // (the view is centred on where the two front frogs meet)
+    root.innerHTML = `<div class="tscene tbattle"><div class="arena"><div class="water"></div></div></div>`;
+    const sc = $('.tscene', root); sc.style.top = Math.round(root.clientHeight / 2 - (mid - lift + U * .1) * scaleOf(sc)) + 'px';
+    const arena = $('.arena', root), recs = [[], []];
+    const at = (n) => { const k = scaleOf(sc), r = n.getBoundingClientRect(), o = sc.getBoundingClientRect(); return { x: (r.left - o.left) / k, y: (r.top - o.top) / k, w: r.width / k, h: r.height / k }; };
+    const fx = sceneFx(sc, at);
+    for (const side of [0, 1]) for (let i = 0; i < 5; i++) {
+      const [x, y] = pos(side, i), p = el('<div class="bpad"></div>');
+      p.style.setProperty('--leaf', padURL(side ? bot : mine));
+      Object.assign(p.style, { width: padW + 'px', height: padH + 'px', left: x - padW / 2 + 'px', top: y + lift - padH / 2 + 'px' });
+      arena.appendChild(p);
+    }
+    const statsAt = (r, x, y) => { const w = r.st.offsetWidth * SS, h = r.st.offsetHeight * SS; return `translate(${(r.side ? x + U / 2 + 1 : x - U / 2 - 1 - w).toFixed(1)}px, ${(y - h * .42).toFixed(1)}px) scale(${SS.toFixed(3)})`; };
+    const place = (r, x, y) => { r.x = x; r.y = y; r.el.style.transform = `translate(${x - r.w / 2}px, ${y + U / 2 - s * r.h / 2 - r.h / 2}px)`; r.el.style.zIndex = r.st.style.zIndex = Math.round(y); r.st.style.transform = statsAt(r, x, y); };
+    ponds.forEach((list, side) => list.forEach((u, i) => {
+      const node = el(`<div class="bu s${side}"><div class="bscale" style="transform:scale(${s.toFixed(3)})"><div class="bmove">${frogHTML({ ...u, xp: 0 }, { size: 56, flip: side === 1, grow: true, stats: false })}</div></div></div>`);
+      const st = el(`<div class="bst s${side}"><span class="st atk">${u.atk}</span><span class="st hp">${u.hp}</span></div>`);
+      arena.appendChild(node); arena.appendChild(st);
+      const r = { el: node, st, move: $('.bmove', node), side, u: { ...u }, w: node.offsetWidth, h: node.offsetHeight };
+      place(r, ...pos(side, i)); recs[side].push(r);
+    }));
+    // the game's hit: both front frogs lunge at each other; then the damage (a shake, the numbers)
+    const hit = async (live) => {
+      const [a, b] = [recs[0][0], recs[1][0]];
+      for (const r of [a, b]) anim(r.move, [{ transform: 'translate(0,0)' }, { transform: `translate(${(r.side ? 1 : -1) * 6 * s}px, ${-4 * s}px) rotate(${r.side ? 6 : -6}deg)`, offset: .3 }, { transform: `translate(${(r.side ? -1 : 1) * 12 * s}px, ${-10 * s}px) rotate(${r.side ? -8 : 8}deg)`, offset: .55 }, { transform: `translate(${(r.side ? -1 : 1) * 10 * s}px, 0)`, offset: .66 }, { transform: 'translate(0,0)' }], { duration: 500, easing: 'ease-out' });
+      await wait(320, live);
+      for (const [r, by] of [[a, b], [b, a]]) {
+        const hp = Math.max(0, r.u.hp - by.u.atk); if (hp === r.u.hp) continue;
+        fx.stat($('.fbody', r.el), 0, hp - r.u.hp); r.u.hp = hp;
+        const h = $('.st.hp', r.st); h.textContent = hp; anim(h, [{ transform: 'scale(1.5)' }, { transform: 'scale(1)' }], { duration: 300 });
+        anim(r.move, [{ transform: 'translateX(0)' }, { transform: `translateX(${r.side ? 5 : -5}px)`, offset: .2 }, { transform: `translateX(${r.side ? -4 : 4}px)`, offset: .5 }, { transform: 'translateX(0)' }], { duration: 300 });
+      }
+      await wait(520, live);
+      // the game's knockout: a little jump, then it tumbles away; the frogs behind hop forward
+      for (const side of [0, 1]) {
+        const r = recs[side][0]; if (r.u.hp > 0) continue;
+        recs[side].shift();
+        anim(r.st, [{ opacity: 1 }, { opacity: 0 }], { duration: 200, fill: 'forwards' });
+        anim(r.move, [{ transform: 'translateY(0) rotate(0)', opacity: 1 }, { transform: `translateY(${-22 * s}px) rotate(${r.side ? 25 : -25}deg)`, opacity: 1, offset: .3 }, { transform: `translate(${r.side ? 30 : -30}px, ${40 * s}px) rotate(${r.side ? 120 : -120}deg) scale(.5)`, opacity: 0 }], { duration: 480, easing: 'ease-in', fill: 'forwards' });
+      }
+      await wait(380, live);
+      for (const side of [0, 1]) recs[side].forEach((r, i) => {
+        const fromT = r.el.style.transform, fromS = r.st.style.transform; place(r, ...pos(side, i));
+        if (fromT !== r.el.style.transform) { anim(r.el, [{ transform: fromT }, { transform: r.el.style.transform }], { duration: 320, easing: 'cubic-bezier(.3,.7,.4,1)' }); anim(r.st, [{ transform: fromS }, { transform: r.st.style.transform }], { duration: 320, easing: 'cubic-bezier(.3,.7,.4,1)' }); }
+      });
+      await wait(420, live);
+    };
+    return { hit };
+  };
+  // ---- the round's result: the plates, the loser's heart going, the winner's crown ----
+  const plate = (p, side, hearts, crown) => `<div class="pl ${side ? 'opp' : 'me'}"><span class="portrait">${avatarHTML(p.av, 42, { idle: true, id: 60 + side, centered: true, crown })}</span><span class="pl-info"><span class="nm"><span>${esc(p.name)}</span></span><span class="ph">${pips(5, hearts, ICON.heart)}</span></span></div>`;
+  const SCENES = [
+    ['Buy frogs', 'You get 10 gold every round. Drag frogs from the shop into your pond.', async (root, live) => {
+      const t = shop(root, { team: [F('toad')], frogs: [F('peeper'), F('glass'), F('spitter')], food: 'worm', gold: 10 });
+      await wait(700, live); if (!live()) return;
+      const g = await t.drag(t.shopFrog(1), 1, F('glass'), live, [1, 2, 3, 4]); if (!live()) return;
+      t.land(g, 1, F('glass')); $('.price', t.slot(1)).innerHTML = ''; $('.occ', t.slot(1)).innerHTML = ''; t.setGold(7, true);
+      await wait(2000, live);
+    }],
+    ['Level up', 'Drop a matching frog on yours to make it stronger. Two more make it level 2.', async (root, live) => {
+      let glass = F('glass');
+      const t = shop(root, { team: [F('toad'), glass], frogs: [F('glass'), F('peeper'), F('glass')], food: 'worm', gold: 10 });
+      await wait(700, live); if (!live()) return;
+      for (const [k, gold] of [[0, 7], [2, 4]]) {
+        const g = await t.dragInto(t.shopFrog(k), t.frog(1), live); if (!live()) return;
+        const was = glass; glass = { ...glass, atk: glass.atk + 1, hp: glass.hp + 1, xp: glass.xp + 1 }; glass.lvl = glass.xp >= 2 ? 2 : 1;
+        $('.price', t.slot(k)).innerHTML = ''; $('.occ', t.slot(k)).innerHTML = '';
+        await t.into(g, t.frog(1), glass, was); t.setGold(gold, true);
+        if (glass.lvl > was.lvl) setTimeout(() => { if (!live()) return; t.fx.sparkles(t.frog(1), 14); t.say(`${NAMES.glass} is now level 2`); }, 200);
+        await wait(k ? 2400 : 900, live); if (!live()) return;
+      }
+    }],
+    ['Front fights first', 'Your frogs fight from right to left. Put the one you want to lead on the right.', async (root, live) => {
+      const t = shop(root, { team: [null, F('spitter'), F('lily'), F('toad', { atk: 3, hp: 5 })], frogs: [F('peeper'), F('glass'), F('bouncy')], food: 'worm', gold: 10 });
+      await wait(700, live); if (!live()) return;
+      const g = await t.drag(t.frog(3), 0, F('toad', { atk: 3, hp: 5 }), live, [0, 4]); if (!live()) return;
+      $('.occ', t.pad(3)).innerHTML = '';
+      t.land(g, 0, F('toad', { atk: 3, hp: 5 }));
+      await wait(500, live); if (!live()) return;
+      t.pad(0).classList.add('sel'); await wait(1600, live);
+    }],
+    ['Battle', 'Press Ready. The front frogs hit each other until one pond is empty.', async (root, live) => {
+      const b = battle(root, [[F('toad', { atk: 3, hp: 6 }), F('spitter')], [F('glass'), F('peeper')]]);
+      await wait(700, live); if (!live()) return;
+      await b.hit(live); if (!live()) return;
+      await b.hit(live); await wait(900, live);
+    }],
+    ['Abilities and bugs', 'Every frog has an ability: tap one to read it. Bugs from the shop make frogs stronger.', async (root, live) => {
+      let toad = F('toad');
+      const t = shop(root, { team: [toad, F('spitter')], frogs: [F('peeper'), F('glass'), F('bouncy')], food: 'fly', gold: 10 });
+      await wait(700, live); if (!live()) return;
+      const g = await t.dragInto(t.bug(), t.frog(0), live); if (!live()) return;
+      const was = toad; toad = { ...toad, atk: toad.atk + 1, hp: toad.hp + 1 };
+      $('.price', t.q('.item.food')).innerHTML = ''; $('.occ', t.q('.item.food')).innerHTML = '';
+      await t.into(g, t.frog(0), toad, was); t.setGold(7, true);
+      await wait(1000, live); if (!live()) return;
+      // a tap on a frog shows what it does (the game's bubble)
+      const fr = t.frog(1); await t.tap(fr, live); if (!live()) return;
+      t.pad(1).classList.add('sel');
+      const bub = el(`<div class="bubble show below"><div class="bt">${NAMES.spitter}</div><div class="bd">${descHTML('spitter', 1)}</div></div>`);
+      t.sc.appendChild(bub); const r = t.at($('.fbody', fr));
+      bub.style.left = Math.max(8, Math.min(393 - 8 - bub.offsetWidth, r.x + r.w / 2 - bub.offsetWidth / 2)) + 'px'; bub.style.top = r.y + r.h + 10 + 'px';
+      bub.style.setProperty('--ax', `${r.x + r.w / 2 - parseFloat(bub.style.left)}px`);
+      anim(bub, [{ opacity: 0, transform: 'translateY(-6px) scale(.96)' }, { opacity: 1, transform: 'none' }], { duration: 160 });
+      await wait(2600, live);
+    }],
+    ['Hearts', 'Lose a round and you lose a heart. The last pond with hearts wins.', async (root, live) => {
+      root.innerHTML = `<div class="tscene tresult" style='--leaf:${padURL(mine)}'>${plate({ av: bot, name: 'Rival' }, 1, 4)}<div class="b-result win">You win!</div>
+        <div class="pads" style="position:absolute;left:0;right:0;top:120px">${[4, 3, 2, 1, 0].map((i) => `<div class="pad"><div class="leaf"></div><div class="occ">${i < 2 ? frogHTML(F(['toad', 'spitter'][i]), { xp: true, size: 58, grow: true }) : ''}</div></div>`).join('')}</div>
+        ${plate({ av: mine, name: ME.name || 'You' }, 0, 5)}</div>`;
+      const sc = $('.tscene', root), [opp, me] = $$('.pl', sc);
+      const at = (n) => { const k = scaleOf(sc), r = n.getBoundingClientRect(), o = sc.getBoundingClientRect(); return { x: (r.left - o.left) / k, y: (r.top - o.top) / k, w: r.width / k, h: r.height / k }; };
+      Object.assign(opp.style, { right: '12px', top: '12px' }); Object.assign(me.style, { left: '12px', bottom: '14px' });
+      await wait(800, live); if (!live()) return;
+      // the loser's heart goes (the game's pop and −1), the winner's plate lights up and its frog puts on the crown
+      const ph = $('.ph', opp); ph.innerHTML = pips(5, 3, ICON.heart);
+      const h = ph.querySelectorAll('.heart')[3];
+      anim(h, [{ transform: 'scale(1)' }, { transform: 'scale(1.6)', offset: .3 }, { transform: 'scale(1)' }], { duration: 450, easing: 'ease-out' });
+      const hr = at(h); sceneFx(sc, at).float(hr.x + hr.w / 2, hr.y, '<span class="x">−1</span>');
+      me.classList.add('won'); $('.portrait', me).innerHTML = avatarHTML(mine, 42, { idle: true, id: 60, centered: true, crown: true });
+      anim($('.b-result', sc), [{ opacity: 0, transform: 'scale(.6)' }, { opacity: 1, transform: 'scale(1.12)', offset: .6 }, { opacity: 1, transform: 'scale(1)' }], { duration: 480, easing: 'cubic-bezier(.3, 1.4, .5, 1)', fill: 'forwards' });
+      $$('.pad .frog', sc).forEach((f) => anim(f, [{ transform: 'none' }, { transform: 'translateY(-16px)', offset: .12 }, { transform: 'none', offset: .24 }, { transform: 'translateY(-12px)', offset: .34 }, { transform: 'none', offset: .46 }, { transform: 'none' }], { duration: 1700, iterations: 2, easing: 'ease-in-out' }));
+      await wait(3200, live);
+    }],
   ];
-  const s = sheet(`<h2>How to play</h2>
-    <div class="tut-track">${slides.map(([cls, h, p, scene], i) => `<section class="tslide ${cls}${i ? '' : ' on'}" aria-label="${h}"><div class="tstage">${scene}</div><h3>${h}</h3><p>${p}</p></section>`).join('')}</div>
-    <div class="tdots">${slides.map((x, i) => `<button aria-label="${x[1]}"${i ? '' : ' class="on"'}></button>`).join('')}</div>
+  const sh = sheet(`<h2>How to play</h2>
+    <div class="tut-track">${SCENES.map(([h, p], i) => `<section class="tslide" aria-label="${h}"><div class="tstage"></div><h3>${h}</h3><p>${p}</p></section>`).join('')}</div>
+    <div class="tdots">${SCENES.map((x, i) => `<button aria-label="${x[0]}"${i ? '' : ' class="on"'}></button>`).join('')}</div>
     <div class="tut-more"><button class="link" data-a="all">All frogs and items</button></div>`, 'tut');
-  const track = $('.tut-track', s.el), dots = $$('.tdots button', s.el), cards = $$('.tslide', s.el);
-  let at = 0;
-  const show = (i) => {
-    if (i === at) return;
-    at = i;
-    dots.forEach((d, k) => d.classList.toggle('on', k === i));
-    // the new slide starts its scene from the beginning
-    cards.forEach((c, k) => { c.classList.remove('on'); if (k === i) { $$('.t-anim', c).forEach((a) => { a.style.animation = 'none'; void a.offsetWidth; a.style.animation = ''; }); c.classList.add('on'); } });
+  const track = $('.tut-track', sh.el), dots = $$('.tdots button', sh.el), stages = $$('.tstage', sh.el);
+  let at = -1, run = 0;
+  const play = async (k) => {
+    const my = ++run, live = () => my === run && sh.el.isConnected && !sh.el.classList.contains('closing');
+    const st = stages[k];
+    while (live()) {
+      st.getAnimations().forEach((x) => x.cancel()); st.style.opacity = 0;
+      const scene = SCENES[k][2](st, live); // builds its first frame at once, then plays
+      await anim(st, [{ opacity: 0 }, { opacity: 1 }], { duration: 240, easing: 'ease-out' }); st.style.opacity = '';
+      await scene; if (!live()) break;
+      await anim(st, [{ opacity: 1 }, { opacity: 0 }], { duration: 260, easing: 'ease-in', fill: 'forwards' });
+    }
+  };
+  const show = (k) => {
+    if (k === at) return;
+    at = k; dots.forEach((d, i) => d.classList.toggle('on', i === k));
+    stages.forEach((st, i) => { if (i !== k) st.innerHTML = ''; });
+    play(k);
   };
   track.addEventListener('scroll', () => show(Math.round(track.scrollLeft / track.clientWidth)), { passive: true });
-  dots.forEach((d, k) => { d.onclick = () => { Snd.tap(); track.scrollTo({ left: k * track.clientWidth, behavior: 'smooth' }); }; });
-  s.el.addEventListener('keydown', (e) => { const k = { ArrowRight: 1, ArrowLeft: -1 }[e.key]; if (k) track.scrollTo({ left: Math.max(0, Math.min(cards.length - 1, at + k)) * track.clientWidth, behavior: 'smooth' }); });
-  s.el.tabIndex = -1; s.el.focus({ preventScroll: true });
-  $('[data-a="all"]', s.el).onclick = () => { Snd.tap(); openGuide(null, true); };
+  dots.forEach((d, i) => { d.onclick = () => { Snd.tap(); track.scrollTo({ left: i * track.clientWidth, behavior: 'smooth' }); }; });
+  sh.el.addEventListener('keydown', (e) => { const d = { ArrowRight: 1, ArrowLeft: -1 }[e.key]; if (d) track.scrollTo({ left: Math.max(0, Math.min(SCENES.length - 1, at + d)) * track.clientWidth, behavior: 'smooth' }); });
+  sh.el.tabIndex = -1; sh.el.focus({ preventScroll: true });
+  $('[data-a="all"]', sh.el).onclick = () => { Snd.tap(); openGuide(null, true); };
+  show(0);
 }
 // How to play: the rules, then the frogs of a set. In a game it's that game's set; from the landing page
 // (pick = true) tabs switch between the sets.

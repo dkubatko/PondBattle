@@ -36,6 +36,9 @@ Home infrastructure (Tower, Docker, Nginx Proxy Manager, Cloudflare) is describe
   errors, failed requests and sideways scrolling. Battles: any frame (`--frames`, `--log` lists them) or
   real time (`--at`). `--no-shot --text` when words are enough. Animations are settled before capturing (a
   mid-blink frame looks like a bug). Its background helper exits after 10 idle minutes (`--stop` ends it).
+  Exact situations: `--setup` / `--bot-setup` set a pond, shop, bug, gold or hearts (through
+  `/api/dev/state`, which only the tool's own throwaway server turns on; never set `DEV_STATE` anywhere else).
+  `--video` records each view (with `--touches` showing the finger) to watch animations play.
   WebKit is the Safari engine but not iPhone Telegram: for iPhone-only bugs, ask the user for a screen
   recording. For anything the tool doesn't cover, extend it rather than writing a throwaway script.
 

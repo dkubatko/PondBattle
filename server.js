@@ -16,6 +16,7 @@ const PROFILES = path.join(DATA, 'profiles.json');
 const HISTORY = process.env.HISTORY_FILE || path.join(DATA, 'games.jsonl');
 // Browser players without Telegram get a guest id (handy on the home network); ALLOW_GUESTS=0 turns that off
 const GUESTS = process.env.ALLOW_GUESTS !== '0';
+const DEV_STATE = process.env.DEV_STATE === '1'; // tools/screen.py only (see /api/dev/state)
 const E = require('./engine');
 const TG = require('./telegram');
 const R = require('./ranks');
@@ -295,7 +296,7 @@ function findMatch(uid, pref) {
 
 // ---------- HTTP ----------
 const STATIC = path.join(__dirname, 'static');
-const MIME = { '.html': 'text/html; charset=utf-8', '.woff2': 'font/woff2', '.png': 'image/png', '.webmanifest': 'application/manifest+json', '.svg': 'image/svg+xml' };
+const MIME = { '.html': 'text/html; charset=utf-8', '.woff2': 'font/woff2', '.png': 'image/png', '.webp': 'image/webp', '.webmanifest': 'application/manifest+json', '.svg': 'image/svg+xml' };
 function sendFile(res, file, cache) {
   fs.stat(file, (err, st) => {
     if (err || !st.isFile()) return json(res, 404, { error: 'not found' });
@@ -497,6 +498,20 @@ http.createServer(async (req, res) => {
       const left = p ? forfeit(room, p) : null;
       if (p) endRoom(room, p.name, left);
       return json(res, 200, { ok: true, ...(left ? { delta: p.delta } : {}) });
+    }
+    // Test tools only: tools/screen.py turns DEV_STATE on for its own throwaway server (never set in production) to start
+    // a scene from an exact situation: { room, token, team, shop, food, gold, hearts }, frogs as { type, lvl, xp, atk, hp }
+    if (DEV_STATE && url.pathname === '/api/dev/state') {
+      const { room, p } = find(b);
+      if (!p) return json(res, 404, { error: 'not found' });
+      const frog = (x) => { if (!x) return null; const f = E.newFrog(x.type); delete f.cost; return Object.assign(f, x); };
+      if (b.team) p.team = Array.from({ length: E.TEAM_SIZE }, (_, i) => frog(b.team[i]));
+      if (b.shop) p.shop.frogs = b.shop.map((x) => x && Object.assign(E.newFrog(x.type), x));
+      if (b.food !== undefined) Object.assign(p.shop, { food: b.food, foodCost: b.food ? E.FOODS[b.food].cost : 0 });
+      if (b.gold != null) p.gold = b.gold;
+      if (b.hearts != null) p.hearts = b.hearts;
+      changed(room);
+      return json(res, 200, view(room, p));
     }
     if (url.pathname === '/api/action') {
       const { room, p } = find(b);

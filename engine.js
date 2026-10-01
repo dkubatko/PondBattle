@@ -550,5 +550,5 @@ function fight(room) {
 
 module.exports = {
   TEAM_SIZE, ROLL_COST, LOCK_COST, FROGS, FOODS, SETS, DEFAULT_SET, setOf, canTake, hooks,
-  rand, bumpId, frogCost, runBattle, newPlayerState, resetGame, botShop, act,
+  rand, bumpId, frogCost, newFrog, runBattle, newPlayerState, resetGame, botShop, act,
 };

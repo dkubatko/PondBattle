@@ -24,6 +24,10 @@ Options:
   --round N          game scenes: play N-1 rounds first (buys whatever is affordable, then Ready vs the Pond Bot)
   --set ID           the game's set (e.g. nature, magic)
   --pvp              game scenes: a custom pond against a second player ("Rival") instead of practice vs the bot
+  --setup JSON       game scenes: set your pond, shop, bug, gold or hearts first, e.g.
+                     '{"team": [{"type": "peeper"}], "shop": [{"type": "peeper"}], "food": "fly", "gold": 10}'
+                     (team slot 0 is the front, the rightmost pad); --bot-setup the same for the Pond Bot / Rival
+  --touches          draw a finger where the pointer presses and drags (for recordings)
   --opp-ready        --pvp: Rival presses Ready (you're on the ready clock)
   --me-ready         --pvp: you press Ready (Rival is on the clock)
   --clock MS         the ready clock's length (default the server's, 60 s; the helper's server restarts for it)
@@ -37,12 +41,13 @@ Scene game: a whole two-player game in the page, round after round to game over 
   default 4); every battle's result is checked like --check and errors are reported (--rounds N stops early)
   --sizes all|WxH,.. default 393x710; all = 393x710,440x820,375x600
   --webkit / --both  WebKit only / Chromium and WebKit (default Chromium)
-  --do STEP          (repeatable) tap:CSS | click:TEXT | drag:CSS>CSS | eval:JS (prints its result) | wait:MS |
+  --do STEP          (repeatable) tap:CSS | press:CSS (a visible tap) | click:TEXT | drag:CSS>CSS (at hand speed) | eval:JS (prints its result) | wait:MS |
                      until:JS (wait for it) | rival:ACTION (--pvp: Rival does it, e.g. rival:ready)
   --fresh            a first-time player (onboarding hints on)
   --text             print the text on screen
   --no-shot          no screenshots (report and text only)
   --hd               2x screenshots (default 1x: smaller, faster to look at)
+  --video            also record a video of each view (webm, in --out), to watch animations play
   --live             don't settle animations before capturing (default: finished, loops at their start)
   --out DIR          where screenshots go (default /tmp/pb-screen/<scene>-<time>)
 """
@@ -81,6 +86,17 @@ OPENS_FROM = {**SCREEN_OF, 'queue': 'home'}  # the screen the scene's JS is run 
 
 # Before the page loads: storage for the scene, a count of fetches in flight (so we know when data has arrived),
 # and the battle hook (index.html calls pbLook(k) before frame k; we play fast and hold after the wanted frames)
+TOUCHES = """
+addEventListener('DOMContentLoaded', () => {
+  const f = document.createElement('div');
+  f.style.cssText = 'position:fixed;z-index:9999;width:44px;height:44px;margin:-22px 0 0 -22px;border-radius:50%;background:rgba(255,255,255,.35);border:2px solid rgba(255,255,255,.75);pointer-events:none;opacity:0;transform:scale(.6);transition:opacity .12s,transform .12s;left:-99px;top:-99px';
+  document.body.appendChild(f);
+  const at = (e) => { f.style.left = e.clientX + 'px'; f.style.top = e.clientY + 'px'; };
+  addEventListener('pointerdown', (e) => { at(e); f.style.opacity = 1; f.style.transform = 'scale(1)'; }, true);
+  addEventListener('pointermove', at, true);
+  addEventListener('pointerup', () => { f.style.opacity = 0; f.style.transform = 'scale(.6)'; }, true);
+});
+"""
 INIT = """
 if (!sessionStorage.pbScreen) { sessionStorage.pbScreen = 1; for (const [k, v] of Object.entries(%(store)s)) localStorage.setItem(k, v); }
 window.__pbInflight = 0;
@@ -135,6 +151,9 @@ def parser():
     a.add_argument('--set')
     a.add_argument('--pvp', action='store_true')
     a.add_argument('--opp-ready', action='store_true')
+    a.add_argument('--setup')
+    a.add_argument('--bot-setup')
+    a.add_argument('--touches', action='store_true')
     a.add_argument('--me-ready', action='store_true')
     a.add_argument('--clock', type=int)
     a.add_argument('--frames', default='start,fight,end')
@@ -151,6 +170,7 @@ def parser():
     a.add_argument('--text', action='store_true')
     a.add_argument('--no-shot', action='store_true')
     a.add_argument('--hd', action='store_true')
+    a.add_argument('--video', action='store_true')
     a.add_argument('--live', action='store_true')
     a.add_argument('--server')
     a.add_argument('--out')
@@ -171,7 +191,7 @@ class Game:
             s.bind(('127.0.0.1', 0)); port = s.getsockname()[1]
         self.data = tempfile.mkdtemp(prefix='pb-screen-')
         env = {k: v for k, v in os.environ.items() if not k.startswith('TELEGRAM')}  # never talk to the real bot
-        env.update(BOT_DELAY_MS='0', PORT=str(port), DATA_DIR=f'{self.data}/data', ROOMS_FILE=f'{self.data}/rooms.json', HISTORY_FILE=f'{self.data}/games.jsonl')
+        env.update(BOT_DELAY_MS='0', DEV_STATE='1', PORT=str(port), DATA_DIR=f'{self.data}/data', ROOMS_FILE=f'{self.data}/rooms.json', HISTORY_FILE=f'{self.data}/games.jsonl')
         if clock: env['READY_CLOCK_MS'] = str(clock)
         self.stamp = self.stamp_now(clock)
         self.proc = subprocess.Popen(['node', 'server.js'], cwd=REPO, env=env, stdout=subprocess.DEVNULL, stderr=subprocess.PIPE, start_new_session=True)
@@ -274,6 +294,8 @@ def setup(o, api):
         seen = st and st.get('lastBattle')
         st = api.play_round(room, rival)
         if st['phase'] == 'over': break
+    if o.setup: api.post('/api/dev/state', {**room, **json.loads(o.setup)})
+    if o.bot_setup and rival: rival[0].post('/api/dev/state', {**rival[1], **json.loads(o.bot_setup)})
     if rival and o.opp_ready: rival[0].act(rival[1], {'type': 'ready'})
     if rival and o.me_ready: api.act(room, {'type': 'ready'})
     if o.scene == 'battle':
@@ -289,12 +311,22 @@ def step(p, s):
     kind, _, arg = s.partition(':')
     if kind == 'tap': p.locator(arg).first.click()
     elif kind == 'click': p.get_by_text(arg).first.click()
-    elif kind == 'drag': a, b = arg.split('>', 1); p.locator(a).first.drag_to(p.locator(b).first)
+    elif kind == 'drag':
+        a, b = arg.split('>', 1)
+        ra, rb = p.locator(a).first.bounding_box(), p.locator(b).first.bounding_box()
+        x0, y0, x1, y1 = ra['x'] + ra['width'] / 2, ra['y'] + ra['height'] / 2, rb['x'] + rb['width'] / 2, rb['y'] + rb['height'] / 2
+        p.mouse.move(x0, y0); p.mouse.down(); p.wait_for_timeout(180)
+        for k in range(1, 31):
+            t = k / 30; e = t * t * (3 - 2 * t)  # ease in and out, like a hand
+            p.mouse.move(x0 + (x1 - x0) * e, y0 + (y1 - y0) * e); p.wait_for_timeout(20)
+        p.wait_for_timeout(120); p.mouse.up()
     elif kind == 'eval':
         r = p.evaluate(arg)
         if r is not None: print(f'  eval: {json.dumps(r)[:200000]}')
     elif kind == 'wait': p.wait_for_timeout(int(arg))
     elif kind == 'until': p.wait_for_function(arg, timeout=60000, polling=50)
+    elif kind == 'press':  # a tap that you can see (press, hold briefly, release)
+        r = p.locator(arg).first.bounding_box(); p.mouse.move(r['x'] + r['width'] / 2, r['y'] + r['height'] / 2); p.mouse.down(); p.wait_for_timeout(140); p.mouse.up()
     elif kind == 'rival' and RIVAL: RIVAL[0].act(RIVAL[1], {'type': arg})
     else: raise SystemExit(f'--do {s}: use tap:CSS, click:TEXT, drag:CSS>CSS, eval:JS, wait:MS, until:JS or rival:ACTION (--pvp)')
 
@@ -350,13 +382,20 @@ class Capture:
         for bname in browsers:
             for size in sizes:
                 w, h = map(int, size.split('x'))
-                ctx = self.browser(bname).new_context(viewport={'width': w, 'height': h}, device_scale_factor=2 if o.hd else 1, has_touch=True)
+                rec = {'record_video_dir': str(out), 'record_video_size': {'width': w * (2 if o.hd else 1), 'height': h * (2 if o.hd else 1)}} if o.video else {}
+                if o.video: out.mkdir(parents=True, exist_ok=True)
+                ctx = self.browser(bname).new_context(viewport={'width': w, 'height': h}, device_scale_factor=2 if o.hd else 1, has_touch=True, **rec)
                 try: self.view(o, ctx, init, open_js, lb, want, base, out, f'{o.scene}-{bname}-{size}', w)
-                finally: ctx.close()
+                finally:
+                    pages = ctx.pages
+                    ctx.close()
+                    for pg in pages if o.video else []:
+                        v = out / f'{o.scene}-{bname}-{size}.webm'; pg.video.save_as(str(v)); pg.video.delete(); print(f'  video: {v}')
         print(f"{'' if o.no_shot else str(out) + '  '}({time.time() - t0:.1f}s)")
 
     def view(self, o, ctx, init, open_js, lb, want, base, out, name, w):
         ctx.add_init_script(init)
+        if o.touches: ctx.add_init_script(TOUCHES)
         tg = telegram_js()
         if tg: ctx.route(TG_URL, lambda r: r.fulfill(body=tg, content_type='application/javascript'))
         p = ctx.new_page()
