@@ -129,6 +129,8 @@ function view(room, me, have) {
     ...(room.lastBattle && have && room.lastBattle.id === have ? {} : { lastBattle: room.lastBattle }), lastBattleId: room.lastBattle ? room.lastBattle.id : null,
     // The ready clock: whether it's you on it, and how long is left (the page counts down from here)
     clock: room.clock ? { mine: room.clock.seat === i, left: Math.max(0, room.clock.until - Date.now()), total: READY_CLOCK_MS } : null,
+    // a pond waiting for the friend you challenged
+    ...(room.invited && room.players.length === 1 ? { invited: (profiles[room.invited] && profiles[room.invited].name) || 'your friend' } : {}),
   };
 }
 // The emoji a player can send (the page shows the same list); the Pond Bot picks from the friendly ones
@@ -146,22 +148,11 @@ function endRoom(room, byName, extra) {
   save();
   for (const s of list) { try { s.res.write(msg); s.res.end(); } catch {} }
 }
-function changed(room) { setClock(room); room.v++; room.touched = Date.now(); save(); broadcast(room); scheduleBot(room); nudge(room); }
+function changed(room) { setClock(room); room.v++; room.touched = Date.now(); save(); broadcast(room); scheduleBot(room); }
 
-// ---------- Telegram nudges ----------
-// A Telegram player who isn't looking at the game gets one message per round when their partner is waiting
+// ---------- Telegram ----------
+// A Telegram player's chat id (players are "tg<id>"), or '' for guests and the bot
 const tgId = (p) => (p && /^tg\d+$/.test(p.uid || '') ? p.uid.slice(2) : '');
-function nudge(room) {
-  if (room.practice || room.phase !== 'shop' || room.players.length < 2) return;
-  room.players.forEach((p, i) => {
-    const o = room.players[1 - i], id = tgId(p);
-    if (!id || online(room, p) || p.ready || !o.ready) return;
-    room.nudged = room.nudged || {};
-    if (room.nudged[p.uid] === room.round) return;
-    room.nudged[p.uid] = room.round;
-    TG.notify(id, `${o.name} is ready for round ${room.round}. Your move! 🐸`, `?room=${room.code}`);
-  });
-}
 
 // ---------- Ready clock ----------
 // In a game between two players (ranked or a custom pond; not practice), once one of them is ready the other has
@@ -269,6 +260,44 @@ function forfeit(room, p) {
   return { forfeit: true, delta: room.players[1 - i].delta };
 }
 
+// ---------- Friends ----------
+// On each profile: friends, asked (requests you sent) and askedBy (requests sent to you), each { uid: when }; both
+// sides are always changed together. muteFriends: no "your friend is looking for a game" notes.
+// Notes on Telegram: a friend request, a challenge, and a ranked search (each friend at most once an hour).
+const FRIENDS_MAX = 100, PING_GAP = 3600e3;
+const seenAt = new Map(); // uid -> when they last asked the server anything (who is online)
+const pinged = new Map(); // "from>to" -> when a note last went (requests and search alerts)
+const book = (uid, k) => { const pr = profiles[uid] || (profiles[uid] = {}); return (pr[k] = pr[k] || {}); }; // to change
+const seen = (uid, k) => (profiles[uid] && profiles[uid][k]) || {}; // to read (adds nothing to the profile)
+const friendsOf = (uid) => Object.keys(seen(uid, 'friends'));
+const isFriend = (a, b) => !!seen(a, 'friends')[b];
+// You and them: 'friends', 'sent' (you asked them), 'got' (they asked you) or ''
+const friendship = (a, b) => (isFriend(a, b) ? 'friends' : seen(a, 'asked')[b] ? 'sent' : seen(a, 'askedBy')[b] ? 'got' : '');
+const searching = (uid) => { const q = queue.get(uid); return !!q && Date.now() - q.seen < QUEUE_STALE; };
+const playing = (uid) => Object.values(rooms).some((r) => r.players.length === 2 && !r.practice && r.phase !== 'over' && r.players.some((p) => p.uid === uid && online(r, p)));
+// What a friend is up to: 'searching' (for a ranked game), 'playing', 'online' (the app is open) or 'offline'
+const statusOf = (uid) => (searching(uid) ? 'searching' : playing(uid) ? 'playing' : Date.now() - (seenAt.get(uid) || 0) < 45e3 ? 'online' : 'offline');
+const person = (uid) => ({ pid: pidOf(uid), name: (profiles[uid] && profiles[uid].name) || 'Frog', avatar: cleanAvatar(profiles[uid] && profiles[uid].avatar), rank: R.rankOf(uid, profiles) });
+// A note to someone, once per gap for the same sender and kind
+function ping(from, to, kind, text, query, button, gap = PING_GAP) {
+  const k = `${kind}:${from}>${to}`, now = Date.now();
+  if (!tgId({ uid: to }) || now - (pinged.get(k) || 0) < gap) return false;
+  pinged.set(k, now); TG.notify(tgId({ uid: to }), text, query, button);
+  return true;
+}
+// Starting a ranked search tells your friends who aren't playing or searching already (unless they muted it)
+function pingFriends(uid) {
+  const name = (profiles[uid] && profiles[uid].name) || 'A friend';
+  for (const f of friendsOf(uid)) {
+    if ((profiles[f] && profiles[f].muteFriends) || searching(f) || playing(f)) continue;
+    ping(uid, f, 'search', `${name} is searching for a game, join them in a pond battle! 🐸`, `?play=${pidOf(uid)}`, 'Join them');
+  }
+}
+function befriend(a, b) {
+  delete book(a, 'asked')[b]; delete book(a, 'askedBy')[b]; delete book(b, 'asked')[a]; delete book(b, 'askedBy')[a];
+  book(a, 'friends')[b] = book(b, 'friends')[a] = Date.now();
+}
+
 // ---------- Matchmaking: "Play" finds another player looking for a game in the same set (or any set) ----------
 // Players stay in the queue while their page keeps asking (every ~1.5 s). The closest level is picked; the
 // allowed gap grows the longer either player has been waiting, so after half a minute or so anyone will do.
@@ -285,8 +314,9 @@ function findMatch(uid, pref) {
   let best = null, gap = Infinity;
   for (const [u, q] of queue) {
     if (u === uid || !(q.set === pref || q.set === 'any' || pref === 'any')) continue;
-    const g = Math.abs(R.level(profiles[u]) - r);
-    if (g <= reach(now - Math.min(q.since, me.since)) && g < gap) { best = u; gap = g; }
+    // a friend who is looking too is picked first, whatever their level; otherwise the closest level
+    const g = isFriend(uid, u) ? -1 : Math.abs(R.level(profiles[u]) - r);
+    if ((g < 0 || g <= reach(now - Math.min(q.since, me.since))) && g < gap) { best = u; gap = g; }
   }
   if (!best) return null;
   const other = queue.get(best);
@@ -347,12 +377,16 @@ http.createServer(async (req, res) => {
       // Your own games, then ponds waiting on the same network as you ("nearby"). Ponds from other networks are
       // not listed; those are joined by invite, and strangers meet through Play (matchmaking)
       const uid = who(Object.fromEntries(url.searchParams)), ip = clientIp(req), now = Date.now(), list = Object.values(rooms);
+      if (uid) seenAt.set(uid, now);
       const mine = (r) => !!uid && r.players.some((p) => p.uid === uid);
       const seat = (r, p) => ({ name: p.name, avatar: p.avatar || cleanAvatar(), online: online(r, p), bot: !!p.bot });
       const waiting = list.filter((r) => r.players.length === 1 && now - r.created < 6 * 3600e3).sort((x, y) => y.created - x.created);
       const pond = (r) => ({ code: r.code, set: E.setOf(r), mine: mine(r), seats: r.players.map((p) => seat(r, p)) });
       return json(res, 200, {
-        nearby: waiting.filter((r) => mine(r) || r.ip === ip).map(pond),
+        nearby: waiting.filter((r) => (mine(r) || r.ip === ip) && r.invited !== uid).map(pond),
+        // ponds a friend challenged you to, and how many friend requests are waiting for you
+        challenges: uid ? waiting.filter((r) => r.invited === uid).map(pond) : [],
+        requests: uid ? Object.keys(seen(uid, 'askedBy')).length : 0,
         active: list.filter((r) => r.players.length === 2 && r.phase !== 'over' && mine(r) && now - (r.touched || r.created) < 24 * 3600e3)
           .sort((x, y) => (y.touched || y.created) - (x.touched || x.created))
           .map((r) => ({ code: r.code, set: E.setOf(r), round: r.round, mine: true, practice: !!r.practice, ranked: !!r.ranked, seats: r.players.map((p) => seat(r, p)) })),
@@ -408,11 +442,13 @@ http.createServer(async (req, res) => {
         for (const r of Object.values(rooms)) for (const p of r.players) if (p.uid === uid) { p.avatar = fit; changed(r); }
       }
       pr.ip = clientIp(req); pr.seen = Date.now(); saveProfiles();
-      return json(res, 200, { uid, key: keyFor(uid), name: pr.name, avatar: pr.avatar, rank: R.rankOf(uid, profiles), telegram: !!tg, bot: TG.botUsername(), start: tg ? tg.startParam : '' });
+      return json(res, 200, { uid, key: keyFor(uid), pid: pidOf(uid), name: pr.name, avatar: pr.avatar, rank: R.rankOf(uid, profiles), telegram: !!tg, bot: TG.botUsername(), start: tg ? tg.startParam : '',
+        dm: !!(tg && tg.user.allows_write_to_pm), muteFriends: !!pr.muteFriends });
     }
     // Everything below needs to know who is asking
     const uid = who(b);
     if (!uid) return json(res, 401, { error: 'Please reopen the game' });
+    seenAt.set(uid, Date.now());
     if (url.pathname === '/api/profile') {
       // Name and frog avatar follow you into every game you're in
       const pr = profiles[uid] || (profiles[uid] = {});
@@ -426,7 +462,7 @@ http.createServer(async (req, res) => {
       if (!of || !pr) return json(res, 404, { error: 'No such player' });
       const games = played.get(of) || [];
       return json(res, 200, {
-        pid: pidOf(of), mine: of === uid, name: pr.name || 'Frog', avatar: cleanAvatar(pr.avatar),
+        pid: pidOf(of), mine: of === uid, name: pr.name || 'Frog', avatar: cleanAvatar(pr.avatar), ...(of !== uid ? { friend: friendship(uid, of) } : {}),
         rank: R.rankOf(of, profiles),
         stats: { played: games.length, won: games.filter((g) => g.won).length },
         history: games.slice(-30).reverse().map(({ opp: { uid: ou, ...o }, ...g }) => ({ ...g, opp: { ...o, ...(ou ? { pid: pidOf(ou) } : {}) } })),
@@ -442,7 +478,8 @@ http.createServer(async (req, res) => {
       // Looking for a game: { room, token } once matched, else { waiting: true } (ask again in a moment)
       const found = matched.get(uid);
       if (found) { matched.delete(uid); return json(res, 200, found); }
-      const m = findMatch(uid, b.set === 'any' ? 'any' : cleanSet(b.set));
+      const fresh = !searching(uid), m = findMatch(uid, b.set === 'any' ? 'any' : cleanSet(b.set));
+      if (!m && fresh) pingFriends(uid);
       // others: how many other players are looking for a game right now (any set), shown while you wait
       return json(res, 200, m || { waiting: true, others: [...queue.keys()].filter((u) => u !== uid).length });
     }
@@ -453,11 +490,65 @@ http.createServer(async (req, res) => {
       queue.delete(uid);
       return json(res, 200, { ok: true });
     }
+    if (url.pathname === '/api/friends') {
+      // Your friends (with what they're up to), requests sent to you and requests you sent
+      const order = { searching: 0, online: 1, playing: 2, offline: 3 };
+      const friends = friendsOf(uid).map((u) => ({ ...person(u), status: statusOf(u) }))
+        .sort((x, y) => order[x.status] - order[y.status] || x.name.localeCompare(y.name));
+      const listOf = (k) => Object.entries(seen(uid, k)).sort((x, y) => y[1] - x[1]).map(([u]) => person(u));
+      return json(res, 200, { me: pidOf(uid), friends, incoming: listOf('askedBy'), outgoing: listOf('asked'), muteFriends: !!profiles[uid].muteFriends });
+    }
+    if (url.pathname === '/api/friends/act') {
+      // add (or accept, if they already asked you), accept, decline, cancel (your request) or remove
+      const other = uidOf(String(b.pid || '')), act = String(b.act || '');
+      if (!other || !profiles[other] || other === uid) return json(res, 404, { error: 'No such player' });
+      const was = friendship(uid, other);
+      if (act === 'add' || act === 'accept') {
+        if (was === 'got') befriend(uid, other);
+        else if (act === 'add' && !was) {
+          if (friendsOf(uid).length >= FRIENDS_MAX || friendsOf(other).length >= FRIENDS_MAX) return json(res, 409, { error: `A frog can have up to ${FRIENDS_MAX} friends` });
+          if (Object.keys(seen(uid, 'asked')).length >= FRIENDS_MAX) return json(res, 409, { error: 'Too many requests waiting' });
+          book(uid, 'asked')[other] = book(other, 'askedBy')[uid] = Date.now();
+          ping(uid, other, 'ask', `${profiles[uid].name || 'A frog'} wants to be your friend in Pond Brawl 🐸`, '?friends=1', 'See request');
+        }
+      } else if (act === 'decline' || act === 'cancel') {
+        const [from, to] = act === 'decline' ? [other, uid] : [uid, other];
+        delete book(from, 'asked')[to]; delete book(to, 'askedBy')[from];
+      } else if (act === 'remove') {
+        delete book(uid, 'friends')[other]; delete book(other, 'friends')[uid];
+      } else return json(res, 400, { error: 'Unknown action' });
+      saveProfiles();
+      return json(res, 200, { friend: friendship(uid, other) });
+    }
+    if (url.pathname === '/api/friends/mute') {
+      profiles[uid].muteFriends = !!b.on; saveProfiles();
+      return json(res, 200, { muteFriends: !!b.on });
+    }
+    if (url.pathname === '/api/friends/link') {
+      // "Add me as a friend" card for Telegram's share sheet
+      if (!tgId({ uid })) return json(res, 404, { error: 'No Telegram here' });
+      const id = await TG.prepareFriendLink(tgId({ uid }), pidOf(uid), profiles[uid].name || 'me');
+      return id ? json(res, 200, { id }) : json(res, 502, { error: 'Telegram said no' });
+    }
+    if (url.pathname === '/api/challenge') {
+      // Challenge a friend: your waiting pond (made, or the one you have) is theirs to join; they get a note and see
+      // it on their home page
+      const other = uidOf(String(b.pid || ''));
+      if (!other || !isFriend(uid, other)) return json(res, 404, { error: 'Only friends can be challenged' });
+      const set = cleanSet(b.set);
+      let room = Object.values(rooms).find((r) => r.players.length === 1 && r.players[0].uid === uid);
+      if (room) { if (E.setOf(room) !== set) { room.set = set; resetGame(room); } }
+      else { const c = code(); room = rooms[c] = { code: c, created: Date.now(), v: 1, set, ip: clientIp(req), players: [newPlayer(uid)] }; resetGame(room); }
+      room.invited = other; changed(room);
+      const sent = ping(uid, other, `challenge-${room.code}`, `${profiles[uid].name || 'A friend'} challenged you to a pond battle! 🐸`, `?join=${room.code}`, 'Join the pond', 0);
+      return json(res, 200, { room: room.code, token: room.players[0].token, notified: sent });
+    }
     if (url.pathname === '/api/create') {
       // One waiting pond per player: starting again just takes you back to it (with the set picked this time)
       const set = cleanSet(b.set);
       const open = Object.values(rooms).find((r) => r.players.length === 1 && r.players[0].uid === uid);
       if (open) {
+        if (open.invited) { delete open.invited; changed(open); } // a lobby made from the Lobby page is for anyone
         if (E.setOf(open) !== set) { open.set = set; resetGame(open); changed(open); }
         return json(res, 200, { room: open.code, token: open.players[0].token });
       }
@@ -519,7 +610,7 @@ http.createServer(async (req, res) => {
       return json(res, 200, view(room, p));
     }
     // Emoji reactions while shopping: each player's latest one, numbered so each phone plays it once. It isn't a
-    // move: nothing is saved, no "your move" nudge, and the Pond Bot isn't asked to shop
+    // move: nothing is saved and the Pond Bot isn't asked to shop
     if (url.pathname === '/api/react') {
       const { room, p } = find(b);
       if (!p) return json(res, 404, { error: 'not found' });

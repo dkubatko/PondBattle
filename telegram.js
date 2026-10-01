@@ -95,12 +95,29 @@ async function prepareInvite(tgId, code) {
   return r.ok ? r.result.id : '';
 }
 
-// A short note with a button back into the game (used when someone joins your pond or is waiting for you)
-function notify(tgId, text, query) {
-  if (!TOKEN || !PUBLIC_URL.startsWith('https://')) return;
-  api('sendMessage', { chat_id: tgId, text, disable_notification: false, reply_markup: playButton('Open the pond', query) })
+// "Add me as a friend": a card for Telegram's share sheet with a button that opens the game on your profile
+// (t.me/<bot>?startapp=friend_PID). Returns the prepared message id, or '' if Telegram refused.
+async function prepareFriendLink(tgId, pid, name) {
+  if (!TOKEN || !username || !PUBLIC_URL.startsWith('https://')) return '';
+  const r = await api('savePreparedInlineMessage', {
+    user_id: Number(tgId), allow_user_chats: true, allow_group_chats: true,
+    result: {
+      type: 'article', id: `friend-${pid}-${Date.now()}`, title: 'Add me as a friend',
+      input_message_content: { message_text: `Add ${name} as a friend in Pond Brawl! 🐸` },
+      reply_markup: { inline_keyboard: [[{ text: 'Add friend', url: `https://t.me/${username}?startapp=friend_${pid}` }]] },
+    },
+  }).catch((e) => ({ ok: false, description: e.message }));
+  if (!r.ok) console.error('telegram friend link:', r.description);
+  return r.ok ? r.result.id : '';
+}
+
+// A short note with a button back into the game (someone joined your pond or is waiting for you, a friend request,
+// a challenge, a friend looking for a game). Without a bot (a local test copy) it's only logged.
+function notify(tgId, text, query, button = 'Open the pond') {
+  if (!TOKEN || !PUBLIC_URL.startsWith('https://')) return console.log(`telegram (off) to ${tgId}: ${text} [${button}: /${query || ''}]`);
+  api('sendMessage', { chat_id: tgId, text, disable_notification: false, reply_markup: playButton(button, query) })
     .then((r) => { if (!r.ok) console.error('telegram notify:', r.description); })
     .catch((e) => console.error('telegram notify:', e.message));
 }
 
-module.exports = { verifyInitData, start, notify, prepareInvite, botUsername: () => username, enabled: () => !!TOKEN };
+module.exports = { verifyInitData, start, notify, prepareInvite, prepareFriendLink, botUsername: () => username, enabled: () => !!TOKEN };

@@ -114,11 +114,17 @@ Home infrastructure (Tower, Docker, Nginx Proxy Manager, Cloudflare) is describe
   partner has joined counts as a loss.
 - Other players are only ever sent by public id (`pid`, an HMAC). Never put a uid or Telegram id in an API
   response.
+- Friends live on the profile (`friends`, `asked`, `askedBy`: `{ uid: when }`). Change both sides together
+  (`befriend`, the `/api/friends/act` actions), read with `seen()` so a lookup never writes to a profile. Telegram
+  notes go through `ping()`: one per sender, kind and hour, and a friend's search alert respects `muteFriends`. With no
+  bot token (test servers), `TG.notify` logs `telegram (off) to <id>: ...` to the server log instead, so check notes
+  there.
 - Profiles and match history read `games.jsonl` at startup. Keep history lines backward compatible: old
   lines have no ranked or delta fields.
 
 ## Client (`index.html`)
 
+- `api(path)` with no body is a GET with the uid/key in the query; POST endpoints need `api(path, {})`.
 - The whole client is one file with no dependencies. It only replays battle frames the server computed.
   Every ability needs a visible moment on screen and a line in the battle log.
 - Interaction: a tap only selects; actions happen by dragging or with the one main button. Keep text
