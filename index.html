@@ -567,9 +567,8 @@ h1 { margin: 0; text-align: center; font-size: 40px; font-weight: 900; line-heig
 .fdot.online { background: #7cc467; } .fdot.searching { background: var(--firefly); } .fdot.playing { background: #6aa9e8; } .fdot.offline { display: none; }
 .fr-empty { margin: 10px auto 0; }
 .friends-page h1 { margin-bottom: 0; }
-.friends-page .lists { margin-top: 0; }
+.friends-page .lists { margin-top: -10px; } /* the first heading's gap, so the title spacing stays the page's own */
 .friends-page .label { margin-top: 10px; }
-.friends-page .lists > .label:first-child { margin-top: 0; }
 /* a profile's friend controls: a chip (+ Add friend, Requested ✕, ✓ Friends) and round buttons; Share on your own */
 .card-top { position: relative; }
 .card-share { position: absolute; left: 0; top: 0; z-index: 2; color: var(--moon-dim); } /* above the frog, which opens the editor */
@@ -2680,10 +2679,13 @@ function showHome(msg, page) {
   // where it is, then its space closes and the rows below glide up; anything else leaving (a heading left
   // empty, a game ended elsewhere) waits for that fade, then fades and closes at the same gentle pace.
   const EASE = 'cubic-bezier(.25,.8,.35,1)';
+  // (minimum height, padding and the bottom margin open and close too, so no row pops open or shut at the end)
+  const box = (n) => { const cs = getComputedStyle(n); return { pt: cs.paddingTop, pb: cs.paddingBottom, mb: cs.marginBottom }; };
   const grow = (n, k) => {
-    const h = n.offsetHeight, mt = parseFloat(getComputedStyle(n).marginTop) || 0;
+    const h = n.offsetHeight, mt = parseFloat(getComputedStyle(n).marginTop) || 0, b = box(n);
     n.style.overflow = 'hidden';
-    anim(n, [{ height: '0px', opacity: 0, marginTop: `${-LIST_GAP}px`, transform: 'translateY(-6px)' }, { height: `${h}px`, opacity: 1, marginTop: `${mt}px`, transform: 'none' }],
+    anim(n, [{ height: '0px', minHeight: '0px', paddingTop: '0px', paddingBottom: '0px', marginBottom: '0px', opacity: 0, marginTop: `${-LIST_GAP}px`, transform: 'translateY(-6px)' },
+      { height: `${h}px`, minHeight: '0px', paddingTop: b.pt, paddingBottom: b.pb, marginBottom: b.mb, opacity: 1, marginTop: `${mt}px`, transform: 'none' }],
       { duration: 320, delay: k * 50, easing: EASE, fill: 'backwards' }).then(() => { n.style.overflow = ''; });
   };
   const FADE = 200, CLOSE = 300;
@@ -2694,8 +2696,9 @@ function showHome(msg, page) {
     if (ending) await anim(n, [{ opacity: 1 }, { opacity: 0 }], { duration: FADE, easing: 'ease-out', fill: 'forwards' });
     else if (wait) await sleep(wait);
     n.style.overflow = 'hidden';
-    const mt = parseFloat(getComputedStyle(n).marginTop) || 0;
-    await anim(n, [{ height: `${n.offsetHeight}px`, opacity: ending ? 0 : 1, marginTop: `${mt}px` }, { height: '0px', opacity: 0, marginTop: `${-LIST_GAP}px` }],
+    const mt = parseFloat(getComputedStyle(n).marginTop) || 0, b = box(n);
+    await anim(n, [{ height: `${n.offsetHeight}px`, minHeight: '0px', paddingTop: b.pt, paddingBottom: b.pb, marginBottom: b.mb, opacity: ending ? 0 : 1, marginTop: `${mt}px` },
+      { height: '0px', minHeight: '0px', paddingTop: '0px', paddingBottom: '0px', marginBottom: '0px', opacity: 0, marginTop: `${-LIST_GAP}px` }],
       { duration: CLOSE, easing: 'cubic-bezier(.4,0,.2,1)', fill: 'forwards' });
     n.remove();
   };
