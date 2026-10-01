@@ -197,6 +197,10 @@ input:focus { border-color: var(--firefly); outline: none; }
 .profile { display: flex; flex-direction: column; gap: 14px; align-items: stretch; }
 .profile .pv { position: relative; height: 112px; display: grid; place-items: end center; }
 .profile .pv .frog { margin-bottom: 12px; } /* feet near the middle of the pad, like on the landing page */
+/* the frog and its pad drawn bigger than their layout box (--pvk, set to fit under the sheet's top edge), growing up
+   from the bottom, so the editor keeps its size; the drawing is scaled, not the frog, so its hop doesn't undo it */
+.profile .pv .frog .fbody { transform-origin: 50% 100%; transform: scale(var(--pvk, 1.2)); }
+.profile .pv .pv-pad { transform-origin: 50% 100%; transform: translateX(-50%) scale(var(--pvk, 1.2)); }
 .pv-pad { position: absolute; bottom: 0; left: 50%; width: 132px; height: 52px; transform: translateX(-50%); background: var(--leaf) center / contain no-repeat; }
 /* Frog / Extras / Lily pad: a larger switch above the tabs */
 .av-sections { display: flex; gap: 6px; }
@@ -1718,7 +1722,8 @@ const AV_ACCS = [
   // held in the right hand, beside the body (see held)
   { id: 'bow', name: 'Archer’s bow', x: (b, p) => ({ over: held(b, p, 0, BOW) }) },
   { id: 'lute', name: 'Bard’s lute', x: (b, p) => ({ over: held(b, p, -4, LUTE) }) },
-  { id: 'shield', name: 'Squire’s shield', x: (b, p) => ({ over: held(b, p, 0, SHIELD, false) }) },
+  // worn against the body's side (measured at its middle), not out at arm's length
+  { id: 'shield', name: 'Squire’s shield', x: (b) => { const [, [, y2, r2]] = b.eyes, y = y2 + r2 + 24; return { over: at([+(sideAt(b, y) - .5).toFixed(1), +y.toFixed(1)], 1, at([2, -12], 1, SHIELD)) }; } },
   { id: 'purse', name: 'Merchant’s purse', x: (b, p) => ({ over: held(b, p, 6, PURSE) }) },
   { id: 'hammer', name: 'Blacksmith’s hammer', x: (b, p) => ({ over: held(b, p, 14, HAMMER) }) },
   { id: 'spear', name: 'Guard’s spear', x: (b, p) => ({ over: held(b, p, -4, SPEAR) }) },
@@ -3643,6 +3648,10 @@ function openProfile(done) {
   // Your frog standing on your lily pad
   const preview = (hop) => {
     pv.innerHTML = `<div class="pv-pad" style='${padStyle(av)}'></div>${avatarHTML(av, 92, { idle: true, id: 7 })}`;
+    // as big as fits under the sheet's top edge (tall hats and umbrellas reach highest), up to 1.22×
+    const k = parseFloat(pv.style.getPropertyValue('--pvk')) || 1.2, fr = $('.frog', pv), h = paintedHeight(fr, $('.fbody', fr)) / k;
+    const room = $('.fbody', fr).getBoundingClientRect().bottom - $('.sheet-body', s.el).getBoundingClientRect().top - 4;
+    if (h > 0) pv.style.setProperty('--pvk', Math.max(1, Math.min(1.22, room / h)).toFixed(3));
     if (hop) anim($('.frog', pv), [{ transform: 'none' }, { transform: 'translateY(-8px)', offset: .4 }, { transform: 'none' }], { duration: 260 });
   };
   const pick = (i) => {
