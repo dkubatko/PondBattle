@@ -572,7 +572,7 @@ h1 { margin: 0; text-align: center; font-size: 40px; font-weight: 900; line-heig
 .friends-page .lists > .label:first-child { margin-top: 0; }
 /* a profile's friend controls: a chip (+ Add friend, Requested ✕, ✓ Friends) and round buttons; Share on your own */
 .card-top { position: relative; }
-.card-share { position: absolute; left: 0; top: 0; color: var(--moon-dim); }
+.card-share { position: absolute; left: 0; top: 0; z-index: 2; color: var(--moon-dim); } /* above the frog, which opens the editor */
 .card-friend { display: flex; align-items: center; justify-content: center; gap: 10px; width: 100%; margin-top: 10px; }
 .card-friend .rbtn { width: 44px; height: 44px; }
 .fr-chip { display: inline-flex; align-items: center; gap: 6px; height: 44px; padding: 0 18px; border: 0; border-radius: 22px; font-size: 15px; font-weight: 900;
@@ -583,7 +583,7 @@ h1 { margin: 0; text-align: center; font-size: 40px; font-weight: 900; line-heig
 .fr-chip.plain { background: none; padding: 0 4px; }
 .board-btn { position: absolute; top: calc(env(safe-area-inset-top) + 10px); left: 14px; color: var(--moon-dim); }
 .board-btn svg { width: 20px; height: 20px; }
-.count { display: inline-grid; place-items: center; min-width: 22px; height: 22px; padding: 0 6px; margin-left: 6px; border-radius: 11px; background: var(--firefly); color: #4a3505; font-size: 13px; font-weight: 900; vertical-align: 1px; }
+.count { display: inline-grid; place-items: center; min-width: 22px; height: 22px; padding: 0 6px; margin-left: 3px; border-radius: 11px; background: var(--firefly); color: #4a3505; font-size: 13px; font-weight: 900; vertical-align: 1px; }
 .count:empty { display: none; }
 .count { overflow: hidden; } /* the number stays inside while the badge eases open or shut */
 .ponds-page .link { align-self: center; }
@@ -2543,7 +2543,7 @@ function easeCount(n, num, still) {
   const EASE = 'cubic-bezier(.3, 1.3, .5, 1)', closed = { minWidth: '0px', maxWidth: '0px', paddingLeft: '0px', paddingRight: '0px', marginLeft: '0px', opacity: 0, transform: 'scale(.4)' };
   if (v && !was) {
     n.textContent = v;
-    const open = { minWidth: '22px', maxWidth: n.offsetWidth + 'px', paddingLeft: '6px', paddingRight: '6px', marginLeft: '6px', opacity: 1, transform: 'none' };
+    const open = { minWidth: '22px', maxWidth: n.offsetWidth + 'px', paddingLeft: '6px', paddingRight: '6px', marginLeft: '3px', opacity: 1, transform: 'none' };
     n.animate([closed, open], { duration: 420, easing: EASE });
   } else if (!v && was) {
     n.classList.add('leaving');
@@ -2755,15 +2755,14 @@ function showHome(msg, page) {
       lobby = lobbyCache = l; render(quiet); easeCount($('#friendsCount'), l.requests, quiet); quiet = false; // the catch-up after opening just appears; later changes animate
     } catch {}
   };
-  // Home: Play (it opens the ways to play: Ranked, Lobby, Practice), How to play, and your games in progress under them
+  // Home: Play (it opens the ways to play: Ranked, Lobby, Practice), Friends, and your games in progress under them (How
+  // to play is in the menu)
   const lobbyStep = () => {
     node.style.paddingTop = ''; // a name typed in (keepPut held the page): the home page sizes freely again
     panel.innerHTML = `
       <button class="btn wide" id="play">Play</button>
       <button class="btn ghost wide" id="friendsBtn">Friends<span class="count" id="friendsCount"></span></button>
-      <button class="btn ghost wide" id="howBtn">How to play</button>
       <div id="lists" class="lists home-lists"></div>`;
-    $('#howBtn').onclick = () => { Snd.tap(); openTutorial(); };
     $('#friendsBtn').onclick = () => { Snd.tap(); friendsStep(); };
     chip();
     api('/api/card', {}).then((c) => { ME.rank = c.rank; chip(); }).catch(() => {});
