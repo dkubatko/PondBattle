@@ -2344,7 +2344,7 @@ function onState(v) {
   if (prev && prev.opp && v.opp && !v.opp.bot && !prev.opp.ready && v.opp.ready && v.phase === 'shop' && !v.me.ready && prev.round === v.round) { toast(`${v.opp.name} is ready`); Snd.ribbit(1.15); }
   // your partner's reaction (the first state after opening only catches up, it doesn't replay the last one)
   const r = v.opp && v.opp.react;
-  if (prev && r && !(prev.opp && prev.opp.react && prev.opp.react.n === r.n) && screen === 'game' && !playing) { floatReact($('#oppCard'), r.e); Snd.sparkle(); }
+  if (prev && r && !(prev.opp && prev.opp.react && prev.opp.react.n === r.n) && screen === 'game' && !playing && !reactsMuted()) { floatReact($('#oppCard'), r.e); Snd.sparkle(); }
   route();
 }
 // The server sends a battle once and after that only names it (lastBattleId): keep the one we hold
@@ -2772,7 +2772,7 @@ function itemHTML(kind, i) {
 
 function buildGame() {
   const node = el(`<div class="screen game fade-in" id="game">
-    <header class="top"><div class="lead"><button class="ib ib-log" id="logBtn" aria-label="Last battle">${ICON.log}</button><div class="round" id="round"></div></div><div class="icons"><button class="ib" id="musicBtn" aria-label="Music"></button><button class="ib" id="menuBtn" aria-label="Menu">${ICON.menu}</button></div></header>
+    <header class="top"><div class="lead"><button class="ib ib-log" id="logBtn" aria-label="Last battle">${ICON.log}</button><div class="round" id="round"></div></div><div class="icons"><button class="ib" id="musicBtn" aria-label="Sound"></button><button class="ib" id="menuBtn" aria-label="Menu">${ICON.menu}</button></div></header>
     <div class="players">
       <div class="pl me" id="meCard"></div>
       <div class="pl opp" id="oppCard"></div>
@@ -2796,7 +2796,8 @@ function buildGame() {
   </div>`);
   mount('game', node);
   prevTeam = []; prevShop = []; prevFood = undefined;
-  $('#musicBtn').onclick = () => { Snd.tap(); Snd.setMusic(!Snd.music()); updateHeader(); };
+  // in a game the header's button mutes everything (music and sound effects), or brings both back
+  $('#musicBtn').onclick = () => { const on = !soundOn(); if (!on) Snd.tap(); Snd.setMusic(on); Snd.setSfx(on); if (on) Snd.tap(); updateHeader(); };
   longPress($('#musicBtn'), soundInfo);
   $('#menuBtn').onclick = () => { Snd.tap(); openMenu(); };
   $('#rollBtn').onclick = roll;
@@ -2845,7 +2846,7 @@ function updateHeader() {
   const me = S.me, opp = S.opp || { name: '…', hearts: 0, trophies: 0 };
   $('#round').textContent = `Round ${S.round}`;
   $('#logBtn').classList.toggle('off', !S.lastBattle); // nothing to show before the first battle
-  const mb = $('#musicBtn'); setHTML(mb, ICON.music(Snd.music())); mb.classList.toggle('off', !Snd.music());
+  const mb = $('#musicBtn'); setHTML(mb, ICON.music(soundOn())); mb.classList.toggle('off', !soundOn());
   // Player plate: round portrait at the outer edge (a check badge when ready, a moon when away),
   // name and hearts stacked beside it; mirrored for your partner.
   // Built once, then only the parts that changed are touched, so the badge pops in once
@@ -2883,6 +2884,10 @@ function updateHeader() {
 // your partner sees it float up from yours on their screen (the server keeps the list: server.js REACTIONS)
 const REACTIONS = ['😂', '👀', '🔥', '😡', '🐸'];
 let reactAt = 0;
+// Any sound on (the in-game header button shows this, and mutes or unmutes both)
+const soundOn = () => Snd.music() || Snd.sfxOn();
+// "Mute reactions" (menu): your partner's emoji don't show on your phone
+const reactsMuted = () => localStorage.frogMuteReactions === '1';
 function closeReactions() { $$('.react-pick').forEach((n) => n.remove()); document.removeEventListener('pointerdown', reactOutside, true); }
 function reactOutside(e) { if (!e.target.closest('.react-pick, #meCard')) closeReactions(); }
 function openReactions() {
@@ -3824,6 +3829,7 @@ function openMenu() {
   const s = sheet(`<h2>Menu</h2>
     <button class="row-item" data-m="music">Music<span class="switch ${Snd.music() ? 'on' : ''}"></span></button>
     <button class="row-item" data-m="sfx">Sound effects<span class="switch ${Snd.sfxOn() ? 'on' : ''}"></span></button>
+    <button class="row-item" data-m="mutereact">Mute reactions<span class="switch ${reactsMuted() ? 'on' : ''}"></span></button>
     <button class="row-item" data-m="guide">How to play ${ICON.chev}</button>
     <button class="row-item" data-m="name">Profile ${ICON.chev}</button>
     <button class="row-item" data-m="lobby">Main menu ${ICON.chev}</button>
@@ -3832,7 +3838,8 @@ function openMenu() {
     const b = e.target.closest('[data-m]'); if (!b) return;
     const m = b.dataset.m;
     if (m === 'music') { Snd.tap(); Snd.setMusic(!Snd.music()); $('.switch', b).classList.toggle('on', Snd.music()); if (screen === 'game') updateHeader(); }
-    if (m === 'sfx') { Snd.setSfx(!Snd.sfxOn()); $('.switch', b).classList.toggle('on', Snd.sfxOn()); Snd.tap(); }
+    if (m === 'sfx') { Snd.setSfx(!Snd.sfxOn()); $('.switch', b).classList.toggle('on', Snd.sfxOn()); Snd.tap(); if (screen === 'game') updateHeader(); }
+    if (m === 'mutereact') { Snd.tap(); localStorage.frogMuteReactions = reactsMuted() ? '0' : '1'; $('.switch', b).classList.toggle('on', reactsMuted()); }
     if (m === 'guide') { Snd.tap(); openGuide(); } // opens on top of the menu; closing it comes back here
     if (m === 'name') { Snd.tap(); openCard(); }
     if (m === 'lobby') { Snd.tap(); s.close(); setTimeout(toLobby, 200); }
