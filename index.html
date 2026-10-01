@@ -203,6 +203,11 @@ input:focus { border-color: var(--firefly); outline: none; }
 .av-sec { flex: 1; height: 40px; border: 0; border-radius: 14px; background: rgba(245, 237, 214, .06); color: var(--moon-dim); font-size: 16px; font-weight: 900; }
 .av-sec.on { background: rgba(255, 205, 102, .14); color: var(--moon); box-shadow: inset 0 0 0 2px var(--firefly); }
 .wheel-item.padopt { place-items: center; padding: 0; }
+/* extras: the item on its own, filling the tile; Nothing: an empty sign */
+.wheel-item.thing { place-items: center; padding: 0; }
+.wheel-thing { display: block; width: 48px; height: 48px; }
+.wheel-none { position: relative; width: 28px; height: 28px; border-radius: 50%; box-shadow: inset 0 0 0 2.5px rgba(245, 237, 214, .4); }
+.wheel-none::after { content: ''; position: absolute; left: 50%; top: 2px; bottom: 2px; width: 2.5px; margin-left: -1.25px; background: rgba(245, 237, 214, .4); transform: rotate(45deg); }
 .wheel-pad { width: 62px; height: 35px; background: var(--leaf) center / contain no-repeat; }
 .av-tabs { display: flex; gap: 4px; padding: 4px; border-radius: 14px; background: rgba(5, 15, 18, .28); }
 .av-tab { flex: 1; min-width: 0; height: 34px; border: 0; border-radius: 10px; background: none; color: var(--moon-dim); font-size: 14px; font-weight: 800; }
@@ -987,7 +992,7 @@ const heartSVG = ([x, y], s = 1) => `<path transform="translate(${x} ${y}) scale
 const at = ([x, y], s, inner) => `<g transform="translate(${x} ${y}) scale(${s})">${inner}</g>`;
 // A hand holding something: a floating circle in the body's color with no arm (the art's style), outlined so it
 // reads against the body and the thing it holds. Drawn over the item, gripping it.
-const HAND = (x, y, p, r = 4.4) => C(+x.toFixed(1), +y.toFixed(1), r, p.c, ` stroke="${p.dark}" stroke-width="1.4"`);
+const HAND = (x, y, p, r = 4.4) => C(+x.toFixed(1), +y.toFixed(1), r, p.c, ` stroke="${p.dark}" stroke-width="1.4" class="hand"`);
 
 // Contextual pieces (drawn, not emoji)
 const CROWN = '<path d="M-15 0V-13l7.5 6.5L0-17l7.5 10.5L15-13V0z" fill="#f6c343"/><path d="M-15 0h30v-4.5h-30z" fill="#dea02a"/>'
@@ -1002,18 +1007,24 @@ const WATER_LILY = [0, 60, 120, 180, 240, 300].map((a) => `<ellipse cy="-6" rx="
   + [30, 150, 270].map((a) => `<ellipse cy="-5" rx="2.6" ry="5" fill="#f7a8c6" transform="rotate(${a})"/>`).join('') + '<circle r="3.2" fill="#ffd76a"/>';
 const UMBRELLA_CANOPY = '<path d="M-20-2C-18-22 18-22 20-2c-4-3.2-8.5-3.2-11.5 0-3-3.2-6.2-3.2-8.5 0-2.3-3.2-5.5-3.2-8.5 0-3-3.2-7.5-3.2-11.5 0z" fill="#5aa6e8"/>'
   + '<path d="M-8.5-2Q-6-11 0-15.5M8.5-2Q6-11 0-15.5M0-2V-15.5" stroke="#468fd0" stroke-width="1.3" fill="none" stroke-linecap="round"/><circle cy="-17" r="1.7" fill="#468fd0"/>';
+// An umbrella held at (x, y), leaning a degrees: one piece, the stick running from its hooked end up through the
+// middle of the canopy to the tip, so the canopy always sits square on its stick
+const umbrellaAt = (x, y, a, p) => `<g transform="translate(${x} ${y}) rotate(${a})">`
+  + '<path d="M0 9V-69" stroke="#6b5a4c" stroke-width="2.4" stroke-linecap="round"/><path d="M0 9c0 4.2 4.6 5 5.4 1.6" stroke="#6b5a4c" stroke-width="2.4" fill="none" stroke-linecap="round"/>'
+  + `<g transform="translate(0 -50) scale(1.18)">${UMBRELLA_CANOPY}</g></g>${HAND(x, y, p)}`;
 const COIN = (x, y) => `${C(x, y, 7.5, '#f6c343', ' stroke="#c48b22" stroke-width="1.5"')}<path d="M${x - 2.3} ${y - 2.3}h4.6v4.6h-4.6z" fill="#c48b22"/>`;
 const PEARLS = ([x, y, w]) => Array.from({ length: 9 }, (_, i) => {
   const t = i / 8, px = x - w / 2 + w * t, py = y + Math.sin(Math.PI * t) * w * .16;
   return C(px, py + .6, 2.5, 'rgba(0,0,0,.12)') + C(px, py, 2.4, '#fffaf2') + C(px - .7, py - .8, .8, '#fff');
 }).join('');
 
+const hornsSVG = (b, p, horns) => b.eyes.map(([ex, ey, r]) => { const k = horns === true ? 1 : horns; return `<path d="M${ex - 5 * k} ${ey - r + 2}L${ex - k} ${ey - r + 2 - 9 * k}L${ex + 4 * k} ${ey - r + 2}Z" fill="${p.c}"/>`; }).join('');
 function compose(b, p, x = {}) {
   const bodyParts = b.back + b.torso + (x.under || '') + b.head;
   return (x.behind || '')
     + (x.glass ? `<g opacity=".78">${bodyParts}</g>` : bodyParts)
     + (x.inside || '')
-    + (x.horns ? b.eyes.map(([ex, ey, r]) => { const k = x.horns === true ? 1 : x.horns; return `<path d="M${ex - 5 * k} ${ey - r + 2}L${ex - k} ${ey - r + 2 - 9 * k}L${ex + 4 * k} ${ey - r + 2}Z" fill="${p.c}"/>`; }).join('') : '')
+    + (x.horns ? hornsSVG(b, p, x.horns) : '')
     + eyesSVG(b.eyes, x.eyes)
     + (x.brows ? browsSVG(b.eyes, p.line) : '')
     + (x.lashes ? lashesSVG(b.eyes, p.line) : '')
@@ -1180,12 +1191,9 @@ const ART = {
   // Rain frog: a grumpy little blob under its umbrella
   rain: () => {
     const p = pal('#9aabbf'), b = BODY.round(p);
-    // Handle runs from the hand up to a canopy tilted over the head; the hand floats beside the body, on the handle
-    const umbrella = `<g transform="translate(24 12) rotate(-12) scale(1.18)">${UMBRELLA_CANOPY}</g>`
-      + `<path d="M11.5 75L22 13" stroke="#6b5a4c" stroke-width="2.4" stroke-linecap="round"/><path d="M11.5 75c-.6 3.6 3.6 4.8 4.8 1.6" stroke="#6b5a4c" stroke-width="2.4" fill="none" stroke-linecap="round"/>`;
-    // Held in its right hand (drawn on the art's right): in battle the stats sit on the other side, so the
-    // umbrella never covers them (your frogs have stats on the left; your partner's are mirrored)
-    return compose(b, p, { brows: true, mouth: 'frown', over: `<g transform="matrix(-1 0 0 1 104 0)">${umbrella + HAND(12, 67, p)}</g>` });
+    // Held in its right hand (drawn on the art's right), leaning over its head: in battle the stats sit on the other
+    // side, so the umbrella never covers them (your frogs have stats on the left; your partner's are mirrored)
+    return compose(b, p, { brows: true, mouth: 'frown', over: umbrellaAt(handX(b, 67), 67, -25, p) });
   },
   // Lucky toad: a jade money toad with gold spots and a gold coin (the Dragon is the red one)
   lucky: () => { const p = pal('#3fa58a'), b = BODY.toad(p); return compose(b, p, { under: dotsSVG(b.dots, '#f4c653'), inside: COIN(b.heart[0], b.heart[1]) }); },
@@ -1567,10 +1575,8 @@ const AV_PATTERNS = [
 // head: true = hidden while the winner's crown is on. small: how much bigger it's drawn on small avatars (player
 // plates, lobby rows; not the editor's option wheel, which shows them as on your frog), where the finer extras would
 // otherwise shrink to a few pixels. x gets that as k.
-const umbrella = (b, p) => `<g transform="translate(${b.cheeks[0][0] - 24} ${b.top[1] - 23})">`
-  + `<g transform="translate(24 12) rotate(-12) scale(1.18)">${UMBRELLA_CANOPY}</g><path d="M11.5 75L22 13" stroke="#6b5a4c" stroke-width="2.4" stroke-linecap="round"/>`
-  + `<path d="M11.5 75c-.6 3.6 3.6 4.8 4.8 1.6" stroke="#6b5a4c" stroke-width="2.4" fill="none" stroke-linecap="round"/>`
-  + `${HAND(9, 67, p)}</g>`;
+// The umbrella extra: in the left hand, just off the body's side (bodies are symmetric), leaning over the head
+const umbrella = (b, p) => { const [, [, y2, r2]] = b.eyes, y = +(y2 + r2 + 14).toFixed(1); return umbrellaAt(+(100 - handX(b, y)).toFixed(1), y, 25, p); };
 const LEAF_HAT = '<ellipse cy="-3" rx="17" ry="6.5" fill="#3f8a47"/><ellipse cy="-4.5" rx="16" ry="5.5" fill="#5cae5d"/><path d="M0-4.5L7-9.5L9.5-4.5z" fill="#3f8a47"/><path d="M-2-9c1-4 4-6 7-6" stroke="#4a9a50" stroke-width="2" fill="none" stroke-linecap="round"/>';
 const AV_ACCS = [
   { id: 'none', name: 'Nothing' },
@@ -1726,6 +1732,19 @@ function paintedHeight(box, ref) {
     const r = n.getBoundingClientRect(); if (r.width && r.height) top = Math.min(top, r.top);
   }
   return top === Infinity ? 0 : ref.getBoundingClientRect().bottom - top;
+}
+// An extra on its own (no frog, no hands), as it would be drawn on this avatar's body and color, cropped to fill a
+// square: the editor's option wheel shows these, the big preview above it shows them worn
+function extraArt(av, id) {
+  av = cleanAv(av);
+  const key = `x:${id}:${av.b}:${av.c}`;
+  if (!artCache.has(key)) {
+    const { p, defs } = avatarPal(av.c), b = BODY[av.b](p), x = byId(AV_ACCS, id).x(b, p, 1);
+    const art = ['behind', 'under', 'inside', 'face', 'over'].map((k) => x[k] || '').join('') + (x.horns ? hornsSVG(b, p, x.horns) : '');
+    const clean = art.replace(/<circle[^>]*class="hand"[^>]*\/>/g, ''), { bb } = probe(clean), side = Math.max(bb.width * 1.12, bb.height * 1.12, 34); // small things (a coin) aren't blown up past the others
+    artCache.set(key, `<svg class="fsvg" viewBox="${(bb.x + bb.width / 2 - side / 2).toFixed(1)} ${(bb.y + bb.height / 2 - side / 2).toFixed(1)} ${side.toFixed(1)} ${side.toFixed(1)}" aria-hidden="true">${defs}${clean}</svg>`);
+  }
+  return artCache.get(key);
 }
 function avatarHTML(av, size = 40, o = {}) {
   return `<div class="frog avatar ${o.idle ? 'idle' : ''}" data-fid="${o.id || 0}" style="--fs:${size}px;${idleVars(o.id || 0)}"><div class="fbody">${avatarArt(av, o.crown, o.centered, o.small ?? size <= 52)}</div></div>`;
@@ -3437,8 +3456,8 @@ const AV_TABS = [
   { key: 't', label: 'Pattern', opts: AV_PATTERNS },
 ].map((t) => ({ ...t, opts: byRank(t.key, t.opts) }));
 // Extras: a tab per slot, each starting with Nothing; one from each slot can be worn at once
-const EXTRA_TABS = [['h', 'Hat'], ['f', 'Face', true], ['n', 'Neck'], ['hd', 'Hand'], ['bk', 'Back']]
-  .map(([key, label, face]) => ({ key, label, face, opts: byRank(key, [AV_ACCS[0], ...AV_ACCS.filter((o) => EXTRAS[key].includes(o.id))]) }));
+const EXTRA_TABS = [['h', 'Hat'], ['f', 'Face'], ['n', 'Neck'], ['hd', 'Hand'], ['bk', 'Back']]
+  .map(([key, label]) => ({ key, label, extra: true, opts: byRank(key, [AV_ACCS[0], ...AV_ACCS.filter((o) => EXTRAS[key].includes(o.id))]) }));
 const PAD_TABS = [
   { key: 'l', label: 'Style', opts: PAD_STYLES, pad: true },
   { key: 'lc', label: 'Color', opts: PAD_COLORS.map(([name], i) => ({ id: i, name })), pad: true },
@@ -3492,8 +3511,11 @@ function openProfile(done) {
     // faded, with the badge of the rank that unlocks them in the corner
     track.innerHTML = tab.opts.map((o, i) => {
       const lock = unlocked(tab.key, o.id) ? '' : needs(tab.key, o.id);
-      return `<button class="wheel-item${tab.face ? ' face' : ''}${tab.pad ? ' padopt' : ''}${lock ? ' locked' : ''}" data-i="${i}" aria-label="${esc(o.name)}">${tab.pad
-        ? `<span class="wheel-pad" style='${padStyle({ ...av, [tab.key]: o.id })}'></span>` : avatarHTML({ ...av, [tab.key]: o.id }, 52, { id: 300 + i, small: false })}${lock ? `<span class="wheel-lock">${rankBadge({ id: lock, pips: 5 }, 22)}</span>` : ''}</button>`;
+      // extras show just the item (the preview above shows it worn); Nothing is an empty sign
+      const look = tab.pad ? `<span class="wheel-pad" style='${padStyle({ ...av, [tab.key]: o.id })}'></span>`
+        : tab.extra ? (o.id === 'none' ? '<span class="wheel-none"></span>' : `<span class="wheel-thing">${extraArt(av, o.id)}</span>`)
+        : avatarHTML({ ...av, [tab.key]: o.id }, 52, { id: 300 + i, small: false });
+      return `<button class="wheel-item${tab.face ? ' face' : ''}${tab.pad ? ' padopt' : ''}${tab.extra ? ' thing' : ''}${lock ? ' locked' : ''}" data-i="${i}" aria-label="${esc(o.name)}">${look}${lock ? `<span class="wheel-lock">${rankBadge({ id: lock, pips: 5 }, 22)}</span>` : ''}</button>`;
     }).join('');
     current = -1;
     center(Math.max(0, tab.opts.findIndex((o) => o.id === av[tab.key])), false);
