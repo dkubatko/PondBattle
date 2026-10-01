@@ -566,8 +566,10 @@ h1 { margin: 0; text-align: center; font-size: 40px; font-weight: 900; line-heig
 .fdot { position: absolute; right: -2px; bottom: -2px; width: 12px; height: 12px; border-radius: 50%; box-shadow: 0 0 0 2.5px #1f3a3e; }
 .fdot.online { background: #7cc467; } .fdot.searching { background: var(--firefly); } .fdot.playing { background: #6aa9e8; } .fdot.offline { display: none; }
 .fr-empty { margin: 10px auto 0; }
-.friends-page .lists { margin-top: 6px; }
+.friends-page h1 { margin-bottom: 0; }
+.friends-page .lists { margin-top: 0; }
 .friends-page .label { margin-top: 10px; }
+.friends-page .lists > .label:first-child { margin-top: 0; }
 /* a profile's friend controls: a chip (+ Add friend, Requested ✕, ✓ Friends) and round buttons; Share on your own */
 .card-top { position: relative; }
 .card-share { position: absolute; left: 0; top: 0; color: var(--moon-dim); }
