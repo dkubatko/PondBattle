@@ -908,15 +908,15 @@ const BODY = {
     front: `<path d="M40 79 37 91M60 79 63 91" stroke="${p.c}" stroke-width="6" stroke-linecap="round"/>`
       + C(33, 93, 3.4, p.toe || p.light) + C(40, 94, 3.4, p.toe || p.light) + C(60, 94, 3.4, p.toe || p.light) + C(67, 93, 3.4, p.toe || p.light),
     eyes: [[28, 34, 12.5], [72, 34, 12.5]], cheeks: [[28, 57], [72, 57]], mouth: [50, 56, 16], top: [50, 19], crown: [50, 30], neck: [50, 65, 20], heart: [50, 71],
-    // hats sit up among its big eyes, a size up to match them
-    hat: [50, 30], hs: 1.25,
+    // hats sit on its head behind the big eyes, a size up so they show over them
+    hat: [50, 37], hs: 1.25,
   }),
   round: (p) => ({
     back: E(29, 91, 11, 5, p.dark) + E(71, 91, 11, 5, p.dark),
     torso: E(50, 59, 41, 35, p.c) + E(50, 71, 27, 20, p.belly),
     head: C(35, 34, 11, p.c) + C(65, 34, 11, p.c),
     front: E(40, 93, 7, 4, p.foot) + E(60, 93, 7, 4, p.foot),
-    eyes: [[35, 34, 8.5], [65, 34, 8.5]], cheeks: [[21, 56], [79, 56]], mouth: [50, 55, 20], top: [50, 23], crown: [50, 30], neck: [50, 64, 32], heart: [50, 72], hat: [50, 30],
+    eyes: [[35, 34, 8.5], [65, 34, 8.5]], cheeks: [[21, 56], [79, 56]], mouth: [50, 55, 20], top: [50, 23], crown: [50, 30], neck: [50, 64, 32], heart: [50, 72], hat: [50, 26],
   }),
   toad: (p) => ({
     back: E(17, 88, 16, 7, p.dark) + E(83, 88, 16, 7, p.dark),
@@ -951,7 +951,7 @@ const BODY = {
       + E(34, 89, 8.5, 4.4, p.dark) + E(66, 89, 8.5, 4.4, p.dark),
     torso: E(50, 63, 31, 28, p.c) + E(50, 72, 19, 13, p.belly),
     head: '', front: '',
-    eyes: [[37, 46, 8.5], [63, 46, 8.5]], cheeks: [[26, 63], [74, 63]], mouth: [50, 61, 13], top: [50, 31], crown: [50, 36], neck: [50, 70, 18], heart: [50, 75], hat: [50, 41],
+    eyes: [[37, 44, 8.5], [63, 44, 8.5]], cheeks: [[26, 59], [74, 59]], mouth: [50, 56, 13], top: [50, 31], crown: [50, 36], neck: [50, 66, 18], heart: [50, 77], hat: [50, 37],
     core: { x: 19, y: 35, w: 62, h: 58.4 },
   }),
 };
