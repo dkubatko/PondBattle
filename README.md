@@ -42,9 +42,10 @@ listening to the bot, for local testing with the real token). See `.env.example`
 
 Inside Telegram the player id is the Telegram user id, taken from the signed launch data. In a plain
 browser it's a guest id kept in the browser. Names and frog avatars are stored on the server.
-Home: **Play**, **My ponds** (start a pond to invite someone, your games in progress, and **Nearby** ponds
-started from the same network as you), **Practice**, **Join with a code**. **Play** finds a ranked
-game against anyone else looking, in the same set or any set (closest rank first; the allowed gap grows
+Home: **Play**, **How to play** (swipeable slides of a game's steps; in a game, How to play is the full text
+guide) and your games in progress. **Play** opens **Ranked**, **Lobby** (create a lobby to invite someone, join
+one with its code, or join one waiting **Nearby**, started from the same network as you) and **Practice**
+(against the Pond Bot). **Ranked** finds a game against anyone else looking, in the same set or any set (closest rank first; the allowed gap grows
 while you wait). Only those games count for rank: +1 for a win and −1 for a loss against a similar player
 (+2 / ±0 against one 3+ points higher, −2 losing to one 3+ lower); 5 points fill a tier, a tier once
 reached is kept, and the top 10 full Master Frogs are Frog Legends. Leaving a ranked game counts as a loss.
