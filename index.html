@@ -1430,18 +1430,20 @@ const DRAGON_WINGS = (b, c) => {
     return `<path d="M${X(0)} ${ry}C${X(8)} ${ry - 10} ${X(15)} ${ry - 24} ${X(22)} ${ry - 33}C${X(22)} ${ry - 25} ${X(25)} ${ry - 20} ${X(29)} ${ry - 17}C${X(24)} ${ry - 14} ${X(23)} ${ry - 9} ${X(25)} ${ry - 4}C${X(16)} ${ry - 6} ${X(8)} ${ry - 3} ${X(0)} ${ry + 5}z" fill="${c}"/>`
       + `<path d="M${X(2)} ${ry}L${X(21)} ${ry - 30}M${X(4)} ${ry + 1}L${X(26)} ${ry - 16}" stroke="${mix(c, '#1b1410', .25)}" stroke-width="1.4" fill="none" stroke-linecap="round"/>`; }).join('');
 };
-// A royal cape from the shoulders, flaring out past the body to the ground
+// A royal cape hung from the shoulders behind the body: its sides follow the body's own outline (measured), a little
+// out from it at the shoulders and flaring towards the ground, and hang straight below the body's widest point, like
+// cloth; soft folds where it shows at the sides and a gold trim along its edges and hem
 const KING_CAPE = (b) => {
-  const [[x1, y1, r1], [x2, , r2]] = b.eyes, cx = (x1 + x2) / 2, bb = bodyBox(b), top = y1 + r1, bot = Math.min(97, bb.y + bb.h);
-  return `<path d="M${x1 - r1} ${top}Q${cx} ${top - 12} ${x2 + r2} ${top}L${bb.x + bb.w + 5} ${bot}Q${cx} ${bot + 5} ${bb.x - 5} ${bot}z" fill="#c0392b"/>`
-    + `<path d="M${x1 - r1} ${top}Q${cx} ${top - 12} ${x2 + r2} ${top}" stroke="#9a2c21" stroke-width="2" fill="none"/>`;
-};
-// The cape's cord: tied across the front of the body, from where the cape comes out at each side, dipping under the
-// mouth to a gold clasp (drawn under necklaces and bow ties)
-const CAPE_CORD = (b) => {
-  const [[, y1, r1]] = b.eyes, y = y1 + r1 + 3, xr = sideAt(b, y) - 1.5, xl = 100 - xr, dip = neckY(b) - 2, cx = (xl + xr) / 2;
-  return `<path d="M${xl.toFixed(1)} ${y.toFixed(1)}Q${cx} ${(2 * dip - y).toFixed(1)} ${xr.toFixed(1)} ${y.toFixed(1)}" stroke="#9a2c21" stroke-width="2.6" fill="none" stroke-linecap="round"/>`
-    + C(cx, dip, 2.6, '#f6c343', ' stroke="#c48b22" stroke-width="1"');
+  const [[, y1, r1]] = b.eyes, bb = bodyBox(b), top = y1 + r1 * .4, bot = Math.min(96, bb.y + bb.h - 1), n = 12;
+  let widest = 0;
+  const edge = Array.from({ length: n + 1 }, (_, i) => { const y = top + (bot - top) * i / n, t = i / n; widest = Math.max(widest, sideAt(b, y)); return [Math.min(99, widest - 4 + 11 * t ** .75), y]; }); // from behind the shoulders (out of sight), sloping out
+  const f = (v) => v.toFixed(1), right = edge.map(([x, y]) => `${f(x)} ${f(y)}`), left = edge.map(([x, y]) => `${f(100 - x)} ${f(y)}`);
+  const [xb, yb] = edge[n], hem = `Q50 ${f(yb + 3)} ${f(100 - xb)} ${f(yb)}`;
+  const outline = `M${left[0]}L${right.join('L')}${hem}L${left.slice().reverse().join('L')}Z`;
+  // folds: two soft lines down each side, just inside its outer edge, from halfway down to the hem
+  const fold = (k) => [1, -1].map((d) => `M${edge.slice(n / 2).map(([x, y]) => `${f(50 + d * (x - 50 - k))} ${f(y)}`).join('L')}`).join('');
+  return `<path d="${outline}" fill="#c0392b"/><path d="${fold(2.6) + fold(5.2)}" stroke="#a52f24" stroke-width="1.2" fill="none" stroke-linecap="round"/>`
+    + `<path d="M${right.join('L')}${hem}L${left.slice().reverse().join('L')}" stroke="#e2b13c" stroke-width="1.6" fill="none" stroke-linejoin="round"/>`;
 };
 // A gold pocket watch hanging on its chain from the frog's right hand (the art's right, where no stats sit); the
 // hand floats just off the body's side
@@ -1496,7 +1498,7 @@ Object.assign(ART, {
   // Frog King: a plump green frog in a big crown, a red cape and an ermine collar
   king: () => {
     const p = pal('#62b95f'), b = BODY.round(p);
-    return compose(b, p, { behind: KING_CAPE(b), inside: CAPE_CORD(b), ...hat(b, BIG_CROWN, 1.05), face: ERMINE(b) });
+    return compose(b, p, { behind: KING_CAPE(b), ...hat(b, BIG_CROWN, 1.05), face: ERMINE(b) });
   },
   // Dragon Frog: fiery red with an orange belly, little wings and horns
   dragon: () => {
@@ -1622,7 +1624,7 @@ const AV_ACCS = [
   { id: 'kettle', name: 'Guard’s helmet', head: true, x: (b) => wornHat(b, KETTLE_HAT, 1.12) },
   { id: 'mask', name: 'Rogue’s mask', x: (b) => ({ inside: eyeMask(b) }) },
   { id: 'pendulum', name: 'Hypno’s watch', x: (b, p) => ({ over: PENDULUM(b, p) }) },
-  { id: 'cape', name: 'King’s cape', x: (b) => ({ behind: KING_CAPE(b), inside: CAPE_CORD(b) }) },
+  { id: 'cape', name: 'King’s cape', x: (b) => ({ behind: KING_CAPE(b) }) },
   { id: 'wings', name: 'Dragon wings', x: (b, p) => ({ behind: DRAGON_WINGS(b, p.dark) }) },
   { id: 'ermine', name: 'King’s collar', x: (b) => ({ face: ERMINE(b) }) },
   // held in the right hand, beside the body (see held)
