@@ -229,6 +229,9 @@ input:focus { border-color: var(--firefly); outline: none; }
 .lists { display: flex; flex-direction: column; gap: 8px; }
 .code-join { display: flex; justify-content: center; }
 .code-page { align-items: stretch; text-align: center; }
+/* The top gap is measured once in px when the page opens (codeStep): the 8dvh one would shrink when the keyboard
+   shrinks the viewport, pulling everything up */
+.code-page.home { padding-top: calc(env(safe-area-inset-top) + var(--code-top, 20px)); }
 .code-page .link { align-self: center; }
 /* equal room above and below the tiles; a wrong-code message floats in the room below, taking no space */
 .code-entry { position: relative; display: block; margin: 22px 0; }
@@ -535,12 +538,11 @@ h1 { margin: 0; text-align: center; font-size: 40px; font-weight: 900; line-heig
 .ponds-page .lists { margin-top: 10px; }
 /* Home: your games in progress sit under Play */
 .home-lists:not(:empty) { margin-top: 10px; }
-/* The Play sheet: the three ways to play, a card each (Ranked first, in the Play button's green) */
+/* The Play sheet: the three ways to play, a card each, all alike */
 .modes { display: grid; gap: 10px; margin-top: 14px; }
 .mode { display: flex; align-items: center; gap: 14px; min-height: 76px; padding: 10px 16px 10px 12px; border: 0; border-radius: 18px; text-align: left; color: inherit;
   background: rgba(245, 237, 214, .06); box-shadow: inset 0 0 0 2px rgba(245, 237, 214, .12); transition: transform .08s; }
 .mode:active { transform: translateY(2px); }
-.mode.main { background: rgba(166, 220, 127, .13); box-shadow: inset 0 0 0 2px rgba(166, 220, 127, .45); }
 .mode .mic { position: relative; flex: none; width: 56px; height: 56px; display: grid; place-items: center; }
 .mode .mic .trophy { width: 44px; height: 44px; border-radius: 50%; display: grid; place-items: center; background: rgba(255, 205, 102, .16); color: var(--firefly); }
 .mode .mic .trophy svg { width: 26px; height: 26px; }
@@ -2389,7 +2391,7 @@ function showHome(msg, page) {
       Snd.tap();
       const near = lobby ? lobby.nearby.filter((r) => !r.mine).length : 0;
       const s = sheet(`<h2>Play</h2><div class="modes">
-        <button class="mode main" data-m="ranked"><span class="mic"><span class="trophy">${ICON.trophy}</span></span><span class="mtx"><b>Ranked</b><small>Find a player</small></span></button>
+        <button class="mode" data-m="ranked"><span class="mic"><span class="trophy">${ICON.trophy}</span></span><span class="mtx"><b>Ranked</b><small>Find a player</small></span></button>
         <button class="mode" data-m="lobby"><span class="mic"><span class="pair"><span class="pf">${avatarHTML(friend, 34, { id: 31, centered: true })}</span><span class="pm">${avatarHTML(myAvatar(), 38, { id: 30, centered: true })}</span></span></span><span class="mtx"><b>Lobby${near ? `<span class="count">${near}</span>` : ''}</b><small>Play with friends</small></span></button>
         <button class="mode" data-m="practice"><span class="mic">${avatarHTML(bot, 48, { id: 32, centered: true })}</span><span class="mtx"><b>Practice</b><small>Against the Pond Bot</small></span></button>
       </div>`);
@@ -2443,8 +2445,13 @@ function showHome(msg, page) {
       <button class="btn wide" id="join" disabled>Join</button>
       <button class="link" id="back">Back</button>
     </div>`);
+    page.style.setProperty('--code-top', `${Math.round(Math.min(84, Math.max(20, innerHeight * .08)))}px`);
     mount('code', page);
     const code = $('#code'), jb = $('#join'), tiles = $$('.code-tiles span', page), err = $('#codeErr');
+    // iOS scrolls the page to show a focused field even when it's already in view; keep it where it is
+    const pin = () => { if (scrollY || page.scrollTop) { scrollTo(0, 0); page.scrollTop = 0; } };
+    code.addEventListener('focus', () => { pin(); setTimeout(pin, 60); setTimeout(pin, 300); });
+    if (window.visualViewport) visualViewport.addEventListener('resize', () => { if (screen === 'code') pin(); });
     // A wrong code is said right under the tiles (not in the top message spot, which sits on the title)
     const tryJoin = async () => {
       if (code.value.length !== 4) return;
@@ -2461,7 +2468,7 @@ function showHome(msg, page) {
     code.addEventListener('keydown', (e) => { if (e.key === 'Enter') tryJoin(); });
     jb.onclick = tryJoin;
     $('#back').onclick = () => { Snd.tap(); showHome('', 'ponds'); }; // back to the Lobby page it was opened from
-    code.focus(); draw();
+    code.focus({ preventScroll: true }); draw();
   };
   if (!ME.name) nameStep();
   else { lobbyStep(); if (page === 'ponds') pondsStep(); }
