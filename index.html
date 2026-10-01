@@ -1073,7 +1073,8 @@ function compose(b, p, x = {}) {
 const probe = (() => {
   let svg;
   return (inner) => {
-    if (!svg) { svg = document.createElementNS('http://www.w3.org/2000/svg', 'svg'); svg.setAttribute('viewBox', '0 0 100 100'); svg.style.cssText = 'position:absolute;width:100px;height:100px;visibility:hidden'; document.body.appendChild(svg); }
+    if (!svg) { svg = document.createElementNS('http://www.w3.org/2000/svg', 'svg'); svg.setAttribute('viewBox', '0 0 100 100'); svg.style.cssText = 'position:absolute;width:100px;height:100px;visibility:hidden'; }
+    if (!svg.isConnected) document.body.appendChild(svg); // (measuring needs it on the page)
     svg.innerHTML = inner;
     const pt = svg.createSVGPoint(), bb = svg.getBBox();
     const shapes = [...svg.querySelectorAll('circle, ellipse, path, rect, polygon')].map((el) => ({ el, m: el.getCTM().inverse(),
@@ -1355,7 +1356,7 @@ Object.assign(ART, {
   pebble: () => {
     const p = pal('#55555c', { foot: '#3f3f45', belly: '#77777e' });
     const b = {
-      back: C(17, 89, 5.8, '#8d8a84') + C(9.5, 92.2, 3.3, '#a39f97') + C(83, 89, 5.8, '#98948d') + C(90.5, 92.2, 3.3, '#a39f97'),
+      back: '',
       torso: C(50, 63, 29, p.c) + E(50, 74, 17, 11, p.belly),
       head: C(39, 43, 10.5, p.c) + C(61, 43, 10.5, p.c),
       front: E(40, 90, 7, 4, p.foot) + E(60, 90, 7, 4, p.foot),
@@ -1395,8 +1396,9 @@ const HALO = '<ellipse rx="15" ry="4.4" fill="none" stroke="#ffd76a" stroke-widt
 // The halo floats a little above the tops of the eyes, whatever the body (on big-eyed frogs it would sit on them otherwise)
 const halo = (b, s) => ({ over: at([50, Math.min(...b.eyes.map(([, y, r]) => y - r)) - 7 * s], s, HALO) });
 // A hood over the head (drawn behind the eyes; eyes and face stay visible)
-// A hood over the head, draping to the shoulders; its face opening is an arch just clear of both eyes (sized to them),
-// so the eyes sit inside it and never through the cloth
+// A hood: its back is drawn behind the head and body (showing round them), and its front edge frames the face as an
+// arch just clear of both eyes (sized to them), so the eyes sit inside it and never through the cloth.
+// Returns { behind, inside } layers for compose.
 const hood = (b, fill, edge) => {
   const [[x1, y1, r1], [x2, y2, r2]] = b.eyes, ey = Math.max(y1, y2), bot = ey + Math.max(r1, r2) + 12;
   const L = x1 - r1 - 1.5, R = x2 + r2 + 1.5, cx = (L + R) / 2, rx = (R - L) / 2;
@@ -1404,9 +1406,12 @@ const hood = (b, fill, edge) => {
   for (const [x, y, r] of b.eyes) for (let a = 0; a <= 180; a += 10) { const px = x + r * Math.cos(a * Math.PI / 180), py = y - r * Math.sin(a * Math.PI / 180), u = (px - cx) / rx;
     if (Math.abs(u) < .999) ry = Math.max(ry, (ey - py + 1.5) / Math.sqrt(1 - u * u)); }
   const f = (v) => v.toFixed(1), o = 8; // how thick the cloth is
-  return `<path d="M${f(L - o - 2)} ${f(bot)}C${f(L - o - 1)} ${f(ey - 4)} ${f(L - o)} ${f(ey)} ${f(L - o)} ${f(ey)}A${f(rx + o)} ${f(ry + o)} 0 0 1 ${f(R + o)} ${f(ey)}C${f(R + o)} ${f(ey)} ${f(R + o + 1)} ${f(ey - 4)} ${f(R + o + 2)} ${f(bot)}`
-    + `L${f(R)} ${f(bot - 3)}V${f(ey)}A${f(rx)} ${f(ry)} 0 0 0 ${f(L)} ${f(ey)}V${f(bot - 3)}Z" fill="${fill}"/>`
-    + `<path d="M${f(L)} ${f(bot - 3)}V${f(ey)}A${f(rx)} ${f(ry)} 0 0 1 ${f(R)} ${f(ey)}V${f(bot - 3)}" stroke="${edge}" stroke-width="2" fill="none"/>`;
+  const outer = `M${f(L - o - 2)} ${f(bot)}C${f(L - o - 1)} ${f(ey - 4)} ${f(L - o)} ${f(ey)} ${f(L - o)} ${f(ey)}A${f(rx + o)} ${f(ry + o)} 0 0 1 ${f(R + o)} ${f(ey)}C${f(R + o)} ${f(ey)} ${f(R + o + 1)} ${f(ey - 4)} ${f(R + o + 2)} ${f(bot)}`;
+  return {
+    behind: `<path d="${outer}Q${f(cx)} ${f(bot + 8)} ${f(L - o - 2)} ${f(bot)}Z" fill="${mix(fill, '#000000', .25)}"/>`,
+    inside: `<path d="${outer}L${f(R)} ${f(bot - 3)}V${f(ey)}A${f(rx)} ${f(ry)} 0 0 0 ${f(L)} ${f(ey)}V${f(bot - 3)}Z" fill="${fill}"/>`
+      + `<path d="M${f(L)} ${f(bot - 3)}V${f(ey)}A${f(rx)} ${f(ry)} 0 0 1 ${f(R)} ${f(ey)}V${f(bot - 3)}" stroke="${edge}" stroke-width="2" fill="none"/>`,
+  };
 };
 // A band across the eyes (drawn behind them, so the eyes show through)
 // A bandit mask on the body, under the eyes (the eyes sit on top of it): a rim shows above and below each eye,
@@ -1426,7 +1431,7 @@ const ERMINE = (b) => { const [nx, , w] = b.neck, y = neckY(b) - 1, hw = w * .75
 // Things held in a hand, drawn around the hand at (0, 0); the frogs place them by hand, avatars with held()
 const BOW = '<path d="M-7.5-22Q7.5 0-7.5 22" stroke="#8a5a2b" stroke-width="3.2" fill="none" stroke-linecap="round"/><path d="M-7.5-22V22" stroke="#f1e6c8" stroke-width="1.1"/>';
 const PURSE = '<path d="M-7 3.5q7-5 14 0l2 12q-9 6-18 0z" fill="#b88a5c"/><path d="M-6 4.5h12" stroke="#7a5534" stroke-width="2.2" stroke-linecap="round"/>' + C(0, 12.5, 2.6, '#f6c343');
-const HAMMER = '<path d="M1.7 8L-4.3-20" stroke="#8a5a2b" stroke-width="3.4" stroke-linecap="round"/><rect x="-13.3" y="-30" width="17" height="10" rx="2" transform="rotate(-12 -5.3 -25)" fill="#5d636e"/>';
+const HAMMER = '<g transform="rotate(-12)"><path d="M0 8V-22" stroke="#8a5a2b" stroke-width="3.4" stroke-linecap="round"/><rect x="-8.5" y="-31" width="17" height="10" rx="2" fill="#5d636e"/></g>';
 const LUTE = '<path d="M-10.5 16L4.5-8" stroke="#7a5534" stroke-width="3" stroke-linecap="round"/>' + E(-13.5, 20, 8.5, 10, '#c98a4b', ' transform="rotate(32 -13.5 20)"') + C(-12.5, 19, 2.6, '#5e4028') + '<path d="M3.5-6l3-2" stroke="#5e4028" stroke-width="2.6" stroke-linecap="round"/>';
 const SHIELD = C(-2, 12, 11, '#3f86d6', ' stroke="#8e98ab" stroke-width="2.4"') + C(-2, 12, 3.2, '#f6c343');
 const SPEAR = '<path d="M0 36V-36" stroke="#8a5a2b" stroke-width="3" stroke-linecap="round"/><path d="M0-50l5 14h-10z" fill="#c9d1dd"/>';
@@ -1535,11 +1540,11 @@ Object.assign(ART, {
   },
   jester: () => { const p = pal('#c9d64f'), b = BODY.classic(p); return compose(b, p, { ...hat(b, JESTER_HAT, 1), mouth: 'open' }); },
   // Rogue: charcoal, hooded, with a mask across its eyes
-  rogue: () => { const p = pal('#56646c'), b = BODY.slim(p); return compose(b, p, { inside: hood(b, ROGUE_HOOD[0], ROGUE_HOOD[1]) + eyeMask(b), mouth: 'flat' }); },
+  rogue: () => { const p = pal('#56646c'), b = BODY.slim(p); const h = hood(b, ...ROGUE_HOOD); return compose(b, p, { behind: h.behind, inside: h.inside + eyeMask(b), mouth: 'flat' }); },
   // Squire: young and sandy, a plain steel cap and a small round shield
   squire: () => {
     const p = pal('#e2bd74'), b = BODY.tall(p);
-    return compose(b, p, { ...hat(b, STEEL_CAP, 1.45), over: at([81, 61], 1, SHIELD) });
+    return compose(b, p, { ...hat(b, STEEL_CAP, 1.45) });
   },
   cleric: () => { const p = pal('#d6c9ef'), b = BODY.round(p); return compose(b, p, { ...hat(b, MITRE, 1) }); },
   // Guard: a sturdy sage frog in an iron kettle hat, with a spear
@@ -1550,7 +1555,8 @@ Object.assign(ART, {
   // Necromancer: dusky and hooded, with glowing green eyes
   necro: () => {
     const p = pal('#6d6082'), b = BODY.tall(p);
-    return compose(b, p, { inside: hood(b, ...NECRO_HOOD) + b.eyes.map(([x, y, r]) => C(x, y, r + 2.5, '#7dffa6', ' opacity=".25"')).join(''), eyes: 'iris:#3ed27a', noCheeks: true, mouth: 'flat' });
+    const h = hood(b, ...NECRO_HOOD);
+    return compose(b, p, { behind: h.behind, inside: h.inside + b.eyes.map(([x, y, r]) => C(x, y, r + 2.5, '#7dffa6', ' opacity=".25"')).join(''), eyes: 'iris:#3ed27a', noCheeks: true, mouth: 'flat' });
   },
   // Frog King: a plump green frog in a big crown, a red cape and an ermine collar
   king: () => {
