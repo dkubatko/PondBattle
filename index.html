@@ -540,27 +540,42 @@ h1 { margin: 0; text-align: center; font-size: 40px; font-weight: 900; line-heig
 .lb-gap { text-align: center; color: var(--moon-dim); line-height: 1; padding: 2px 0 6px; }
 .hist-row.tap { cursor: pointer; }
 .card-rank { border: 0; background: none; color: inherit; padding: 0; }
-.home-music { position: absolute; top: calc(env(safe-area-inset-top) + 10px); right: 64px; color: var(--moon-dim); }
-.home-menu { position: absolute; top: calc(env(safe-area-inset-top) + 10px); right: 14px; color: var(--moon-dim); }
-/* Friends: rows like the lobby's, with round decline / accept buttons, or Challenge; a dot says what a friend is up to */
-.pond-btn.fr { cursor: pointer; }
+.corner { position: absolute; top: calc(env(safe-area-inset-top) + 10px); right: 14px; z-index: 2; display: flex; gap: 8px; }
+.corner .ib { color: var(--moon-dim); }
+/* Friends: a contacts list like the leaderboard: frog (a dot for what they're up to), name, rank, round buttons */
+.fr-row { display: flex; align-items: center; gap: 12px; padding: 8px 8px; border-radius: 14px; cursor: pointer; }
+.fr-row:active { background: rgba(245, 237, 214, .05); }
+.fr-row .mini { flex: none; box-shadow: none; }
+.fr-row .ht { flex: 1; min-width: 0; font-size: 17px; font-weight: 800; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.fr-row .ht small { display: flex; align-items: center; gap: 5px; margin-top: 2px; font-size: 13px; font-weight: 700; color: var(--moon-dim); }
+.fr-row .ht small svg { flex: none; }
+.fst::before { content: '·'; margin-right: 5px; color: var(--moon-dim); }
+.fst.searching { color: var(--firefly); } .fst.online { color: #8fd67a; } .fst.playing { color: #8fc4f2; }
 .fr-acts { display: flex; gap: 8px; flex: none; }
-.rbtn { width: 36px; height: 36px; border-radius: 50%; border: 0; display: grid; place-items: center; padding: 0; }
-.rbtn svg { width: 18px; height: 18px; }
+.rbtn { width: 40px; height: 40px; border-radius: 50%; border: 0; display: grid; place-items: center; padding: 0; flex: none; }
+.rbtn svg { width: 19px; height: 19px; }
 .rbtn.no { background: rgba(245, 237, 214, .1); color: var(--moon-dim); }
 .rbtn.yes { background: #9be07a; color: #173b1f; }
-.fr-cta { flex: none; height: 34px; padding: 0 12px; border: 0; border-radius: 12px; background: rgba(255, 205, 102, .16); color: var(--firefly); font-size: 15px; font-weight: 900; }
-.fdot { position: absolute; right: -3px; bottom: -3px; width: 13px; height: 13px; border-radius: 50%; box-shadow: 0 0 0 2.5px #24473f; }
+.rbtn.battle { background: rgba(255, 205, 102, .16); color: var(--firefly); }
+.rbtn.battle svg { width: 22px; height: 22px; }
+.card-friend .rbtn.battle svg { width: 24px; height: 24px; }
+.fdot { position: absolute; right: -2px; bottom: -2px; width: 12px; height: 12px; border-radius: 50%; box-shadow: 0 0 0 2.5px var(--bg, #15292f); }
 .fdot.online { background: #7cc467; } .fdot.searching { background: var(--firefly); } .fdot.playing { background: #6aa9e8; } .fdot.offline { display: none; }
 .fr-empty { margin: 10px auto 0; }
-.friends-page h1 { margin-bottom: 4px; }
-.fr-share { position: absolute; top: calc(env(safe-area-inset-top) + 10px); right: 14px; color: var(--moon-dim); }
-.friends-page .lists { margin-top: 10px; }
-/* a profile's friend buttons: Add friend / Request sent / Accept, or "Friends" and Challenge */
-.card-friend { display: flex; align-items: center; justify-content: center; gap: 12px; width: 100%; margin-top: 10px; }
-.card-friend .btn:not(.wide) { flex: 1; max-width: 200px; }
-.fr-note { display: flex; align-items: center; gap: 6px; font-size: 16px; font-weight: 900; color: #9be07a; }
-.fr-note svg { width: 18px; height: 18px; }
+.friends-page .lists { margin-top: 6px; gap: 2px; }
+.friends-page .label { margin-top: 12px; }
+/* a profile's friend controls: a chip (+ Add friend, Requested ✕, ✓ Friends) and round buttons; Share on your own */
+.card-top { position: relative; }
+.card-share { position: absolute; left: 0; top: 0; color: var(--moon-dim); }
+.card-friend { display: flex; align-items: center; justify-content: center; gap: 10px; width: 100%; margin-top: 10px; }
+.card-friend .rbtn { width: 44px; height: 44px; }
+.card-friend .rbtn svg { width: 21px; height: 21px; }
+.fr-chip { display: inline-flex; align-items: center; gap: 6px; height: 40px; padding: 0 16px; border: 0; border-radius: 20px; font-size: 15px; font-weight: 900;
+  background: rgba(245, 237, 214, .08); color: var(--moon-dim); }
+.fr-chip svg { width: 15px; height: 15px; }
+.fr-chip.on { background: rgba(155, 224, 122, .14); color: #9be07a; }
+.fr-chip.add { background: rgba(168, 212, 236, .16); color: #a8d4ec; }
+.fr-chip.plain { background: none; padding: 0 4px; }
 .board-btn { position: absolute; top: calc(env(safe-area-inset-top) + 10px); left: 14px; color: var(--moon-dim); }
 .board-btn svg { width: 20px; height: 20px; }
 .count { display: inline-grid; place-items: center; min-width: 22px; height: 22px; padding: 0 6px; margin-left: 6px; border-radius: 11px; background: var(--firefly); color: #4a3505; font-size: 13px; font-weight: 900; vertical-align: 1px; }
@@ -853,6 +868,8 @@ const ICON = {
   coin: `<svg class="ic" viewBox="0 0 24 24"><circle cx="12" cy="12" r="10.5" fill="#ffcd66" stroke="#a8761c" stroke-width="1.6"/><circle cx="12" cy="12" r="6.5" fill="none" stroke="#d49a33" stroke-width="2"/></svg>`,
   music: (on) => `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M9 18V5l11-2v13"/><circle cx="6.5" cy="18" r="2.6" fill="currentColor"/><circle cx="17.5" cy="16" r="2.6" fill="currentColor"/>${on ? '' : '<path d="M3 3l18 18" stroke-width="2.6"/>'}</svg>`,
   share: `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.3" stroke-linecap="round" stroke-linejoin="round"><path d="M12 14V4M8 7.5L12 3.5l4 4M7 11H6a2 2 0 0 0-2 2v6a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2v-6a2 2 0 0 0-2-2h-1"/></svg>`,
+  // crossed swords: challenge a friend to a battle
+  battle: `<svg viewBox="0 0 24 24"><polygon points="2.6,2.6 17.3,14.7 14.7,17.3" fill="currentColor"/><path d="M13.3 18.7L18.7 13.3M16 16L19.8 19.8" stroke="currentColor" stroke-width="2.5" stroke-linecap="round"/><circle cx="21" cy="21" r="1.7" fill="currentColor"/><polygon points="21.4,2.6 6.7,14.7 9.3,17.3" fill="currentColor"/><path d="M10.7 18.7L5.3 13.3M8 16L4.2 19.8" stroke="currentColor" stroke-width="2.5" stroke-linecap="round"/><circle cx="3" cy="21" r="1.7" fill="currentColor"/></svg>`,
   menu: `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round"><path d="M4 7h16M4 12h16M4 17h16"/></svg>`,
   chev: `<svg class="ic" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"><path d="M9 5l7 7-7 7"/></svg>`,
   x: `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.6" stroke-linecap="round"><path d="M7 7l10 10M17 7L7 17"/></svg>`,
@@ -2486,8 +2503,20 @@ function keepPut(page, input) {
     pinPage = pin; pin(); setTimeout(pin, 60); setTimeout(pin, 300);
   });
 }
+// Sound and the menu sit in the top-right corner of every screen (the game and the battle have their own header)
+function corner(node) {
+  const c = el(`<div class="corner"><button class="ib" data-c="sound" aria-label="Sound"></button><button class="ib" data-c="menu" aria-label="Menu">${ICON.menu}</button></div>`);
+  const sb = $('[data-c=sound]', c), draw = () => { sb.innerHTML = ICON.music(soundOn()); sb.classList.toggle('off', !soundOn()); };
+  draw();
+  // the same switch as in a game: music and sound effects together
+  sb.onclick = () => { const on = !soundOn(); if (!on) Snd.tap(); Snd.setMusic(on); Snd.setSfx(on); if (on) Snd.tap(); draw(); };
+  longPress(sb, soundInfo);
+  $('[data-c=menu]', c).onclick = () => { Snd.tap(); openMenu({ home: true, done: draw }); };
+  node.appendChild(c);
+}
 function mount(name, node) {
   closeReactions();
+  if (name !== 'game' && name !== 'battle') corner(node);
   const root = $('#root'); root.innerHTML = ''; root.appendChild(node); screen = name; syncBack();
   const b = $('#bubble'); if (b) b.classList.remove('show');
 }
@@ -2572,8 +2601,6 @@ function showHome(msg, page) {
   if (friendPid || playWith || openFriends) history.replaceState(null, '', '/');
   const node = el(`<div class="screen home">
     <button class="ib board-btn" id="boardBtn" aria-label="Leaderboard">${ICON.trophy}</button>
-    <button class="ib home-music" id="homeMusic" aria-label="Music"></button>
-    <button class="ib home-menu" id="homeMenu" aria-label="Menu">${ICON.menu}</button>
     <button class="hero lg" id="heroBtn" aria-label="Your profile"><div class="moon"></div><span class="nametag" id="heroTag"></span><div class="leafbig" id="heroPad"></div><span id="heroAv"></span></button>
     <h1>Pond Brawl</h1>
     <div class="panel" id="panel"></div>
@@ -2594,12 +2621,6 @@ function showHome(msg, page) {
   // Your frog (and the name tag above it) opens your profile; a guest still picking a name edits the frog right away
   $('#heroBtn').onclick = () => { Snd.tap(); if (ME.name) openCard({ done: () => { drawHero(); chip(); } }); else openProfile(() => drawHero()); };
   $('#boardBtn').onclick = () => { Snd.tap(); openLeaders(); };
-  // Music on/off, the same switch as in a game
-  const drawMusic = () => { const b = $('#homeMusic'); if (!b) return; b.innerHTML = ICON.music(Snd.music()); b.classList.toggle('off', !Snd.music()); };
-  drawMusic();
-  $('#homeMusic').onclick = () => { Snd.tap(); Snd.setMusic(!Snd.music()); drawMusic(); };
-  $('#homeMenu').onclick = () => { Snd.tap(); openMenu({ home: true, done: drawMusic }); };
-  longPress($('#homeMusic'), soundInfo);
   // Your rank and name; tap for your profile
   // Your rank and name on a tag above your frog
   const chip = () => {
@@ -2791,34 +2812,34 @@ function showHome(msg, page) {
     if (lobbyCache) { lobby = lobbyCache; last = JSON.stringify(lobbyCache); render(true); } else last = '';
     load(); clearInterval(pondTimer); pondTimer = setInterval(load, 2500);
   };
-  // Friends: a share button in the corner (your profile, for people to add you), requests sent to you (decline / accept), your friends with what they're up to (tap for their profile,
-  // Challenge, swipe left to remove) and requests you sent (cancel). Refreshed every few seconds.
+  // Friends: a contacts list. Requests sent to you (decline / accept), your friends (rank and what they're up to; the
+  // battle button challenges them) and requests you sent (cancel). Tap anyone for their profile (removing a friend is
+  // there). Refreshed every few seconds.
   const friendsStep = () => {
     const page = el(`<div class="screen home ponds-page friends-page fade-in">
-      <button class="ib fr-share" id="addMe" aria-label="Share my profile">${ICON.share}</button>
       <h1 class="h-sm">Friends</h1>
       <div id="flists" class="lists"></div>
       <button class="link" id="back">Back</button>
     </div>`);
     mount('friends', page);
     $('#back').onclick = () => { Snd.tap(); showHome(); };
-    $('#addMe').onclick = () => { Snd.tap(); shareFriendLink(); };
     let data = null, sig = '', first = true;
     const hidden = new Set(); // rows acted on, gone at once (a refresh in between won't bring them back)
-    const STATUS = { searching: 'Looking for a game', playing: 'In a game', online: 'Online', offline: 'Offline' };
-    const who = (f, sub, dot) => `<span class="avs"><span class="mini">${avatarHTML(f.avatar, 30, { id: 40, centered: true })}${dot ? `<span class="fdot ${dot}"></span>` : ''}</span></span>`
-      + `<span class="pt">${esc(f.name)}<small>${esc(sub)}</small></span>`;
+    const STATUS = { searching: 'Looking for a game', playing: 'In a game', online: 'Online' };
     const card = (f) => openCard({ of: f.pid, done: () => load(true) });
     const act = (f, what) => async (e) => {
-      if (e) e.stopPropagation();
-      Snd.tap(); if (what === 'accept') await askDM();
+      e.stopPropagation(); Snd.tap();
+      if (what === 'accept') await askDM();
       hidden.add(`${what}:${f.pid}`); draw();
       try { await api('/api/friends/act', { pid: f.pid, act: what }); } catch (err) { toast(err.message); }
       if (what === 'accept') Snd.ribbit();
       load(true);
     };
-    const reqRow = (f, sub, buttons) => {
-      const n = el(`<div class="pond-btn fr" role="button">${who(f, sub)}<span class="fr-acts">${buttons.map(([k, icon, label]) => `<button class="rbtn ${k}" aria-label="${label}">${icon}</button>`).join('')}</span></div>`);
+    // a row: their frog (a dot says what they're up to), name, rank (and status), and its round buttons
+    const rowOf = (f, buttons, status) => {
+      const n = el(`<div class="fr-row" role="button"><span class="mini">${avatarHTML(f.avatar, 30, { id: 40, centered: true })}${status ? `<span class="fdot ${status}"></span>` : ''}</span>
+        <span class="ht">${esc(f.name)}<small>${rankBadge(f.rank, 16)}<span>${esc(f.rank.name)}</span>${STATUS[status] ? `<span class="fst ${status}">${STATUS[status]}</span>` : ''}</small></span>
+        <span class="fr-acts">${buttons.map(([k, icon, label]) => `<button class="rbtn ${k}" aria-label="${label}">${icon}</button>`).join('')}</span></div>`);
       n.onclick = () => { Snd.tap(); card(f); };
       return n;
     };
@@ -2826,27 +2847,22 @@ function showHome(msg, page) {
       const box = $('#flists'); if (!box || !data) return;
       const items = [], label = (t) => items.push({ key: `L:${t}`, sig: t, make: () => el(`<div class="label">${t}</div>`) });
       const incoming = data.incoming.filter((f) => !hidden.has(`accept:${f.pid}`) && !hidden.has(`decline:${f.pid}`));
-      const friends = data.friends.filter((f) => !hidden.has(`remove:${f.pid}`)), outgoing = data.outgoing.filter((f) => !hidden.has(`cancel:${f.pid}`));
+      const outgoing = data.outgoing.filter((f) => !hidden.has(`cancel:${f.pid}`));
       if (incoming.length) label('Requests');
       for (const f of incoming) items.push({ key: `in:${f.pid}`, sig: JSON.stringify(f), make: () => {
-        const n = reqRow(f, `${f.rank.name} · wants to be friends`, [['no', ICON.x, 'Decline'], ['yes', ICON.check, 'Accept']]);
+        const n = rowOf(f, [['no', ICON.x, 'Decline'], ['yes', ICON.check, 'Accept']]);
         $('.rbtn.no', n).onclick = act(f, 'decline'); $('.rbtn.yes', n).onclick = act(f, 'accept');
         return n;
       } });
-      if (friends.length) label('Friends');
-      for (const f of friends) items.push({ key: `f:${f.pid}`, sig: JSON.stringify(f), make: () => {
-        const n = el(`<div class="pond-btn fr" role="button">${who(f, STATUS[f.status], f.status)}<button class="fr-cta">Challenge</button></div>`);
-        n.onclick = () => { if (n.closest('.swipe.open')) return; Snd.tap(); card(f); };
-        $('.fr-cta', n).onclick = (e) => { e.stopPropagation(); Snd.tap(); challengeFriend(f.pid, f.name); };
-        return swipeRow(n, async (wrap) => {
-          wrap.classList.add('ending'); fold(wrap); hidden.add(`remove:${f.pid}`);
-          try { await api('/api/friends/act', { pid: f.pid, act: 'remove' }); } catch {}
-          load(true);
-        }, 'Remove');
+      if (data.friends.length) label('Friends');
+      for (const f of data.friends) items.push({ key: `f:${f.pid}`, sig: JSON.stringify(f), make: () => {
+        const n = rowOf(f, [['battle', ICON.battle, 'Challenge']], f.status);
+        $('.rbtn.battle', n).onclick = (e) => { e.stopPropagation(); Snd.tap(); challengeFriend(f.pid, f.name); };
+        return n;
       } });
       if (outgoing.length) label('Sent');
       for (const f of outgoing) items.push({ key: `out:${f.pid}`, sig: JSON.stringify(f), make: () => {
-        const n = reqRow(f, 'Request sent', [['no', ICON.x, 'Cancel request']]);
+        const n = rowOf(f, [['no', ICON.x, 'Cancel request']]);
         $('.rbtn.no', n).onclick = act(f, 'cancel');
         return n;
       } });
@@ -2855,10 +2871,9 @@ function showHome(msg, page) {
     };
     const load = async (force) => {
       if (!$('#flists')) return clearInterval(pondTimer);
-      if (!force && $('.swipe.open, .swipe.dragging')) return; // don't redraw under a finger
       try {
         const d = await api('/api/friends', {}), s2 = JSON.stringify(d);
-        if (s2 === sig) return;
+        if (s2 === sig && !force) return;
         sig = s2; data = d; ME.pid = d.me; draw();
       } catch {}
     };
@@ -2913,12 +2928,12 @@ function showWaiting() {
     <div class="code-tiles">${S.code.split('').map((c) => `<span>${c}</span>`).join('')}</div>
     <button class="me-chip" id="wset"><b>${esc(SETS[setId(S.set)].name)}</b> frogs ${ICON.chev}</button>
     <div class="panel">
-      <button class="btn water wide" id="share">Send invite</button>
+      ${S.invited ? '' : '<button class="btn water wide" id="share">Send invite</button>'}
       <button class="btn ghost wide" id="leave">Cancel pond</button>
     </div>
   </div>`);
   mount('waiting', node);
-  $('#share').onclick = async () => {
+  if ($('#share')) $('#share').onclick = async () => {
     Snd.tap();
     // In Telegram: the share sheet with an invite ("Let's play Pond Brawl!" and a Join button that opens the
     // game in this pond). Telegram apps too old for cards get the same invite as a link message.
@@ -3927,16 +3942,17 @@ async function openCard(o = {}) {
       <span class="hist-res${g.won ? ' won' : ''}">${res}${g.delta != null ? `<small>${signed(g.delta)}</small>` : g.left === 'opp' ? '<small>they left</small>' : ''}</span></div>`;
   };
   const html = (av = c.mine ? myAvatar() : cleanAv(c.avatar)) => `<div class="card-top">
+      ${c.mine ? `<button class="ib card-share" data-a="share" aria-label="Share my profile">${ICON.share}</button>` : ''}
       <div class="pv${c.mine ? ' pv-edit' : ''}"${c.mine ? ' data-a="edit" role="button" aria-label="Edit your frog"' : ''}><div class="pv-pad" style='${padStyle(av)}'></div>${avatarHTML(av, 84, { idle: true, id: 7 })}${c.mine ? `<span class="hero-edit">${ICON.pencil}</span>` : ''}</div>
       <div class="card-name">${esc(c.mine ? ME.name || 'Frog' : c.name)}</div>
       <button class="card-rank" data-a="board">${rankBadge(rk, 36)}<span>${esc(rk.name)}</span></button>
       ${next ? `<div class="rank-next">${esc(next)}</div>` : ''}
       ${c.mine ? '' : `<div class="card-friend">${{
-        // (no Challenge in the middle of a game: it would take you out of it)
-        friends: `<span class="fr-note">${ICON.check} Friends</span>${screen === 'game' ? '' : '<button class="btn" data-a="challenge">Challenge</button>'}`,
-        sent: `<button class="btn ghost wide" data-a="f-cancel">Request sent · Cancel</button>`,
-        got: `<button class="btn wide" data-a="f-accept">Accept friend request</button>`,
-      }[c.friend] || '<button class="btn water wide" data-a="f-add">Add friend</button>'}</div>`}
+        // Friends (tap to remove) and the battle button (not in the middle of a game: it would take you out of it)
+        friends: `<button class="fr-chip on" data-a="f-remove">${ICON.check}Friends</button>${screen === 'game' ? '' : `<button class="rbtn battle" data-a="challenge" aria-label="Challenge">${ICON.battle}</button>`}`,
+        sent: `<button class="fr-chip" data-a="f-cancel">Requested${ICON.x}</button>`,
+        got: `<span class="fr-chip plain">Friend request</span><button class="rbtn no" data-a="f-decline" aria-label="Decline">${ICON.x}</button><button class="rbtn yes" data-a="f-accept" aria-label="Accept">${ICON.check}</button>`,
+      }[c.friend] || '<button class="fr-chip add" data-a="f-add">+ Add friend</button>'}</div>`}
     </div>
     <div class="card-stats"><div><b>${st.played}</b><span>Played</span></div><div><b>${st.won}</b><span>Won</span></div><div><b>${st.played ? Math.round(st.won / st.played * 100) + '%' : '–'}</b><span>Win rate</span></div></div>
     ${c.history.length ? `<div class="guide-sec">Recent games</div><div>${c.history.map(game).join('')}</div>` : ''}`;
@@ -3949,13 +3965,15 @@ async function openCard(o = {}) {
     if (a && a.dataset.a === 'board') { Snd.tap(); openRanks(rk); }
     if (a && a.dataset.a === 'challenge') { Snd.tap(); challengeFriend(c.pid, c.name); }
     // add / accept / cancel a friend request, then the buttons show where things stand
-    const fa = a && { 'f-add': 'add', 'f-accept': 'accept', 'f-cancel': 'cancel' }[a.dataset.a];
+    if (a && a.dataset.a === 'share') { Snd.tap(); shareFriendLink(); }
+    const fa = a && { 'f-add': 'add', 'f-accept': 'accept', 'f-decline': 'decline', 'f-cancel': 'cancel', 'f-remove': 'remove' }[a.dataset.a];
     if (fa) {
       Snd.tap(); a.disabled = true;
-      (fa === 'cancel' ? Promise.resolve() : askDM())
+      (fa === 'remove' ? ask(`Remove ${c.name} from your friends?`, '', 'Remove', 'Cancel', true).then((yes) => { if (!yes) throw new Error(''); })
+        : fa === 'cancel' || fa === 'decline' ? Promise.resolve() : askDM())
         .then(() => api('/api/friends/act', { pid: c.pid, act: fa }))
         .then((r) => { c.friend = r.friend; $('.sheet-body', s.el).innerHTML = html(); fit(); if (r.friend === 'sent') toast('Friend request sent'); if (r.friend === 'friends') Snd.ribbit(); if (o.done) o.done(); })
-        .catch((e) => { toast(e.message); a.disabled = false; });
+        .catch((e) => { if (e.message) toast(e.message); a.disabled = false; });
     }
     if (row) { Snd.tap(); openCard({ of: row.dataset.pid }); } // stacks on top; closing it comes back here
   });
@@ -4111,7 +4129,7 @@ function openMenu(o = {}) {
     const b = e.target.closest('[data-m]'); if (!b) return;
     const m = b.dataset.m;
     if (m === 'music') { Snd.tap(); Snd.setMusic(!Snd.music()); $('.switch', b).classList.toggle('on', Snd.music()); if (screen === 'game') updateHeader(); if (o.done) o.done(); }
-    if (m === 'sfx') { Snd.setSfx(!Snd.sfxOn()); $('.switch', b).classList.toggle('on', Snd.sfxOn()); Snd.tap(); if (screen === 'game') updateHeader(); }
+    if (m === 'sfx') { Snd.setSfx(!Snd.sfxOn()); $('.switch', b).classList.toggle('on', Snd.sfxOn()); Snd.tap(); if (screen === 'game') updateHeader(); if (o.done) o.done(); }
     if (m === 'mutereact') { Snd.tap(); localStorage.frogMuteReactions = reactsMuted() ? '0' : '1'; $('.switch', b).classList.toggle('on', reactsMuted()); }
     // friend alerts: your friends' "looking for a game" notes on Telegram (kept on the server, which sends them)
     if (m === 'mutefriends') { Snd.tap(); ME.muteFriends = !ME.muteFriends; $('.switch', b).classList.toggle('on', ME.muteFriends); api('/api/friends/mute', { on: ME.muteFriends }).catch(() => {}); }
