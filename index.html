@@ -876,13 +876,25 @@ const pips = (n, on, fn) => `<span class="pips">${Array.from({ length: n }, (_, 
 // so the gradient shows through. The id names its colors, so two different gradients never share one.
 // Each gradient is defined once, in an always-present invisible <svg> at the end of the page, so frogs that are
 // hidden, dragged or removed never take the gradient away from the others
+function svgLib() {
+  let lib = document.getElementById('grad-lib');
+  if (!lib) { lib = document.createElementNS('http://www.w3.org/2000/svg', 'svg'); lib.id = 'grad-lib'; lib.setAttribute('aria-hidden', 'true'); lib.style.cssText = 'position:absolute;width:0;height:0;overflow:hidden'; document.documentElement.appendChild(lib); }
+  return lib;
+}
+// A body's outline (its body and head) as a clip path in the same library, named after the shape, so a frog's spots and
+// patterns never spill past its edge
+function bodyClip(b) {
+  const shape = (b.torso + b.head).replace(/ (fill|opacity)="[^"]*"/g, '');
+  let h = 5381; for (let i = 0; i < shape.length; i++) h = (h * 33 + shape.charCodeAt(i)) | 0;
+  const id = `body-${(h >>> 0).toString(36)}`;
+  if (!document.getElementById(id)) svgLib().insertAdjacentHTML('beforeend', `<clipPath id="${id}">${shape}</clipPath>`);
+  return id;
+}
 function gradPal(stops, x = {}) {
   const id = `grad-${stops.join('').replace(/#/g, '')}`, mid = stops[Math.floor(stops.length / 2)];
   const p = pal(mid, { c: `url(#${id})`, belly: 'rgba(255,251,232,.5)', light: 'rgba(255,255,255,.3)', ...x });
   if (!document.getElementById(id)) {
-    let lib = document.getElementById('grad-lib');
-    if (!lib) { lib = document.createElementNS('http://www.w3.org/2000/svg', 'svg'); lib.id = 'grad-lib'; lib.setAttribute('aria-hidden', 'true'); lib.style.cssText = 'position:absolute;width:0;height:0;overflow:hidden'; document.documentElement.appendChild(lib); }
-    lib.insertAdjacentHTML('beforeend', `<linearGradient id="${id}" gradientUnits="userSpaceOnUse" x1="18" y1="24" x2="82" y2="96">${stops.map((c, i) => `<stop offset="${(i / (stops.length - 1)).toFixed(2)}" stop-color="${c}"/>`).join('')}</linearGradient>`);
+    svgLib().insertAdjacentHTML('beforeend', `<linearGradient id="${id}" gradientUnits="userSpaceOnUse" x1="18" y1="24" x2="82" y2="96">${stops.map((c, i) => `<stop offset="${(i / (stops.length - 1)).toFixed(2)}" stop-color="${c}"/>`).join('')}</linearGradient>`);
   }
   return { p, defs: '' };
 }
@@ -903,8 +915,9 @@ const BODY = {
     eyes: [[31, 38, 10], [69, 38, 10]], cheeks: [[23, 60], [77, 60]], mouth: [50, 59, 18], top: [50, 25], crown: [50, 33], neck: [50, 66, 28], heart: [50, 73],
   }),
   slim: (p) => ({
-    back: E(21, 81, 16, 6, p.dark, ' transform="rotate(-28 21 81)"') + E(79, 81, 16, 6, p.dark, ' transform="rotate(28 79 81)"')
-      + C(9, 90, 3.2, p.toe || p.foot) + C(15, 93.5, 3, p.toe || p.foot) + C(91, 90, 3.2, p.toe || p.foot) + C(85, 93.5, 3, p.toe || p.foot),
+    // back legs angled down to the floor, toes at their tips
+    back: E(22, 82, 15, 6, p.dark, ' transform="rotate(-34 22 82)"') + E(78, 82, 15, 6, p.dark, ' transform="rotate(34 78 82)"')
+      + C(8.6, 92.6, 3.1, p.toe || p.foot) + C(13.6, 93.3, 3, p.toe || p.foot) + C(91.4, 92.6, 3.1, p.toe || p.foot) + C(86.4, 93.3, 3, p.toe || p.foot),
     torso: E(50, 62, 31, 26, p.c) + E(50, 70, 18, 13, p.belly),
     head: C(35, 40, 13, p.c) + C(65, 40, 13, p.c),
     front: `<path d="M39 78 37 90M61 78 63 90" stroke="${p.limb || p.c}" stroke-width="5.5" stroke-linecap="round"/>`
@@ -967,8 +980,10 @@ const BODY = {
 };
 const BODIES = Object.keys(BODY);
 
-const spiral = (x, y, r) => { let d = `M${x} ${y}`; for (let a = 0; a <= 4 * Math.PI; a += .35) { const rr = (a / (4 * Math.PI)) * r * .82; d += `L${(x + Math.cos(a) * rr).toFixed(1)} ${(y + Math.sin(a) * rr).toFixed(1)}`; } return d; };
-const eyesSVG = (list, kind) => `<g class="eyes">${list.map(([x, y, r]) => (kind === 'back'
+const spiral = (x, y, r) => { let d = `M${x} ${y}`; for (let a = 0; a <= 4 * Math.PI; a += .35) { const rr = (a / (4 * Math.PI)) * r * .82; d += `L${(x + Math.cos(a) * rr).toFixed(1)} ${(y - Math.sin(a) * rr).toFixed(1)}`; } return d; };
+const eyesSVG = (list, kind) => `<g class="eyes">${list.map(([x, y, r]) => (kind === 'up'
+  ? C(x, y, r, '#fffdf6') + C(x + r * .24, y - r * .22, r * .6, '#2a211c') + C(x + r * .44, y - r * .44, r * .2, '#fff')
+  : kind === 'back'
   ? C(x, y, r, '#fffdf6') + C(x - r * .3, y + r * .05, r * .6, '#2a211c') + C(x - r * .5, y - r * .2, r * .2, '#fff')
   : kind === 'spiral'
   ? C(x, y, r, '#fffdf6') + `<path d="${spiral(x, y, r)}" stroke="#6b3fa0" stroke-width="${(r * .16).toFixed(1)}" fill="none" stroke-linecap="round"/>`
@@ -1025,10 +1040,13 @@ const PEARLS = ([x, y, w]) => Array.from({ length: 9 }, (_, i) => {
 }).join('');
 
 const hornsSVG = (b, p, horns) => b.eyes.map(([ex, ey, r]) => { const k = horns === true ? 1 : horns; return `<path d="M${ex - 5 * k} ${ey - r + 2}L${ex - k} ${ey - r + 2 - 9 * k}L${ex + 4 * k} ${ey - r + 2}Z" fill="${p.c}"/>`; }).join('');
+// x.spots / x.marks: a frog's skin pattern, under / over its head, clipped to its body so it never spills past the edge
 function compose(b, p, x = {}) {
-  const bodyParts = b.back + b.torso + (x.under || '') + b.head;
+  const clip = (x.spots || x.marks) ? bodyClip(b) : '', clipped = (art) => (art ? `<g clip-path="url(#${clip})">${art}</g>` : '');
+  const bodyParts = b.back + b.torso + (x.under || '') + clipped(x.spots) + b.head;
   return (x.behind || '')
     + (x.glass ? `<g opacity=".78">${bodyParts}</g>` : bodyParts)
+    + clipped(x.marks)
     + (x.inside || '')
     + (x.horns ? hornsSVG(b, p, x.horns) : '')
     + eyesSVG(b.eyes, x.eyes)
@@ -1160,12 +1178,12 @@ const ART = {
   tree: () => {
     const p = pal('#5ccb68', { toe: '#f39a3d' }), b = BODY.tall(p);
     const flank = (x, dir) => E(x, 67, 5.5, 12, '#3f86d6') + `<path d="M${x - 4 * dir} 61h${7 * dir}M${x - 4 * dir} 66.5h${7.5 * dir}M${x - 3.5 * dir} 72h${6.5 * dir}" stroke="#eef5ff" stroke-width="1.7" stroke-linecap="round"/>`;
-    return compose(b, p, { eyes: 'red', under: flank(22, 1) + flank(78, -1) });
+    return compose(b, p, { eyes: 'red', spots: flank(22, 1) + flank(78, -1) });
   },
   // Poison dart frog: vivid blue, black spots, dark legs
   spitter: () => {
     const p = pal('#4ea5ee', { dark: '#1d2a44', foot: '#1d2a44', limb: '#1d2a44', toe: '#1d2a44' }), b = BODY.slim(p);
-    return compose(b, p, { under: dotsSVG([[36, 56, 4.2], [63, 53, 3.6], [57, 72, 3], [42, 74, 2.8], [70, 65, 2.8], [47, 49, 2.3], [28, 68, 2.4]], '#1d2a44') });
+    return compose(b, p, { spots: dotsSVG([[24, 64, 4], [77, 62, 3.6], [30, 77, 3], [70, 76, 3.2], [19, 72, 2.4], [82, 71, 2.4], [62, 82, 2.2], [38, 83, 2.2]], '#1d2a44') });
   },
   // Bullfrog: big ear discs and a buttery yellow throat
   bullfrog: () => {
@@ -1192,7 +1210,7 @@ const ART = {
   // Pac-man frog: a round mouth on legs, horned eyelids, mottled back
   hungry: () => {
     const p = pal('#b3c94b'), b = BODY.round(p);
-    return compose({ ...b, mouth: [50, 52, 34] }, p, { horns: 1.6, mouth: 'open', noCheeks: true, under: dotsSVG([[22, 52, 4.5], [78, 50, 4], [72, 74, 3.4], [28, 76, 3.4], [50, 30, 3]], '#7d6232') });
+    return compose({ ...b, mouth: [50, 52, 34] }, p, { horns: 1.6, mouth: 'open', noCheeks: true, spots: dotsSVG([[22, 52, 4.5], [78, 50, 4], [72, 74, 3.4], [28, 76, 3.4], [50, 30, 3]], '#7d6232') });
   },
   // Rain frog: a grumpy little blob under its umbrella
   rain: () => {
@@ -1202,7 +1220,7 @@ const ART = {
     return compose(b, p, { brows: true, mouth: 'frown', over: umbrella(b, p, 67) });
   },
   // Lucky toad: a jade money toad with gold spots and a gold coin (the Dragon is the red one)
-  lucky: () => { const p = pal('#3fa58a'), b = BODY.toad(p); return compose(b, p, { under: dotsSVG(b.dots, '#f4c653'), inside: COIN(b.heart[0], b.heart[1]) }); },
+  lucky: () => { const p = pal('#3fa58a'), b = BODY.toad(p); return compose(b, p, { spots: dotsSVG([[17, 74, 2.4], [26, 80, 2.1], [12, 66, 1.8], [83, 74, 2.4], [74, 80, 2.1], [88, 66, 1.8]], '#f4c653'), inside: COIN(b.heart[0], b.heart[1]) }); },
   // Mama frog: lilac, with lashes and pearls (the Turtle Frog is the pink one)
   mama: () => { const p = pal('#c4a2e4'), b = BODY.round(p); return compose(b, p, { lashes: true, face: PEARLS([b.neck[0], neckY(b), b.neck[2]]) }); },
   // Wizard: arcane teal fading into indigo
@@ -1270,18 +1288,22 @@ Object.assign(ART, {
   hypno: () => { const p = pal('#a97fdc'), b = BODY.classic(p); return compose(b, p, { eyes: 'spiral', over: PENDULUM(b, p) }); },
   // Princess: sky blue blushing into lilac and pink
   princess: () => { const { p, defs } = gradPal(['#96d3f6', '#b8b2f0', '#f4b0d0']), b = BODY.classic(p); return defs + compose(b, p, { lashes: true, ...hat(b, TIARA, .95) }); },
-  // Leapfrog: a spotted leopard frog, always looking back the other way (it leaps over the line)
+  // Leapfrog: a spotted leopard frog, looking up and ahead (where it's about to leap)
   leapfrog: () => {
     const p = pal('#9bd46f'), b = BODY.slim(p);
-    return compose(b, p, { eyes: 'back', under: dotsSVG([[26, 60, 4.2], [74, 58, 3.6], [36, 72, 3], [66, 73, 3.4], [50, 52, 2.6], [20, 70, 2.6], [80, 69, 2.8]], p.deep) });
+    return compose(b, p, { eyes: 'up', spots: dotsSVG([[22, 68, 4], [78, 67, 3.6], [32, 79, 3], [68, 79, 3.4], [17, 60, 2.4], [83, 59, 2.6], [58, 84, 2.2], [42, 84, 2]], p.deep) });
   },
   // Chameleon: curly tail, turret eyes and color-shifting spots
   chameleon: () => {
     const { p, defs } = gradPal(['#7cd35a', '#3dbba5', '#f0b43e']), b = BODY.classic(p); // mid-change: green into teal into amber
-    const tail = (w, c) => `<path d="M24 76C10 80 3 68 8 59 12 52 22 53 23 60 24 66 16 68 14 63" stroke="${c}" stroke-width="${w}" fill="none" stroke-linecap="round"/>`;
+    // the tail leaves the lower back, runs out along the ground and coils up into a tapering spiral
+    const pts = [[28, 80], [21, 85.5], [14, 86.5]];
+    for (let a = 90; a <= 90 + 640; a += 12) { const r = 12 - 9.5 * (a - 90) / 640; pts.push([10 + r * Math.cos(a * Math.PI / 180), 74.5 + r * Math.sin(a * Math.PI / 180)]); }
+    const tail = (extra, c) => pts.slice(1).map(([x, y], i) => { const [px, py] = pts[i], w = 7.2 - 5 * i / pts.length + extra;
+      return `<path d="M${px.toFixed(1)} ${py.toFixed(1)}L${x.toFixed(1)} ${y.toFixed(1)}" stroke="${c}" stroke-width="${w.toFixed(1)}" stroke-linecap="round"/>`; }).join('');
     return defs + compose(b, p, {
-      behind: tail(9, p.dark) + tail(6, p.c),
-      under: dotsSVG([[24, 62, 3.4], [76, 62, 3.4]], '#f2a93b') + dotsSVG([[30, 71, 2.8], [70, 71, 2.8]], '#ec6f8f') + dotsSVG([[22, 70, 2.2], [78, 70, 2.2]], '#5ab8d8'),
+      behind: tail(2.4, p.dark) + tail(0, p.c),
+      spots: dotsSVG([[24, 62, 3.4], [76, 62, 3.4]], '#f2a93b') + dotsSVG([[30, 71, 2.8], [70, 71, 2.8]], '#ec6f8f') + dotsSVG([[22, 70, 2.2], [78, 70, 2.2]], '#5ab8d8'),
       inside: b.eyes.map(([x, y, r]) => C(x, y, r + 4, p.c, ` stroke="${p.dark}" stroke-width="1.6"`)).join(''),
     });
   },
@@ -1296,7 +1318,7 @@ Object.assign(ART, {
       const X = side ? 100 - x : x, d = side ? 1 : -1;
       return `<path d="M${X - d * 3} ${y - 2}q${d * 4} ${2 + (k % 2)} ${d * 3} ${5}t${d * 2} ${4.5}" stroke="${mix('#86493f', '#f0dcc4', .38)}" stroke-width="1.9" fill="none" stroke-linecap="round"/>`;
     }).join('');
-    return compose(b, p, { under: dotsSVG(b.dots.slice(0, 5), mix('#86493f', '#1b1410', .3)), over: strands(0) + strands(1), brows: true, mouth: 'flat' });
+    return compose(b, p, { spots: dotsSVG([[18, 70, 2.4], [26, 80, 2.2], [82, 70, 2.6], [74, 80, 2.2], [14, 62, 1.8], [86, 62, 1.8]], mix('#86493f', '#1b1410', .3)), over: strands(0) + strands(1), brows: true, mouth: 'flat' });
   },
   // Mossy frog: lumpy, bumpy skin in moss green with dark blotches, so it looks like a clump of moss
   goliath: () => {
@@ -1304,9 +1326,9 @@ Object.assign(ART, {
     const lumps = Array.from({ length: 18 }, (_, k) => { const a = (k / 18) * Math.PI * 2; return C(50 + Math.cos(a) * 40, 62 + Math.sin(a) * 28, 5.2, p.c); }).join('');
     const blotch = '#33301f';
     return compose({ ...b, torso: lumps + b.torso }, p, {
-      under: dotsSVG([[27, 58, 4.4], [70, 55, 5], [60, 78, 4], [38, 80, 3.6], [82, 68, 3.4], [18, 70, 3.4], [50, 49, 3]], blotch)
+      spots: dotsSVG([[27, 58, 4.4], [70, 55, 5], [60, 78, 4], [38, 80, 3.6], [82, 68, 3.4], [18, 70, 3.4]], blotch)
         + dotsSVG([[33, 66, 2], [64, 66, 2.2], [46, 60, 1.8], [74, 76, 1.8], [24, 78, 1.8], [56, 86, 1.6], [42, 71, 1.5]], '#a9d86e'),
-      inside: dotsSVG([[22, 30, 2.4], [78, 30, 2.4], [44, 24, 1.8], [58, 23, 2]], blotch),
+      marks: dotsSVG([[22, 30, 2.4], [78, 30, 2.4], [44, 24, 1.8], [58, 23, 2]], blotch),
       eyes: 'iris:#b0512f',
     });
   },
@@ -1315,7 +1337,7 @@ Object.assign(ART, {
     const p = pal('#cfb07a'), b = BODY.classic(p);
     const egg = (x, y, r = 3.4) => C(x, y + .8, r, '#8f6d2e', ' opacity=".35"') + C(x, y, r, '#f6d468') + C(x - r * .35, y - r * .35, r * .3, '#fffbe0');
     const clutch = (side) => [[8, 82], [12, 77.5], [18, 76], [24, 78], [7, 88], [12, 92], [19, 93.5], [26, 91]].map(([x, y]) => egg(side ? 100 - x : x, y)).join('');
-    return compose(b, p, { under: dotsSVG([[30, 58, 2.6], [70, 57, 2.4], [60, 75, 2.2], [40, 76, 2.2], [50, 52, 2]], mix('#cfb07a', '#4a3a1c', .4)), over: clutch(0) + clutch(1) });
+    return compose(b, p, { spots: dotsSVG([[30, 58, 2.6], [70, 57, 2.4], [60, 75, 2.2], [40, 76, 2.2], [50, 52, 2]], mix('#cfb07a', '#4a3a1c', .4)), over: clutch(0) + clutch(1) });
   },
   // Turtle frog: a round, pinkish dome of a frog with a tiny head and little eyes (it digs, head first)
   turtle: () => {
@@ -1333,25 +1355,25 @@ Object.assign(ART, {
   pebble: () => {
     const p = pal('#55555c', { foot: '#3f3f45', belly: '#77777e' });
     const b = {
-      back: C(18, 88, 6.5, '#8d8a84') + C(10, 91, 3.8, '#a39f97') + C(84, 90, 5, '#98948d'),
+      back: C(17, 89, 5.8, '#8d8a84') + C(9.5, 92.2, 3.3, '#a39f97') + C(83, 89, 5.8, '#98948d') + C(90.5, 92.2, 3.3, '#a39f97'),
       torso: C(50, 63, 29, p.c) + E(50, 74, 17, 11, p.belly),
       head: C(39, 43, 10.5, p.c) + C(61, 43, 10.5, p.c),
       front: E(40, 90, 7, 4, p.foot) + E(60, 90, 7, 4, p.foot),
       eyes: [[39, 43, 7.5], [61, 43, 7.5]], cheeks: [[30, 62], [70, 62]], mouth: [50, 58, 13], top: [50, 31], crown: [50, 34], neck: [50, 66, 22], heart: [50, 72],
     };
-    return compose(b, p, { under: dotsSVG([[28, 66, 2.6], [72, 64, 2.8], [36, 80, 2.2], [64, 80, 2.4], [50, 50, 2], [22, 56, 1.8], [78, 54, 1.8]], '#7b7b83') });
+    return compose(b, p, { spots: dotsSVG([[27, 70, 2.6], [73, 69, 2.8], [35, 82, 2.2], [65, 82, 2.4], [24, 60, 1.8], [76, 59, 1.8]], '#7b7b83') });
   },
   // Budgett's frog: a wide, flat frog that's mostly mouth, screaming, with small eyes on top
   budgett: () => {
     const p = pal('#7e6a50', { belly: '#dcc9a0' }), b = { ...BODY.flat(p), eyes: [[36, 42, 7], [64, 42, 7]], mouth: [50, 57, 44] }; // muddy brown
-    return compose(b, p, { under: dotsSVG([[20, 72, 2.4], [80, 72, 2.4], [28, 81, 2], [72, 81, 2], [12, 64, 1.8], [88, 64, 1.8]], '#d9c48c'), mouth: 'open', noCheeks: true });
+    return compose(b, p, { spots: dotsSVG([[20, 72, 2.4], [80, 72, 2.4], [28, 81, 2], [72, 81, 2], [12, 64, 1.8], [88, 64, 1.8]], '#d9c48c'), mouth: 'open', noCheeks: true });
   },
   // Golden poison frog: small, glossy and golden, with dark eyes and toes
   golden: () => {
     // molten gold, glossy, with a sparkle on its head
     const { p, defs } = gradPal(['#ffe58f', '#f0b43c', '#c07a18'], { toe: '#2d2620', light: '#ffd878' }), b = BODY.tall(p);
     const spark = (x, y, r) => `<path d="M${x} ${y - r}Q${x} ${y} ${x + r} ${y}Q${x} ${y} ${x} ${y + r}Q${x} ${y} ${x - r} ${y}Q${x} ${y} ${x} ${y - r}Z" fill="#fffbe6"/>`;
-    return defs + compose(b, p, { over: spark(80, 22, 5) + spark(88, 33, 2.8), inside: E(38, 55, 7, 3.4, '#fff3c6', ' opacity=".75" transform="rotate(-24 38 55)"') + E(22, 26, 4, 2.2, '#fff6d8', ' opacity=".7" transform="rotate(-30 22 26)"') });
+    return defs + compose(b, p, { over: spark(80, 22, 5) + spark(88, 33, 2.8), inside: E(22, 26, 4, 2.2, '#fff6d8', ' opacity=".7" transform="rotate(-30 22 26)"') });
   },
 });
 // ----- Might & Magic: new frogs, told apart by color and what they wear or carry -----
@@ -1373,9 +1395,19 @@ const HALO = '<ellipse rx="15" ry="4.4" fill="none" stroke="#ffd76a" stroke-widt
 // The halo floats a little above the tops of the eyes, whatever the body (on big-eyed frogs it would sit on them otherwise)
 const halo = (b, s) => ({ over: at([50, Math.min(...b.eyes.map(([, y, r]) => y - r)) - 7 * s], s, HALO) });
 // A hood over the head (drawn behind the eyes; eyes and face stay visible)
-const hood = (b, fill, edge) => { const [[x1, y1, r1], [x2, y2, r2]] = b.eyes; const top = Math.min(y1 - r1, y2 - r2) - 9;
-  return `<path d="M${x1 - r1 - 7} ${y1 + r1 + 6}C${x1 - r1 - 9} ${top}, ${x2 + r2 + 9} ${top}, ${x2 + r2 + 7} ${y2 + r2 + 6}C${x2 + r2 + 2} ${y2 - r2 + 2}, ${x1 - r1 - 2} ${y1 - r1 + 2}, ${x1 - r1 - 7} ${y1 + r1 + 6}z" fill="${fill}"/>`
-    + `<path d="M${x1 - r1 - 3} ${y1 + r1 + 1}C${x1 - r1 - 1} ${y1 - r1 - 1}, ${x2 + r2 + 1} ${y2 - r2 - 1}, ${x2 + r2 + 3} ${y2 + r2 + 1}" stroke="${edge}" stroke-width="2" fill="none"/>`; };
+// A hood over the head, draping to the shoulders; its face opening is an arch just clear of both eyes (sized to them),
+// so the eyes sit inside it and never through the cloth
+const hood = (b, fill, edge) => {
+  const [[x1, y1, r1], [x2, y2, r2]] = b.eyes, ey = Math.max(y1, y2), bot = ey + Math.max(r1, r2) + 12;
+  const L = x1 - r1 - 1.5, R = x2 + r2 + 1.5, cx = (L + R) / 2, rx = (R - L) / 2;
+  let ry = 0; // the lowest arch that still clears every point on top of both eyes by 1.5
+  for (const [x, y, r] of b.eyes) for (let a = 0; a <= 180; a += 10) { const px = x + r * Math.cos(a * Math.PI / 180), py = y - r * Math.sin(a * Math.PI / 180), u = (px - cx) / rx;
+    if (Math.abs(u) < .999) ry = Math.max(ry, (ey - py + 1.5) / Math.sqrt(1 - u * u)); }
+  const f = (v) => v.toFixed(1), o = 8; // how thick the cloth is
+  return `<path d="M${f(L - o - 2)} ${f(bot)}C${f(L - o - 1)} ${f(ey - 4)} ${f(L - o)} ${f(ey)} ${f(L - o)} ${f(ey)}A${f(rx + o)} ${f(ry + o)} 0 0 1 ${f(R + o)} ${f(ey)}C${f(R + o)} ${f(ey)} ${f(R + o + 1)} ${f(ey - 4)} ${f(R + o + 2)} ${f(bot)}`
+    + `L${f(R)} ${f(bot - 3)}V${f(ey)}A${f(rx)} ${f(ry)} 0 0 0 ${f(L)} ${f(ey)}V${f(bot - 3)}Z" fill="${fill}"/>`
+    + `<path d="M${f(L)} ${f(bot - 3)}V${f(ey)}A${f(rx)} ${f(ry)} 0 0 1 ${f(R)} ${f(ey)}V${f(bot - 3)}" stroke="${edge}" stroke-width="2" fill="none"/>`;
+};
 // A band across the eyes (drawn behind them, so the eyes show through)
 // A bandit mask on the body, under the eyes (the eyes sit on top of it): a rim shows above and below each eye,
 // rounded ends reach past them, it dips over the nose, and knot tails hang off one side
@@ -1491,7 +1523,9 @@ Object.assign(ART, {
   // Blacksmith: burly and soot-grey, in a leather apron with a hammer
   blacksmith: () => {
     const p = pal('#8c9098'), b = BODY.bull(p);
-    const apron = '<path d="M36 62h28l3 24q-17 6-34 0z" fill="#7a5534"/><path d="M38 62L33 51M62 62L67 51" stroke="#5e4028" stroke-width="2.4" stroke-linecap="round"/><path d="M42 70h16" stroke="#5e4028" stroke-width="1.8" stroke-linecap="round"/>';
+    // below the mouth, its straps going round the neck to the sides (not up to the eyes)
+    const apron = '<path d="M38.5 70.5Q30 66.5 21 66.5M61.5 70.5Q70 66.5 79 66.5" stroke="#5e4028" stroke-width="2.4" fill="none" stroke-linecap="round"/>'
+      + '<path d="M37 70h26l3 17q-16 5-32 0z" fill="#7a5534"/><path d="M43 77h14" stroke="#5e4028" stroke-width="1.8" stroke-linecap="round"/>';
     return compose(b, p, { face: apron, over: at([90.3, 82], 1, HAMMER) + HAND(90.3, 82, p) });
   },
   // Bard: slim and pink, a feathered beret and a little lute
@@ -1505,7 +1539,7 @@ Object.assign(ART, {
   // Squire: young and sandy, a plain steel cap and a small round shield
   squire: () => {
     const p = pal('#e2bd74'), b = BODY.tall(p);
-    return compose(b, p, { ...hat(b, STEEL_CAP, 1.45), over: at([14, 62], 1, SHIELD) });
+    return compose(b, p, { ...hat(b, STEEL_CAP, 1.45), over: at([81, 61], 1, SHIELD) });
   },
   cleric: () => { const p = pal('#d6c9ef'), b = BODY.round(p); return compose(b, p, { ...hat(b, MITRE, 1) }); },
   // Guard: a sturdy sage frog in an iron kettle hat, with a spear
@@ -1526,7 +1560,7 @@ Object.assign(ART, {
   // Dragon Frog: fiery red with an orange belly, little wings and horns
   dragon: () => {
     const p = pal('#dc5f3c', { belly: '#f6b35c' }), b = BODY.bull(p);
-    return compose(b, p, { behind: DRAGON_WINGS(b, mix('#dc5f3c', '#1b2a22', .25)), horns: 1.4, under: dotsSVG([[30, 52, 2.2], [70, 52, 2.2], [24, 62, 1.8], [76, 62, 1.8]], mix('#dc5f3c', '#1b2a22', .3)) });
+    return compose(b, p, { behind: DRAGON_WINGS(b, mix('#dc5f3c', '#1b2a22', .25)), horns: 1.4, spots: dotsSVG([[30, 52, 2.2], [70, 52, 2.2], [24, 62, 1.8], [76, 62, 1.8]], mix('#dc5f3c', '#1b2a22', .3)) });
   },
   // Paladin: cream-white, a golden halo and a blue tabard
   paladin: () => {
@@ -1535,13 +1569,17 @@ Object.assign(ART, {
     return compose(b, p, { ...halo(b, 1.15), face: tabard, brows: true });
   },
 });
-BUG_ART.cricket = '<g transform="translate(-8 -12) scale(1.18)"><path d="M30 60L18 80M44 64l-4 18M58 64l5 18" stroke="#5b4326" stroke-width="3" stroke-linecap="round"/>'
-  + '<path d="M62 52C74 40 84 42 88 52L80 80" stroke="#6e5230" stroke-width="5" fill="none" stroke-linecap="round" stroke-linejoin="round"/>'
-  + '<ellipse cx="46" cy="55" rx="24" ry="11.5" fill="#7a5a33"/><path d="M28 50C40 42 58 42 68 50" stroke="#94703f" stroke-width="3" fill="none" stroke-linecap="round"/>'
-  + '<path d="M40 47C50 44 60 45 66 50L58 58z" fill="#a47d45" opacity=".7"/>'
-  + '<circle cx="24" cy="52" r="10" fill="#6e5230"/><circle cx="20" cy="49" r="3.2" fill="#fff"/><circle cx="19.2" cy="49.4" r="1.7" fill="#2a211c"/>'
-  + '<path d="M18 44C12 30 6 22 2 20M22 43C20 30 18 20 16 12" stroke="#5b4326" stroke-width="1.8" fill="none" stroke-linecap="round"/>'
-  + '<path d="M17 57q3 2 6 0" stroke="#3d2c18" stroke-width="1.6" fill="none" stroke-linecap="round"/></g>';
+// Cricket: front-on and round like the other bugs: folded wings behind, big jumping legs at its sides, long antennae
+BUG_ART.cricket = '<path d="M44 30C40 18 32 10 21 7M56 30C60 18 68 10 79 7" stroke="#4a3520" stroke-width="2.3" fill="none" stroke-linecap="round"/>'
+  + '<ellipse cx="33" cy="60" rx="10" ry="19" transform="rotate(18 33 60)" fill="#5e4428"/><ellipse cx="67" cy="60" rx="10" ry="19" transform="rotate(-18 67 60)" fill="#5e4428"/>'
+  + '<path d="M33 64L17 46" stroke="#8a6638" stroke-width="7.5" stroke-linecap="round"/><path d="M67 64L83 46" stroke="#8a6638" stroke-width="7.5" stroke-linecap="round"/>'
+  + '<path d="M17 46L21 85M83 46L79 85" stroke="#6e5230" stroke-width="4" stroke-linecap="round"/>'
+  + '<path d="M42 78l-6 9M50 81v9M58 78l6 9" stroke="#4a3520" stroke-width="3.2" stroke-linecap="round"/>'
+  + '<ellipse cx="50" cy="64" rx="18" ry="19" fill="#8a6638"/><path d="M36 61q14 5 28 0M37.5 70q12.5 4.5 25 0M40.5 78q9.5 3 19 0" stroke="#a7804a" stroke-width="3" fill="none" stroke-linecap="round"/>'
+  + '<circle cx="50" cy="41" r="14.5" fill="#6e5230"/>'
+  + '<circle cx="43" cy="39.5" r="6.2" fill="#fffdf6"/><circle cx="57" cy="39.5" r="6.2" fill="#fffdf6"/><circle cx="44.2" cy="40.4" r="3.5" fill="#2a211c"/><circle cx="55.8" cy="40.4" r="3.5" fill="#2a211c"/>'
+  + '<circle cx="45.3" cy="38.9" r="1.2" fill="#fff"/><circle cx="56.9" cy="38.9" r="1.2" fill="#fff"/>'
+  + '<path d="M46.2 49q3.8 2.8 7.6 0" stroke="#2f2216" stroke-width="1.9" fill="none" stroke-linecap="round"/>';
 // Every frog is drawn at the same on-screen size (measured by how much of the pad its drawing covers), so
 // size only ever says level; the Froglet, a hatched baby, stays a little smaller
 const ART_SIZE = {
