@@ -197,7 +197,7 @@ input:focus { border-color: var(--firefly); outline: none; }
 .profile .pv { position: relative; height: 112px; display: grid; place-items: end center; }
 .profile .pv .frog { margin-bottom: 12px; } /* feet near the middle of the pad, like on the landing page */
 .pv-pad { position: absolute; bottom: 0; left: 50%; width: 132px; height: 52px; transform: translateX(-50%); background: var(--leaf) center / contain no-repeat; }
-/* Frog / Lily pad: a larger switch above the tabs */
+/* Frog / Extras / Lily pad: a larger switch above the tabs */
 .av-sections { display: flex; gap: 6px; }
 .av-sec { flex: 1; height: 40px; border: 0; border-radius: 14px; background: rgba(245, 237, 214, .06); color: var(--moon-dim); font-size: 16px; font-weight: 900; }
 .av-sec.on { background: rgba(255, 205, 102, .14); color: var(--moon); box-shadow: inset 0 0 0 2px var(--firefly); }
@@ -948,7 +948,7 @@ const BODY = {
     head: '', front: '',
     eyes: [[45, 48, 8.5], [69, 48, 8.5]], cheeks: [[35, 62], [79, 62]], mouth: [57, 63, 12], top: [57, 33], crown: [57, 37], neck: [57, 70, 16], heart: [59, 70], hat: [57, 35],
     // the round body without its tail (wings, cape and watch hang off this), and where its hand holds an umbrella
-    core: { x: 26, y: 33, w: 62, h: 57 }, grip: [22, 8],
+    core: { x: 26, y: 33, w: 62, h: 57 }, grip: [16, 8],
   }),
 };
 const BODIES = Object.keys(BODY);
@@ -982,6 +982,9 @@ const lashesSVG = (list, line) => list.map(([x, y, r], i) => [200, 222, 245].map
 const dotsSVG = (list, fill) => list.map(([x, y, r]) => C(x, y, r, fill)).join('');
 const heartSVG = ([x, y], s = 1) => `<path transform="translate(${x} ${y}) scale(${s})" d="M0 8C-6.5 4-9.5 1-9.5-2.8a4.6 4.6 0 0 1 9.5-1.8 4.6 4.6 0 0 1 9.5 1.8C9.5 1 6.5 4 0 8z" fill="#ff6f8d"/>`;
 const at = ([x, y], s, inner) => `<g transform="translate(${x} ${y}) scale(${s})">${inner}</g>`;
+// A hand holding something: a floating circle in the body's color with no arm (the art's style), outlined so it
+// reads against the body and the thing it holds. Drawn over the item, gripping it.
+const HAND = (x, y, p, r = 4.4) => C(+x.toFixed(1), +y.toFixed(1), r, p.c, ` stroke="${p.dark}" stroke-width="1.4"`);
 
 // Contextual pieces (drawn, not emoji)
 const CROWN = '<path d="M-15 0V-13l7.5 6.5L0-17l7.5 10.5L15-13V0z" fill="#f6c343"/><path d="M-15 0h30v-4.5h-30z" fill="#dea02a"/>'
@@ -1074,7 +1077,8 @@ const ART = {
     const ear = (x) => C(x, 52, 8.5, p.deep) + C(x, 52, 5.5, mix('#809b4b', '#1b2a22', .2)) + C(x - 1.5, 50.5, 1.6, '#c9d99a', ' opacity=".7"');
     return compose(b, p, { inside: ear(16) + ear(84) });
   },
-  knight: () => { const p = pal('#9aa7d8'), b = BODY.classic(p); return compose(b, p, hat(b, HELMET, 1.3, 5)); },
+  // Knight: royal blue (the Princess is the pastel one), a steel helmet with a red plume
+  knight: () => { const p = pal('#5f7fd0'), b = BODY.classic(p); return compose(b, p, hat(b, HELMET, 1.3, 5)); },
   // Prince: crown and a royal blue sash with a gold medal
   // Prince: crown and gold epaulettes on the shoulders (the body's outer edges beside the eyes), each pad lying
   // along the shoulder's slope with its fringe hanging straight down; tucked behind the eyes like the crown
@@ -1097,17 +1101,17 @@ const ART = {
   // Rain frog: a grumpy little blob under its umbrella
   rain: () => {
     const p = pal('#9aabbf'), b = BODY.round(p);
-    // Handle runs from the hand up to a canopy tilted over the head; the arm and hand are drawn over the handle
+    // Handle runs from the hand up to a canopy tilted over the head; the hand floats beside the body, on the handle
     const umbrella = `<g transform="translate(24 12) rotate(-12) scale(1.18)">${UMBRELLA_CANOPY}</g>`
       + `<path d="M11.5 75L22 13" stroke="#6b5a4c" stroke-width="2.4" stroke-linecap="round"/><path d="M11.5 75c-.6 3.6 3.6 4.8 4.8 1.6" stroke="#6b5a4c" stroke-width="2.4" fill="none" stroke-linecap="round"/>`;
-    const arm = `<path d="M20 62C14 62 10 64 9.5 68" stroke="${p.c}" stroke-width="7" stroke-linecap="round" fill="none"/>` + C(11, 68.5, 4.6, p.c) + `<path d="M8.4 66.6h5.2M8.4 69.8h5.2" stroke="${p.dark}" stroke-width="1.2" stroke-linecap="round" opacity=".6"/>`;
     // Held in its right hand (drawn on the art's right): in battle the stats sit on the other side, so the
     // umbrella never covers them (your frogs have stats on the left; your partner's are mirrored)
-    return compose(b, p, { brows: true, mouth: 'frown', over: `<g transform="matrix(-1 0 0 1 100 0)">${umbrella + arm}</g>` });
+    return compose(b, p, { brows: true, mouth: 'frown', over: `<g transform="matrix(-1 0 0 1 104 0)">${umbrella + HAND(12, 67, p)}</g>` });
   },
-  // Lucky toad: red and gold with a coin in its mouth
-  lucky: () => { const p = pal('#dc5a49'), b = BODY.toad(p); return compose(b, p, { under: dotsSVG(b.dots, '#f4c653'), inside: COIN(b.heart[0], b.heart[1]) }); },
-  mama: () => { const p = pal('#f3a77c'), b = BODY.round(p); return compose(b, p, { lashes: true, face: PEARLS([b.neck[0], neckY(b), b.neck[2]]) }); },
+  // Lucky toad: a jade money toad with gold spots and a gold coin (the Dragon is the red one)
+  lucky: () => { const p = pal('#3fa58a'), b = BODY.toad(p); return compose(b, p, { under: dotsSVG(b.dots, '#f4c653'), inside: COIN(b.heart[0], b.heart[1]) }); },
+  // Mama frog: lilac, with lashes and pearls (the Turtle Frog is the pink one)
+  mama: () => { const p = pal('#c4a2e4'), b = BODY.round(p); return compose(b, p, { lashes: true, face: PEARLS([b.neck[0], neckY(b), b.neck[2]]) }); },
   // Wizard: arcane teal fading into indigo
   wizard: () => { const { p, defs } = gradPal(['#4fcdb5', '#3f97bf', '#5a5cc4']), b = BODY.classic(p); return defs + compose(b, p, hat(b, WIZARD_HAT, 1.12, 3)); },
   froglet: () => { const p = pal('#a9e29a'), b = BODY.classic(p); return compose(b, p); },
@@ -1170,7 +1174,7 @@ Object.assign(ART, {
     const eggs = [[22, 45, 6], [32, 38.5, 6.5], [68, 38.5, 6.5], [78, 45, 6]].map(([x, y, r]) => egg(x, y, r)).join('') + baby(42.5, 31.5, 7) + baby(57.5, 31.5, 7);
     return compose(b, p, { behind: eggs });
   },
-  hypno: () => { const p = pal('#a97fdc'), b = BODY.classic(p); return compose(b, p, { eyes: 'spiral', over: PENDULUM(b) }); },
+  hypno: () => { const p = pal('#a97fdc'), b = BODY.classic(p); return compose(b, p, { eyes: 'spiral', over: PENDULUM(b, p) }); },
   // Princess: sky blue blushing into lilac and pink
   princess: () => { const { p, defs } = gradPal(['#96d3f6', '#b8b2f0', '#f4b0d0']), b = BODY.classic(p); return defs + compose(b, p, { lashes: true, ...hat(b, TIARA, .95, 0) }); },
   // Leapfrog: a spotted leopard frog, always looking back the other way (it leaps over the line)
@@ -1318,38 +1322,40 @@ const KING_CAPE = (b) => {
   return `<path d="M${x1 - r1} ${top}Q${cx} ${top - 12} ${x2 + r2} ${top}L${bb.x + bb.w + 5} ${bot}Q${cx} ${bot + 5} ${bb.x - 5} ${bot}z" fill="#c0392b"/>`
     + `<path d="M${x1 - r1} ${top}Q${cx} ${top - 12} ${x2 + r2} ${top}" stroke="#9a2c21" stroke-width="2" fill="none"/>`;
 };
-// A gold pocket watch swinging on its chain from the frog's right hand (the art's right, where no stats sit)
-const PENDULUM = (b) => {
-  const [, [, y2, r2]] = b.eyes, bb = bodyBox(b), hx = bb.x + bb.w - 10, hy = y2 + r2 + 12, wx = hx + 5.5, wy = hy + 23;
-  return `<path d="M${hx} ${hy}L${wx} ${wy - 3}" stroke="#c9a54c" stroke-width="1.6"/>` + C(hx, hy, 3.4, 'none', ' stroke="#8a6a2c" stroke-width="1.4"') + C(wx, wy, 6, '#f6c343', ' stroke="#c48b22" stroke-width="1.5"') + C(wx, wy, 3.6, '#fff6d8')
-    + `<path d="M${wx} ${wy}v-2.4M${wx} ${wy}h2" stroke="#8a6a2c" stroke-width="1" stroke-linecap="round"/>`;
+// A gold pocket watch hanging on its chain from the frog's right hand (the art's right, where no stats sit); the
+// hand floats just off the body's side
+const PENDULUM = (b, p) => {
+  const [, [, y2, r2]] = b.eyes, bb = bodyBox(b), hx = Math.min(95, bb.x + bb.w + 1.5), hy = y2 + r2 + 10, wx = hx + 1.5, wy = hy + 21;
+  return `<path d="M${hx} ${hy}L${wx} ${wy - 3}" stroke="#c9a54c" stroke-width="1.6"/>` + C(wx, wy, 6, '#f6c343', ' stroke="#c48b22" stroke-width="1.5"') + C(wx, wy, 3.6, '#fff6d8')
+    + `<path d="M${wx} ${wy}v-2.4M${wx} ${wy}h2" stroke="#8a6a2c" stroke-width="1" stroke-linecap="round"/>` + HAND(hx, hy, p);
 };
 Object.assign(ART, {
-  peasant: () => { const p = pal('#a9b45a'), b = BODY.classic(p); return compose(b, p, { ...hat(b, STRAW_HAT, 1.3, 5) }); },
+  // Peasant: earthy brown under a straw hat (the Jester is the lime one)
+  peasant: () => { const p = pal('#a07c55'), b = BODY.classic(p); return compose(b, p, { ...hat(b, STRAW_HAT, 1.3, 5) }); },
   // Archer: forest green, a feathered cap and a bow held at its side
   archer: () => {
     const p = pal('#5aa65e'), b = BODY.slim(p);
-    const bow = '<path d="M85 44Q100 66 85 88" stroke="#8a5a2b" stroke-width="3.2" fill="none" stroke-linecap="round"/><path d="M85 44V88" stroke="#f1e6c8" stroke-width="1.1"/>';
-    return compose(b, p, { ...hat(b, ROBIN_HAT, 1.05, 1), over: bow });
+    const bow = '<path d="M86 44Q101 66 86 88" stroke="#8a5a2b" stroke-width="3.2" fill="none" stroke-linecap="round"/><path d="M86 44V88" stroke="#f1e6c8" stroke-width="1.1"/>';
+    return compose(b, p, { ...hat(b, ROBIN_HAT, 1.05, 1), over: bow + HAND(93.5, 66, p) });
   },
   // Merchant: round and orange, a jewelled turban and a fat purse of gold
   merchant: () => {
     const p = pal('#e38b4d'), b = BODY.round(p);
-    const purse = '<path d="M71 70q7-5 14 0l2 12q-9 6-18 0z" fill="#b88a5c"/><path d="M72 71h12" stroke="#7a5534" stroke-width="2.2" stroke-linecap="round"/>' + C(78, 79, 2.6, '#f6c343');
-    return compose(b, p, { ...hat(b, TURBAN, 1, 1), over: purse });
+    const purse = '<path d="M81 76q7-5 14 0l2 12q-9 6-18 0z" fill="#b88a5c"/><path d="M82 77h12" stroke="#7a5534" stroke-width="2.2" stroke-linecap="round"/>' + C(88, 85, 2.6, '#f6c343');
+    return compose(b, p, { ...hat(b, TURBAN, 1, 1), over: purse + HAND(88, 72.5, p) });
   },
   // Blacksmith: burly and soot-grey, in a leather apron with a hammer
   blacksmith: () => {
     const p = pal('#8c9098'), b = BODY.bull(p);
     const apron = '<path d="M36 62h28l3 24q-17 6-34 0z" fill="#7a5534"/><path d="M38 62L33 51M62 62L67 51" stroke="#5e4028" stroke-width="2.4" stroke-linecap="round"/><path d="M42 70h16" stroke="#5e4028" stroke-width="1.8" stroke-linecap="round"/>';
-    const hammer = '<path d="M86 88L80 60" stroke="#8a5a2b" stroke-width="3.4" stroke-linecap="round"/><rect x="71" y="52" width="17" height="10" rx="2" transform="rotate(-12 79 57)" fill="#5d636e"/>';
-    return compose(b, p, { face: apron, over: hammer });
+    const hammer = '<path d="M92 90L86 62" stroke="#8a5a2b" stroke-width="3.4" stroke-linecap="round"/><rect x="77" y="54" width="17" height="10" rx="2" transform="rotate(-12 85 59)" fill="#5d636e"/>';
+    return compose(b, p, { face: apron, over: hammer + HAND(90.3, 82, p) });
   },
   // Bard: slim and pink, a feathered beret and a little lute
   bard: () => {
     const p = pal('#963249'), b = BODY.slim(p);
     const lute = '<path d="M77 72L92 48" stroke="#7a5534" stroke-width="3" stroke-linecap="round"/>' + E(74, 76, 8.5, 10, '#c98a4b', ' transform="rotate(32 74 76)"') + C(75, 75, 2.6, '#5e4028') + '<path d="M91 50l3-2" stroke="#5e4028" stroke-width="2.6" stroke-linecap="round"/>';
-    return compose(b, p, { ...hat(b, BERET, 1, 2), over: lute });
+    return compose(b, p, { ...hat(b, BERET, 1, 2), over: lute + HAND(87.5, 56, p) });
   },
   jester: () => { const p = pal('#c9d64f'), b = BODY.classic(p); return compose(b, p, { ...hat(b, JESTER_HAT, 1, 1), mouth: 'open' }); },
   // Rogue: charcoal, hooded, with a mask across its eyes
@@ -1357,15 +1363,15 @@ Object.assign(ART, {
   // Squire: young and sandy, a plain steel cap and a small round shield
   squire: () => {
     const p = pal('#e2bd74'), b = BODY.tall(p);
-    const shield = C(16, 72, 11, '#3f86d6', ' stroke="#8e98ab" stroke-width="2.4"') + C(16, 72, 3.2, '#f6c343');
-    return compose(b, p, { ...hat(b, STEEL_CAP, 1.05, 1), over: shield });
+    const shield = C(12, 74, 11, '#3f86d6', ' stroke="#8e98ab" stroke-width="2.4"') + C(12, 74, 3.2, '#f6c343');
+    return compose(b, p, { ...hat(b, STEEL_CAP, 1.3, 1), over: shield + HAND(14, 62, p) });
   },
   cleric: () => { const p = pal('#d6c9ef'), b = BODY.round(p); return compose(b, p, { ...hat(b, MITRE, 1, 0) }); },
   // Guard: a sturdy sage frog in an iron kettle hat, with a spear
   guard: () => {
     const p = pal('#7f9d86'), b = BODY.flat(p);
-    const spear = '<path d="M90 94V22" stroke="#8a5a2b" stroke-width="3" stroke-linecap="round"/><path d="M90 8l5 14h-10z" fill="#c9d1dd"/>';
-    return compose(b, p, { ...hat(b, KETTLE_HAT, 1.12, 1), brows: true, mouth: 'flat', over: spear });
+    const spear = '<path d="M95 94V22" stroke="#8a5a2b" stroke-width="3" stroke-linecap="round"/><path d="M95 8l5 14h-10z" fill="#c9d1dd"/>';
+    return compose(b, p, { ...hat(b, KETTLE_HAT, 1.12, 1), brows: true, mouth: 'flat', over: spear + HAND(95, 58, p) });
   },
   // Necromancer: dusky and hooded, with glowing green eyes
   necro: () => {
@@ -1419,7 +1425,8 @@ const AV_COLORS = ['#6cc46a', '#86cfa6', '#45b6a8', '#4ea5ee', '#9aa7d8', '#f2a4
 // and adds to the layers compose() draws. Many borrow the game frogs' signature looks.
 // Some options are earned with rank (the table lives in ranks.js on the server, which also enforces it):
 // { rank: { field: [option ids] } }; anything not listed is open to everyone
-const UNLOCKS = JSON.parse(document.getElementById('unlocks').textContent);
+// EXTRAS: the extras' slots (hat, face, neck, hand, back), each a list of AV_ACCS ids; one per slot is worn
+const { unlocks: UNLOCKS, extras: EXTRAS } = JSON.parse(document.getElementById('unlocks').textContent);
 const RANK_NAME = { tadpole: 'Tadpole', froglet: 'Froglet', frog: 'Frog', master: 'Master Frog', legend: 'Frog Legend' };
 const needs = (key, id) => Object.keys(UNLOCKS).find((t) => (UNLOCKS[t][key] || []).includes(id)) || '';
 // A setting's options in unlock order: open ones first, then Froglet, Frog, Master Frog and Frog Legend (keeping
@@ -1460,10 +1467,10 @@ const AV_PATTERNS = [
 // Accessories hang off the body's anchor points (see hat/eyeCorner/cheek/neckY), so they fit every body.
 // head: true = hidden while the winner's crown is on. small: how much bigger it's drawn on small avatars (player
 // plates, lobby rows, the picker wheel), where the finer extras would otherwise shrink to a few pixels. x gets that as k.
-const umbrella = (b, p) => `<g transform="translate(${b.grip ? b.grip.join(' ') : `${b.cheeks[0][0] - 21} ${b.top[1] - 23}`})">`
+const umbrella = (b, p) => `<g transform="translate(${b.grip ? b.grip.join(' ') : `${b.cheeks[0][0] - 24} ${b.top[1] - 23}`})">`
   + `<g transform="translate(24 12) rotate(-12) scale(1.18)">${UMBRELLA_CANOPY}</g><path d="M11.5 75L22 13" stroke="#6b5a4c" stroke-width="2.4" stroke-linecap="round"/>`
   + `<path d="M11.5 75c-.6 3.6 3.6 4.8 4.8 1.6" stroke="#6b5a4c" stroke-width="2.4" fill="none" stroke-linecap="round"/>`
-  + `<path d="M20 62C14 62 10 64 9.5 68" stroke="${p.c}" stroke-width="7" stroke-linecap="round" fill="none"/>${C(11, 68.5, 4.6, p.c)}</g>`;
+  + `${HAND(9, 67, p)}</g>`;
 const LEAF_HAT = '<ellipse cy="-3" rx="17" ry="6.5" fill="#3f8a47"/><ellipse cy="-4.5" rx="16" ry="5.5" fill="#5cae5d"/><path d="M0-4.5L7-9.5L9.5-4.5z" fill="#3f8a47"/><path d="M-2-9c1-4 4-6 7-6" stroke="#4a9a50" stroke-width="2" fill="none" stroke-linecap="round"/>';
 const AV_ACCS = [
   { id: 'none', name: 'Nothing' },
@@ -1494,7 +1501,7 @@ const AV_ACCS = [
   { id: 'cap', name: 'Squire’s cap', head: true, x: (b) => hat(b, STEEL_CAP, 1.05, 1) },
   { id: 'kettle', name: 'Guard’s helmet', head: true, x: (b) => hat(b, KETTLE_HAT, 1.12, 1) },
   { id: 'mask', name: 'Rogue’s mask', x: (b) => ({ inside: eyeMask(b) }) },
-  { id: 'pendulum', name: 'Hypno’s watch', x: (b) => ({ over: PENDULUM(b) }) },
+  { id: 'pendulum', name: 'Hypno’s watch', x: (b, p) => ({ over: PENDULUM(b, p) }) },
   { id: 'cape', name: 'King’s cape', x: (b) => ({ behind: KING_CAPE(b) }) },
   { id: 'wings', name: 'Dragon wings', x: (b, p) => ({ behind: DRAGON_WINGS(b, p.dark) }) },
 ];
@@ -1551,7 +1558,9 @@ function cleanAv(a) {
   a = a || {};
   return {
     b: BODIES.includes(a.b) ? a.b : 'classic', c: Math.max(0, Math.min(AV_COLORS.length - 1, a.c | 0)),
-    e: byId(AV_EYES, a.e).id, t: byId(AV_PATTERNS, OLD_PATTERNS[a.t] || a.t).id, a: byId(AV_ACCS, a.a).id,
+    e: byId(AV_EYES, a.e).id, t: byId(AV_PATTERNS, OLD_PATTERNS[a.t] || a.t).id,
+    // one extra per slot (an avatar from before slots has one, `a`, which goes to its slot)
+    ...Object.fromEntries(Object.entries(EXTRAS).map(([k, ids]) => { const v = a[k] === undefined ? a.a : a[k]; return [k, ids.includes(v) ? v : 'none']; })),
     l: byId(PAD_STYLES, a.l).id, lc: Math.max(0, Math.min(PAD_COLORS.length - 1, a.lc | 0)),
   };
 }
@@ -1580,7 +1589,7 @@ function avatarPal(ci) {
 }
 function avatarArt(av, crown, centered, small) {
   av = cleanAv(av);
-  const key = `av:${av.b}:${av.c}:${av.e}:${av.t}:${av.a}:${crown ? 1 : 0}:${centered ? 1 : 0}:${small ? 1 : 0}`;
+  const key = `av:${av.b}:${av.c}:${av.e}:${av.t}:${Object.keys(EXTRAS).map((k) => av[k]).join(',')}:${crown ? 1 : 0}:${centered ? 1 : 0}:${small ? 1 : 0}`;
   if (!artCache.has(key)) {
     const { p, defs } = avatarPal(av.c), b = BODY[av.b](p), x = {};
     const add = (more) => { for (const [k, v] of Object.entries(more || {})) x[k] = typeof v === 'string' ? (x[k] || '') + v : v; };
@@ -1592,8 +1601,7 @@ function avatarArt(av, crown, centered, small) {
     // (they also go over the head, drawn after it; the others sit under the head)
     if (pat.art) add({ [pat.bellyClear ? 'inside' : 'under']: `<defs><clipPath id="avclip-${av.b}">${b.torso}${b.head}</clipPath></defs><g clip-path="url(#avclip-${av.b})">${pat.art(p)}</g>${belly}` });
     if (pat.x) add(pat.x(b, p));
-    const acc = byId(AV_ACCS, av.a);
-    if (acc.x && !(crown && acc.head)) add(acc.x(b, p, small ? acc.small || 1 : 1));
+    for (const k of Object.keys(EXTRAS)) { const acc = byId(AV_ACCS, av[k]); if (acc.x && !(crown && acc.head)) add(acc.x(b, p, small ? acc.small || 1 : 1)); }
     if (crown) add(hat(b, CROWN, 1, 0));
     const [cx, cy] = centered ? bodyCenter(av.b) : [50, 50];
     artCache.set(key, `<svg class="fsvg" viewBox="${(cx - 50).toFixed(1)} ${(cy - 50).toFixed(1)} 100 100" aria-hidden="true">${defs}${compose(b, p, x)}</svg>`);
@@ -3317,14 +3325,16 @@ const AV_TABS = [
   { key: 'c', label: 'Color', opts: AV_COLORS.map((_, i) => ({ id: i, name: COLOR_NAMES[i] })) },
   { key: 'e', label: 'Eyes', opts: AV_EYES, face: true },
   { key: 't', label: 'Pattern', opts: AV_PATTERNS },
-  { key: 'a', label: 'Extras', opts: AV_ACCS },
 ].map((t) => ({ ...t, opts: byRank(t.key, t.opts) }));
+// Extras: a tab per slot, each starting with Nothing; one from each slot can be worn at once
+const EXTRA_TABS = [['h', 'Hat'], ['f', 'Face', true], ['n', 'Neck'], ['hd', 'Hand'], ['bk', 'Back']]
+  .map(([key, label, face]) => ({ key, label, face, opts: byRank(key, [AV_ACCS[0], ...AV_ACCS.filter((o) => EXTRAS[key].includes(o.id))]) }));
 const PAD_TABS = [
   { key: 'l', label: 'Style', opts: PAD_STYLES, pad: true },
   { key: 'lc', label: 'Color', opts: PAD_COLORS.map(([name], i) => ({ id: i, name })), pad: true },
 ].map((t) => ({ ...t, opts: byRank(t.key, t.opts) }));
-// The editor's two sections, each with its own tabs
-const AV_SECTIONS = [{ label: 'Frog', tabs: AV_TABS }, { label: 'Lily pad', tabs: PAD_TABS }];
+// The editor's sections, each with its own tabs
+const AV_SECTIONS = [{ label: 'Frog', tabs: AV_TABS }, { label: 'Extras', tabs: EXTRA_TABS }, { label: 'Lily pad', tabs: PAD_TABS }];
 function openProfile(done) {
   let av = { ...myAvatar() }, section = AV_SECTIONS[0], tab = AV_TABS[0], current = -1, settle = 0, steering = -1, steerTimer = 0;
   const tabsHTML = () => section.tabs.map((t, i) => `<button class="av-tab${t === tab ? ' on' : ''}" data-t="${i}">${t.label}</button>`).join('');
@@ -3396,7 +3406,7 @@ function openProfile(done) {
     $$('.av-tab', s.el).forEach((x) => x.classList.toggle('on', x === b));
     fill();
   });
-  // Frog / Lily pad: each section opens on its first tab
+  // Frog / Extras / Lily pad: each section opens on its first tab
   $('.av-sections', s.el).addEventListener('click', (e) => {
     const b = e.target.closest('.av-sec'); if (!b || section === AV_SECTIONS[+b.dataset.s]) return;
     Snd.tap(); section = AV_SECTIONS[+b.dataset.s]; tab = section.tabs[0];

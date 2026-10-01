@@ -80,7 +80,9 @@ const PAD_COLORS = 12, AV_COLORS = 18, AV_BODIES = ['classic', 'slim', 'tall', '
 const optId = (v, dflt) => (/^[a-z]{1,12}$/.test(String(v || '')) ? v : dflt);
 const cleanAvatar = (a) => ({
   b: AV_BODIES.includes(a && a.b) ? a.b : 'classic', c: Math.max(0, Math.min(AV_COLORS - 1, (a && a.c) | 0)),
-  e: optId(a && a.e, 'dark'), t: optId(a && a.t, 'none'), a: optId(a && a.a, 'none'),
+  e: optId(a && a.e, 'dark'), t: optId(a && a.t, 'none'),
+  // extras, one per slot (an avatar from before slots has one extra, `a`: it goes to its slot)
+  ...Object.fromEntries(Object.entries(R.EXTRAS).map(([k, ids]) => { const v = a && (a[k] === undefined ? a.a : a[k]); return [k, ids.includes(v) ? v : 'none']; })),
   // lily pad: style id and color (one of PAD_COLORS on the page)
   l: optId(a && a.l, 'classic'), lc: Math.max(0, Math.min(PAD_COLORS - 1, (a && a.lc) | 0)),
 });
@@ -103,7 +105,7 @@ function currentPage() {
   if (st.mtimeMs !== page.mtime) {
     const raw = fs.readFileSync(INDEX, 'utf8');
     const catalog = JSON.stringify(Object.fromEntries(Object.entries(FROGS).map(([k, f]) => [k, { name: f.name, tier: f.tier, atk: f.atk, hp: f.hp, cost: frogCost(k), ...(f.fixed ? { fixed: f.fixed } : {}) }])));
-    const items = JSON.stringify(FOODS), sets = JSON.stringify(SETS), unlocks = JSON.stringify(R.UNLOCKS);
+    const items = JSON.stringify(FOODS), sets = JSON.stringify(SETS), unlocks = JSON.stringify({ unlocks: R.UNLOCKS, extras: R.EXTRAS });
     const build = crypto.createHash('sha1').update(raw + catalog + items + sets + unlocks).digest('hex').slice(0, 10);
     page = { mtime: st.mtimeMs, build, html: raw.replace('__BUILD__', build).replace('__CATALOG__', catalog.replace(/</g, '\\u003c')).replace('__ITEMS__', items.replace(/</g, '\\u003c')).replace('__SETS__', sets.replace(/</g, '\\u003c')).replace('__UNLOCKS__', unlocks) };
   }

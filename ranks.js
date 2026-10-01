@@ -53,18 +53,28 @@ function rankOf(uid, profiles) {
   };
 }
 
+// Extras, by where they're worn: one of each at a time (a hat, something on the face, round the neck, in the hand
+// and on the back), so a hat never takes the place of a cape. Avatars made before this had one extra, `a`; it
+// moves to its slot (see cleanAvatar).
+const EXTRAS = {
+  h: ['crown', 'tiara', 'helmet', 'wizard', 'leaf', 'lily', 'horns', 'kingcrown', 'halo', 'jester', 'straw', 'robin', 'turban', 'beret', 'mitre', 'cap', 'kettle'],
+  f: ['glasses', 'mask', 'bandaid'],
+  n: ['pearls', 'bowtie', 'coin'],
+  hd: ['umbrella', 'pendulum'],
+  bk: ['cape', 'wings'],
+};
 // Avatar options earned with rank; anything not listed is open to everyone. Keys are the avatar fields: b body,
-// c color (index; 13-17 are the gradients), e eyes, t pattern, a extra, l lily pad style, lc lily pad color (index). The page gets this table
-// too (it lists each setting's options by the rank that unlocks them); the server enforces it. Every setting
-// has something at every rank.
+// c color (index; 13-17 are the gradients), e eyes, t pattern, the extras' slots (above), l lily pad style, lc lily
+// pad color (index). The page gets this table too (it lists each setting's options by the rank that unlocks them);
+// the server enforces it.
 const RANK_IDS = [...TIERS.map((t) => t.id), LEGEND.id];
 const UNLOCKS = {
-  froglet: { b: ['tadpole'], c: [13], e: ['lashes', 'brows'], t: ['freckles'], a: ['coin', 'pearls', 'horns', 'umbrella', 'robin', 'turban'], l: ['clover'], lc: [5, 6] },
-  frog: { b: ['tall'], c: [15], e: ['violet'], t: ['bands'], a: ['tiara', 'helmet', 'wizard', 'jester', 'mitre', 'kettle', 'mask'], l: ['dew'], lc: [7, 8] },
-  master: { b: ['flat'], c: [14, 16], e: ['red'], t: ['stripes'], a: ['crown', 'pendulum', 'wings'], l: ['heart'], lc: [11] },
-  legend: { b: ['bull'], c: [17], e: ['spiral'], t: ['glass'], a: ['kingcrown', 'halo', 'cape'], l: ['lotus'], lc: [9] },
+  froglet: { b: ['tadpole'], c: [13], e: ['lashes', 'brows'], t: ['freckles'], h: ['horns', 'robin', 'turban'], n: ['coin', 'pearls'], hd: ['umbrella'], l: ['clover'], lc: [5, 6] },
+  frog: { b: ['tall'], c: [15], e: ['violet'], t: ['bands'], h: ['tiara', 'helmet', 'wizard', 'jester', 'mitre', 'kettle'], f: ['mask'], l: ['dew'], lc: [7, 8] },
+  master: { b: ['flat'], c: [14, 16], e: ['red'], t: ['stripes'], h: ['crown'], hd: ['pendulum'], bk: ['wings'], l: ['heart'], lc: [11] },
+  legend: { b: ['bull'], c: [17], e: ['spiral'], t: ['glass'], h: ['kingcrown', 'halo'], bk: ['cape'], l: ['lotus'], lc: [9] },
 };
-const AVATAR_DEFAULTS = { b: 'classic', c: 0, e: 'dark', t: 'none', a: 'none', l: 'classic', lc: 0 };
+const AVATAR_DEFAULTS = { b: 'classic', c: 0, e: 'dark', t: 'none', h: 'none', f: 'none', n: 'none', hd: 'none', bk: 'none', l: 'classic', lc: 0 };
 // The rank an option needs, or '' if it's open
 const needs = (key, id) => Object.keys(UNLOCKS).find((tier) => (UNLOCKS[tier][key] || []).includes(id)) || '';
 // An avatar with everything the rank hasn't earned yet put back to the default
@@ -74,4 +84,4 @@ function fitAvatar(av, rankId) {
   return out;
 }
 
-module.exports = { PIPS, TIERS, LEGEND, LEGENDS, GAP, level, points, apply, rankOf, board, forget, UNLOCKS, needs, fitAvatar };
+module.exports = { PIPS, TIERS, LEGEND, LEGENDS, GAP, level, points, apply, rankOf, board, forget, EXTRAS, UNLOCKS, needs, fitAvatar };
