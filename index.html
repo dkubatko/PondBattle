@@ -889,7 +889,7 @@ const BODY = {
     torso: E(50, 63, 38, 27, p.c) + E(50, 72, 23, 15, p.belly),
     head: C(31, 39, 15, p.c) + C(69, 39, 15, p.c),
     front: E(37, 89, 8, 4.5, p.foot) + E(63, 89, 8, 4.5, p.foot),
-    eyes: [[31, 38, 10], [69, 38, 10]], cheeks: [[23, 60], [77, 60]], mouth: [50, 59, 18], top: [50, 25], crown: [50, 33], neck: [50, 66, 28], heart: [50, 73], hat: [50, 38],
+    eyes: [[31, 38, 10], [69, 38, 10]], cheeks: [[23, 60], [77, 60]], mouth: [50, 59, 18], top: [50, 25], crown: [50, 33], neck: [50, 66, 28], heart: [50, 73],
   }),
   slim: (p) => ({
     back: E(21, 81, 16, 6, p.dark, ' transform="rotate(-28 21 81)"') + E(79, 81, 16, 6, p.dark, ' transform="rotate(28 79 81)"')
@@ -898,7 +898,7 @@ const BODY = {
     head: C(35, 40, 13, p.c) + C(65, 40, 13, p.c),
     front: `<path d="M39 78 37 90M61 78 63 90" stroke="${p.limb || p.c}" stroke-width="5.5" stroke-linecap="round"/>`
       + C(34, 92, 3, p.toe || p.foot) + C(40, 93, 3, p.toe || p.foot) + C(60, 93, 3, p.toe || p.foot) + C(66, 92, 3, p.toe || p.foot),
-    eyes: [[35, 39, 9], [65, 39, 9]], cheeks: [[27, 60], [73, 60]], mouth: [50, 58, 14], top: [50, 28], crown: [50, 35], neck: [50, 66, 22], heart: [50, 71], hat: [50, 38],
+    eyes: [[35, 39, 9], [65, 39, 9]], cheeks: [[27, 60], [73, 60]], mouth: [50, 58, 14], top: [50, 28], crown: [50, 35], neck: [50, 66, 22], heart: [50, 71],
   }),
   tall: (p) => ({
     back: E(22, 80, 13, 11, p.dark) + E(78, 80, 13, 11, p.dark)
@@ -908,15 +908,15 @@ const BODY = {
     front: `<path d="M40 79 37 91M60 79 63 91" stroke="${p.c}" stroke-width="6" stroke-linecap="round"/>`
       + C(33, 93, 3.4, p.toe || p.light) + C(40, 94, 3.4, p.toe || p.light) + C(60, 94, 3.4, p.toe || p.light) + C(67, 93, 3.4, p.toe || p.light),
     eyes: [[28, 34, 12.5], [72, 34, 12.5]], cheeks: [[28, 57], [72, 57]], mouth: [50, 56, 16], top: [50, 19], crown: [50, 30], neck: [50, 65, 20], heart: [50, 71],
-    // hats sit on its head behind the big eyes, a size up so they show over them
-    hat: [50, 37], hs: 1.25,
+    // hats a size up, so they show over its big eyes
+    hs: 1.25,
   }),
   round: (p) => ({
     back: E(29, 91, 11, 5, p.dark) + E(71, 91, 11, 5, p.dark),
     torso: E(50, 59, 41, 35, p.c) + E(50, 71, 27, 20, p.belly),
     head: C(35, 34, 11, p.c) + C(65, 34, 11, p.c),
     front: E(40, 93, 7, 4, p.foot) + E(60, 93, 7, 4, p.foot),
-    eyes: [[35, 34, 8.5], [65, 34, 8.5]], cheeks: [[21, 56], [79, 56]], mouth: [50, 55, 20], top: [50, 23], crown: [50, 30], neck: [50, 64, 32], heart: [50, 72], hat: [50, 26],
+    eyes: [[35, 34, 8.5], [65, 34, 8.5]], cheeks: [[21, 56], [79, 56]], mouth: [50, 55, 20], top: [50, 23], crown: [50, 30], neck: [50, 64, 32], heart: [50, 72],
   }),
   toad: (p) => ({
     back: E(17, 88, 16, 7, p.dark) + E(83, 88, 16, 7, p.dark),
@@ -924,7 +924,7 @@ const BODY = {
     head: E(19, 56, 8, 4.5, p.dark, ' transform="rotate(-25 19 56)"') + E(81, 56, 8, 4.5, p.dark, ' transform="rotate(25 81 56)"')
       + C(33, 47, 12, p.c) + C(67, 47, 12, p.c),
     front: E(37, 91, 9, 4.5, p.foot) + E(63, 91, 9, 4.5, p.foot),
-    eyes: [[33, 46, 8.5], [67, 46, 8.5]], cheeks: [[23, 64], [77, 64]], mouth: [50, 62, 26], top: [50, 36], crown: [50, 44], neck: [50, 70, 30], heart: [50, 76], hat: [50, 45],
+    eyes: [[33, 46, 8.5], [67, 46, 8.5]], cheeks: [[23, 64], [77, 64]], mouth: [50, 62, 26], top: [50, 36], crown: [50, 44], neck: [50, 70, 30], heart: [50, 76],
     dots: [[24, 64, 2.4], [31, 74, 2.2], [70, 62, 2.6], [78, 72, 2.2], [60, 57, 2], [41, 57, 2], [66, 79, 1.8], [36, 66, 1.8], [50, 54, 1.6]],
   }),
   bull: (p) => ({
@@ -933,7 +933,7 @@ const BODY = {
     head: C(17, 53, 7, p.deep) + C(17, 53, 3.8, p.dark) + C(83, 53, 7, p.deep) + C(83, 53, 3.8, p.dark)
       + C(33, 35, 15, p.c) + C(67, 35, 15, p.c),
     front: E(36, 90, 9.5, 5, p.foot) + E(64, 90, 9.5, 5, p.foot),
-    eyes: [[33, 34, 10], [67, 34, 10]], cheeks: [[27, 58], [73, 58]], mouth: [50, 58, 28], top: [50, 21], crown: [50, 30], neck: [50, 67, 32], heart: [50, 74], hat: [50, 34],
+    eyes: [[33, 34, 10], [67, 34, 10]], cheeks: [[27, 58], [73, 58]], mouth: [50, 58, 28], top: [50, 21], crown: [50, 30], neck: [50, 67, 32], heart: [50, 74],
   }),
   // Flat: a wide, low frog with a broad head (Budgett's frog, the Guard)
   flat: (p) => ({
@@ -941,7 +941,7 @@ const BODY = {
     torso: E(50, 70, 43, 21, p.c) + E(50, 80, 26, 9, p.belly),
     head: E(50, 55, 38, 19, p.c),
     front: E(33, 90, 9, 4.5, p.foot) + E(67, 90, 9, 4.5, p.foot),
-    eyes: [[35, 45, 8], [65, 45, 8]], cheeks: [[18, 63], [82, 63]], mouth: [50, 61, 24], top: [50, 34], crown: [50, 39], neck: [50, 72, 30], heart: [50, 79], hat: [50, 44],
+    eyes: [[35, 45, 8], [65, 45, 8]], cheeks: [[18, 63], [82, 63]], mouth: [50, 61, 24], top: [50, 34], crown: [50, 39], neck: [50, 72, 30], heart: [50, 79],
   }),
   // Tadpole: a round body in the middle, like the others, with its back legs just grown and a short finned tail
   // curling out behind it on one side (left out of its outline, so extras fit the body)
@@ -951,7 +951,7 @@ const BODY = {
       + E(34, 89, 8.5, 4.4, p.dark) + E(66, 89, 8.5, 4.4, p.dark),
     torso: E(50, 63, 31, 28, p.c) + E(50, 72, 19, 13, p.belly),
     head: '', front: '',
-    eyes: [[37, 44, 8.5], [63, 44, 8.5]], cheeks: [[26, 59], [74, 59]], mouth: [50, 56, 13], top: [50, 31], crown: [50, 36], neck: [50, 66, 18], heart: [50, 77], hat: [50, 37],
+    eyes: [[37, 44, 8.5], [63, 44, 8.5]], cheeks: [[26, 59], [74, 59]], mouth: [50, 56, 13], top: [50, 31], crown: [50, 36], neck: [50, 66, 18], heart: [50, 77],
     core: { x: 19, y: 35, w: 62, h: 58.4 },
   }),
 };
@@ -1026,11 +1026,69 @@ function compose(b, p, x = {}) {
 }
 
 // Where accessories go, shared by the game frogs and the avatars:
-// - hats sit on the body's hat line (where its head starts, measured per body), behind the eyes, shifted by how
-//   far the hat's brim is below its own origin, so the brim rests on the head with no gap
+// - hats sit on top of the head, behind the eyes (see hat below)
 // - a flower tucks behind the top outer corner of the right eye; a band-aid goes on the cheek (never an eye)
 // - necklaces and bow ties sit a clear gap below the mouth, so they never read as teeth
-const hat = (b, art, s, brim) => { s *= b.hs || 1; return { under: at([b.hat[0], b.hat[1] - brim * s], s, art) }; };
+//
+// Hats are fitted to each head by measuring both, with the browser's own hit test (once per body shape and once per
+// hat): the hat's band is centred on the head, then the hat comes down until its underside meets the head (or the
+// eyes in front of it) all the way across, so no gap shows under a brim. A hat that would have to sink too far for
+// that (a wide brim on a domed head) is drawn a little smaller instead. b.hs: a body whose hats are drawn bigger.
+const probe = (() => {
+  let svg;
+  return (inner) => {
+    if (!svg) { svg = document.createElementNS('http://www.w3.org/2000/svg', 'svg'); svg.setAttribute('viewBox', '0 0 100 100'); svg.style.cssText = 'position:absolute;width:100px;height:100px;visibility:hidden'; document.body.appendChild(svg); }
+    svg.innerHTML = inner;
+    const pt = svg.createSVGPoint(), bb = svg.getBBox();
+    const shapes = [...svg.querySelectorAll('circle, ellipse, path, rect, polygon')].map((el) => ({ el, m: el.getCTM().inverse(),
+      fill: el.getAttribute('fill') !== 'none', stroke: !!el.getAttribute('stroke') && el.getAttribute('stroke') !== 'none' }));
+    // is (x, y) painted?
+    const hit = (x, y) => { pt.x = x; pt.y = y; return shapes.some(({ el, m, fill, stroke }) => { const q = pt.matrixTransform(m); return (fill && el.isPointInFill(q)) || (stroke && el.isPointInStroke(q)); }); };
+    return { hit, bb };
+  };
+})();
+// The top of the head (body and eyes) at each x from 0 to 100; Infinity where there's none
+const headTops = new Map();
+function headTop(b) {
+  const key = (b.torso + b.head).replace(/ (fill|opacity)="[^"]*"/g, '') + b.eyes.join(';');
+  if (!headTops.has(key)) {
+    const { hit, bb } = probe(b.torso + b.head + b.eyes.map(([x, y, r]) => C(x, y, r, '#000')).join(''));
+    headTops.set(key, Array.from({ length: 101 }, (_, x) => {
+      if (x < bb.x || x > bb.x + bb.width) return Infinity;
+      let y = bb.y; while (y <= bb.y + bb.height && !hit(x, y)) y += .5;
+      return y > bb.y + bb.height ? Infinity : y;
+    }));
+  }
+  return headTops.get(key);
+}
+// A hat's underside: [x, lowest painted y] across its base (what rests on the head: the band and brim, not the
+// feathers, bells or gems sticking out above it), how low its band reaches, and the band's middle
+const hatProfiles = new Map();
+function hatProfile(art) {
+  if (!hatProfiles.has(art)) {
+    const { hit, bb } = probe(art), cols = [];
+    for (let x = Math.ceil(bb.x + 1.5); x <= bb.x + bb.width - 1.5; x++) {
+      let y = bb.y + bb.height; while (y >= bb.y && !hit(x, y)) y -= .25;
+      if (y >= bb.y) cols.push([x, y]);
+    }
+    const low = Math.max(...cols.map(([, y]) => y)), band = cols.filter(([, y]) => y >= low - 1.5);
+    hatProfiles.set(art, { cols: cols.filter(([, y]) => y >= low - 4), low, mid: (band[0][0] + band[band.length - 1][0]) / 2 });
+  }
+  return hatProfiles.get(art);
+}
+const HAT_SINK = 5, HAT_SEAT = 1.5; // how far below the top of the head a hat may sink to meet it; how far it sits in
+const hat = (b, art, s) => {
+  s *= b.hs || 1;
+  const top = headTop(b), { cols, low, mid } = hatProfile(art), cx = b.top[0];
+  const head = (x) => { const i = Math.round(x); return i < 0 || i > 100 ? Infinity : top[i]; };
+  const crown = Math.min(...[-2, -1, 0, 1, 2].map((d) => head(cx + d))); // the top of the head in the middle
+  let k = s, y = 0;
+  for (let i = 0; i < 8; i++, k *= .94) {
+    y = Math.max(...cols.map(([x, hb]) => head(cx + (x - mid) * k) - hb * k).filter(Number.isFinite));
+    if (y + low * k - crown <= HAT_SINK) break;
+  }
+  return { under: at([+(cx - mid * k).toFixed(2), +(y + HAT_SEAT).toFixed(2)], +k.toFixed(3), art) };
+};
 const eyeCorner = (b, art, s) => { const [ex, ey, r] = b.eyes[1]; return { under: at([ex + r * .8, ey - r * .8], s, art) }; };
 const cheek = (b, art, s) => ({ face: at([b.cheeks[1][0], b.cheeks[1][1] - 1], s, art) });
 const neckY = (b) => Math.max(b.neck[1], b.mouth[1] + 10);
@@ -1046,7 +1104,7 @@ const ART = {
       torso: E(50, 67, 39, 25, p.c) + E(50, 75, 24, 12, p.belly),
       head: C(36, 49, 13, p.c) + C(64, 49, 13, p.c),
       front: E(34, 91, 11, 3.2, p.dark, ' opacity=".45"') + E(66, 91, 11, 3.2, p.dark, ' opacity=".45"'),
-      eyes: [[39, 58, 8.5], [61, 58, 8.5]], cheeks: [[27, 71], [73, 71]], mouth: [50, 71, 13], top: [50, 24], crown: [50, 30], neck: [50, 78, 24], heart: [50, 80], hat: [50, 30],
+      eyes: [[39, 58, 8.5], [61, 58, 8.5]], cheeks: [[27, 71], [73, 71]], mouth: [50, 71, 13], top: [50, 24], crown: [50, 30], neck: [50, 78, 24], heart: [50, 80],
     };
     const egg = (x, y, r) => C(x, y, r, '#d4efdd', ' opacity=".8"') + C(x, y, r, 'none', ' stroke="#8fc3a6" stroke-width=".8"') + C(x + r * .1, y + r * .15, r * .3, '#51645a');
     const eggs = [[20, 58, 5], [80, 58, 5], [27, 42, 4.6], [73, 42, 4.6], [50, 30, 5], [38, 34, 4.2], [62, 34, 4.2], [16, 72, 4.4], [84, 72, 4.4], [30, 84, 4.6], [70, 84, 4.6], [50, 88, 4.2]]
@@ -1082,7 +1140,7 @@ const ART = {
     return compose(b, p, { inside: ear(16) + ear(84) });
   },
   // Knight: royal blue (the Princess is the pastel one), a steel helmet with a red plume
-  knight: () => { const p = pal('#5f7fd0'), b = BODY.classic(p); return compose(b, p, hat(b, HELMET, 1.3, 5)); },
+  knight: () => { const p = pal('#5f7fd0'), b = BODY.classic(p); return compose(b, p, hat(b, HELMET, 1.3)); },
   // Prince: crown and a royal blue sash with a gold medal
   // Prince: crown and gold epaulettes on the shoulders (the body's outer edges beside the eyes), each pad lying
   // along the shoulder's slope with its fringe hanging straight down; tucked behind the eyes like the crown
@@ -1093,7 +1151,7 @@ const ART = {
       const fringe = [-6, -3, 0, 3, 6].map((dx) => { const x = X + dx * c - 3.2 * s, y = Y + dx * s + 3.2 * c; return `<path d="M${x.toFixed(1)} ${y.toFixed(1)}v5.5" stroke="#dea02a" stroke-width="1.6" stroke-linecap="round"/>`; }).join('');
       return fringe + `<ellipse cx="${X}" cy="${Y}" rx="9" ry="4.4" transform="rotate(${r} ${X} ${Y})" fill="#f6c343" stroke="#b9861f" stroke-width="1.2"/>`;
     };
-    return compose(b, p, { under: hat(b, CROWN, 1, 0).under + pad(15, 49, -32) + pad(85, 49, 32) });
+    return compose(b, p, { under: hat(b, CROWN, 1).under + pad(15, 49, -32) + pad(85, 49, 32) });
   },
   // Glass frog: see-through, with its little heart showing
   glass: () => { const p = pal('#cdeee2'), b = BODY.tall(p); return compose(b, p, { glass: true, inside: heartSVG(b.heart, .9) + dotsSVG([[36, 56, 1.3], [63, 54, 1.2], [58, 80, 1.1], [42, 82, 1.1], [70, 68, 1]], '#f4fff9') }); },
@@ -1117,7 +1175,7 @@ const ART = {
   // Mama frog: lilac, with lashes and pearls (the Turtle Frog is the pink one)
   mama: () => { const p = pal('#c4a2e4'), b = BODY.round(p); return compose(b, p, { lashes: true, face: PEARLS([b.neck[0], neckY(b), b.neck[2]]) }); },
   // Wizard: arcane teal fading into indigo
-  wizard: () => { const { p, defs } = gradPal(['#4fcdb5', '#3f97bf', '#5a5cc4']), b = BODY.classic(p); return defs + compose(b, p, hat(b, WIZARD_HAT, 1.12, 3)); },
+  wizard: () => { const { p, defs } = gradPal(['#4fcdb5', '#3f97bf', '#5a5cc4']), b = BODY.classic(p); return defs + compose(b, p, hat(b, WIZARD_HAT, 1.12)); },
   froglet: () => { const p = pal('#a9e29a'), b = BODY.classic(p); return compose(b, p); },
 };
 // Bugs from the shop, drawn in the same style
@@ -1180,7 +1238,7 @@ Object.assign(ART, {
   },
   hypno: () => { const p = pal('#a97fdc'), b = BODY.classic(p); return compose(b, p, { eyes: 'spiral', over: PENDULUM(b, p) }); },
   // Princess: sky blue blushing into lilac and pink
-  princess: () => { const { p, defs } = gradPal(['#96d3f6', '#b8b2f0', '#f4b0d0']), b = BODY.classic(p); return defs + compose(b, p, { lashes: true, ...hat(b, TIARA, .95, 0) }); },
+  princess: () => { const { p, defs } = gradPal(['#96d3f6', '#b8b2f0', '#f4b0d0']), b = BODY.classic(p); return defs + compose(b, p, { lashes: true, ...hat(b, TIARA, .95) }); },
   // Leapfrog: a spotted leopard frog, always looking back the other way (it leaps over the line)
   leapfrog: () => {
     const p = pal('#9bd46f'), b = BODY.slim(p);
@@ -1236,7 +1294,7 @@ Object.assign(ART, {
       torso: E(50, 63, 37, 30, p.c) + E(50, 74, 22, 14, p.belly),
       head: E(50, 38, 17, 12, p.c),
       front: E(30, 90, 8, 4.5, p.foot) + E(70, 90, 8, 4.5, p.foot),
-      eyes: [[42, 35, 6.4], [58, 35, 6.4]], cheeks: [[31, 47], [69, 47]], mouth: [50, 44, 9], top: [50, 25], crown: [50, 28], neck: [50, 52, 20], heart: [50, 72], hat: [50, 30],
+      eyes: [[42, 35, 6.4], [58, 35, 6.4]], cheeks: [[31, 47], [69, 47]], mouth: [50, 44, 9], top: [50, 25], crown: [50, 28], neck: [50, 52, 20], heart: [50, 72],
     };
     return compose(b, p, { under: `<path d="M24 48Q50 34 76 48" stroke="${p.dark}" stroke-width="1.6" fill="none" opacity=".35" stroke-linecap="round"/>` });
   },
@@ -1248,7 +1306,7 @@ Object.assign(ART, {
       torso: C(50, 63, 29, p.c) + E(50, 74, 17, 11, p.belly),
       head: C(39, 43, 10.5, p.c) + C(61, 43, 10.5, p.c),
       front: E(40, 90, 7, 4, p.foot) + E(60, 90, 7, 4, p.foot),
-      eyes: [[39, 43, 7.5], [61, 43, 7.5]], cheeks: [[30, 62], [70, 62]], mouth: [50, 58, 13], top: [50, 31], crown: [50, 34], neck: [50, 66, 22], heart: [50, 72], hat: [50, 36],
+      eyes: [[39, 43, 7.5], [61, 43, 7.5]], cheeks: [[30, 62], [70, 62]], mouth: [50, 58, 13], top: [50, 31], crown: [50, 34], neck: [50, 66, 22], heart: [50, 72],
     };
     return compose(b, p, { under: dotsSVG([[28, 66, 2.6], [72, 64, 2.8], [36, 80, 2.2], [64, 80, 2.4], [50, 50, 2], [22, 56, 1.8], [78, 54, 1.8]], '#7b7b83') });
   },
@@ -1348,16 +1406,16 @@ const PENDULUM = (b, p) => {
 };
 Object.assign(ART, {
   // Peasant: earthy brown under a straw hat (the Jester is the lime one)
-  peasant: () => { const p = pal('#a07c55'), b = BODY.classic(p); return compose(b, p, { ...hat(b, STRAW_HAT, 1.3, 5) }); },
+  peasant: () => { const p = pal('#a07c55'), b = BODY.classic(p); return compose(b, p, { ...hat(b, STRAW_HAT, 1.3) }); },
   // Archer: forest green, a feathered cap and a bow held at its side
   archer: () => {
     const p = pal('#5aa65e'), b = BODY.slim(p);
-    return compose(b, p, { ...hat(b, ROBIN_HAT, 1.05, 1), over: at([93.5, 66], 1, BOW) + HAND(93.5, 66, p) });
+    return compose(b, p, { ...hat(b, ROBIN_HAT, 1.05), over: at([93.5, 66], 1, BOW) + HAND(93.5, 66, p) });
   },
   // Merchant: round and orange, a jewelled turban and a fat purse of gold
   merchant: () => {
     const p = pal('#e38b4d'), b = BODY.round(p);
-    return compose(b, p, { ...hat(b, TURBAN, 1, 1), over: at([88, 72.5], 1, PURSE) + HAND(88, 72.5, p) });
+    return compose(b, p, { ...hat(b, TURBAN, 1), over: at([88, 72.5], 1, PURSE) + HAND(88, 72.5, p) });
   },
   // Blacksmith: burly and soot-grey, in a leather apron with a hammer
   blacksmith: () => {
@@ -1368,21 +1426,21 @@ Object.assign(ART, {
   // Bard: slim and pink, a feathered beret and a little lute
   bard: () => {
     const p = pal('#963249'), b = BODY.slim(p);
-    return compose(b, p, { ...hat(b, BERET, 1, 2), over: at([87.5, 56], 1, LUTE) + HAND(87.5, 56, p) });
+    return compose(b, p, { ...hat(b, BERET, 1), over: at([87.5, 56], 1, LUTE) + HAND(87.5, 56, p) });
   },
-  jester: () => { const p = pal('#c9d64f'), b = BODY.classic(p); return compose(b, p, { ...hat(b, JESTER_HAT, 1, 1), mouth: 'open' }); },
+  jester: () => { const p = pal('#c9d64f'), b = BODY.classic(p); return compose(b, p, { ...hat(b, JESTER_HAT, 1), mouth: 'open' }); },
   // Rogue: charcoal, hooded, with a mask across its eyes
   rogue: () => { const p = pal('#56646c'), b = BODY.slim(p); return compose(b, p, { inside: hood(b, ROGUE_HOOD[0], ROGUE_HOOD[1]) + eyeMask(b), mouth: 'flat' }); },
   // Squire: young and sandy, a plain steel cap and a small round shield
   squire: () => {
     const p = pal('#e2bd74'), b = BODY.tall(p);
-    return compose(b, p, { ...hat(b, STEEL_CAP, 1.05, 1), over: at([14, 62], 1, SHIELD) + HAND(14, 62, p) });
+    return compose(b, p, { ...hat(b, STEEL_CAP, 1.05), over: at([14, 62], 1, SHIELD) + HAND(14, 62, p) });
   },
-  cleric: () => { const p = pal('#d6c9ef'), b = BODY.round(p); return compose(b, p, { ...hat(b, MITRE, 1, 0) }); },
+  cleric: () => { const p = pal('#d6c9ef'), b = BODY.round(p); return compose(b, p, { ...hat(b, MITRE, 1) }); },
   // Guard: a sturdy sage frog in an iron kettle hat, with a spear
   guard: () => {
     const p = pal('#7f9d86'), b = BODY.flat(p);
-    return compose(b, p, { ...hat(b, KETTLE_HAT, 1.12, 1), brows: true, mouth: 'flat', over: at([95, 58], 1, SPEAR) + HAND(95, 58, p) });
+    return compose(b, p, { ...hat(b, KETTLE_HAT, 1.12), brows: true, mouth: 'flat', over: at([95, 58], 1, SPEAR) + HAND(95, 58, p) });
   },
   // Necromancer: dusky and hooded, with glowing green eyes
   necro: () => {
@@ -1392,7 +1450,7 @@ Object.assign(ART, {
   // Frog King: a plump green frog in a big crown, a red cape and an ermine collar
   king: () => {
     const p = pal('#62b95f'), b = BODY.round(p);
-    return compose(b, p, { behind: KING_CAPE(b), ...hat(b, BIG_CROWN, 1.05, 0), face: ERMINE(b) });
+    return compose(b, p, { behind: KING_CAPE(b), ...hat(b, BIG_CROWN, 1.05), face: ERMINE(b) });
   },
   // Dragon Frog: fiery red with an orange belly, little wings and horns
   dragon: () => {
@@ -1484,11 +1542,11 @@ const umbrella = (b, p) => `<g transform="translate(${b.cheeks[0][0] - 24} ${b.t
 const LEAF_HAT = '<ellipse cy="-3" rx="17" ry="6.5" fill="#3f8a47"/><ellipse cy="-4.5" rx="16" ry="5.5" fill="#5cae5d"/><path d="M0-4.5L7-9.5L9.5-4.5z" fill="#3f8a47"/><path d="M-2-9c1-4 4-6 7-6" stroke="#4a9a50" stroke-width="2" fill="none" stroke-linecap="round"/>';
 const AV_ACCS = [
   { id: 'none', name: 'Nothing' },
-  { id: 'crown', name: 'Prince’s crown', head: true, small: 1.4, x: (b, p, k) => hat(b, CROWN, k, 0) },
-  { id: 'tiara', name: 'Princess’s tiara', head: true, small: 1.5, x: (b, p, k) => hat(b, TIARA, .95 * k, 0) },
-  { id: 'helmet', name: 'Knight’s helmet', head: true, x: (b) => hat(b, HELMET, 1.3, 5) },
-  { id: 'wizard', name: 'Wizard’s hat', head: true, x: (b) => hat(b, WIZARD_HAT, 1.12, 3) },
-  { id: 'leaf', name: 'Leaf hat', head: true, small: 1.15, x: (b, p, k) => hat(b, LEAF_HAT, 1.2 * k, 2.5) },
+  { id: 'crown', name: 'Prince’s crown', head: true, small: 1.4, x: (b, p, k) => hat(b, CROWN, k) },
+  { id: 'tiara', name: 'Princess’s tiara', head: true, small: 1.5, x: (b, p, k) => hat(b, TIARA, .95 * k) },
+  { id: 'helmet', name: 'Knight’s helmet', head: true, x: (b) => hat(b, HELMET, 1.3) },
+  { id: 'wizard', name: 'Wizard’s hat', head: true, x: (b) => hat(b, WIZARD_HAT, 1.12) },
+  { id: 'leaf', name: 'Leaf hat', head: true, small: 1.15, x: (b, p, k) => hat(b, LEAF_HAT, 1.2 * k) },
   // tucked behind the top outer corner of the right eye, like a flower behind the ear
   { id: 'lily', name: 'Water lily', small: 1.5, x: (b, p, k) => eyeCorner(b, WATER_LILY, .9 * k) },
   // on the cheek: every body has one, and it's never on an eye
@@ -1500,16 +1558,16 @@ const AV_ACCS = [
   { id: 'bowtie', name: 'Bow tie', small: 1.6, x: (b, p, k) => ({ face: `<g transform="translate(${b.neck[0]} ${neckY(b) + 1}) scale(${k})"><path d="M0 0L-9-5.5V5.5zM0 0L9-5.5V5.5z" fill="#e5533d"/><circle r="2.6" fill="#b83e2d"/></g>` }) },
   { id: 'umbrella', name: 'Rain umbrella', x: (b, p) => ({ over: umbrella(b, p) }) },
   // from the Might & Magic frogs
-  { id: 'kingcrown', name: 'King’s crown', head: true, small: 1.2, x: (b, p, k) => hat(b, BIG_CROWN, 1.05 * k, 0) },
+  { id: 'kingcrown', name: 'King’s crown', head: true, small: 1.2, x: (b, p, k) => hat(b, BIG_CROWN, 1.05 * k) },
   { id: 'halo', name: 'Paladin’s halo', head: true, small: 1.2, x: (b, p, k) => halo(b, 1.15 * k) },
-  { id: 'jester', name: 'Jester’s hat', head: true, x: (b) => hat(b, JESTER_HAT, 1, 1) },
-  { id: 'straw', name: 'Straw hat', head: true, x: (b) => hat(b, STRAW_HAT, 1.3, 5) },
-  { id: 'robin', name: 'Archer’s cap', head: true, x: (b) => hat(b, ROBIN_HAT, 1.05, 1) },
-  { id: 'turban', name: 'Merchant’s turban', head: true, small: 1.2, x: (b, p, k) => hat(b, TURBAN, k, 1) },
-  { id: 'beret', name: 'Bard’s beret', head: true, x: (b) => hat(b, BERET, 1, 2) },
-  { id: 'mitre', name: 'Cleric’s mitre', head: true, small: 1.2, x: (b, p, k) => hat(b, MITRE, k, 0) },
-  { id: 'cap', name: 'Squire’s cap', head: true, x: (b) => hat(b, STEEL_CAP, 1.05, 1) },
-  { id: 'kettle', name: 'Guard’s helmet', head: true, x: (b) => hat(b, KETTLE_HAT, 1.12, 1) },
+  { id: 'jester', name: 'Jester’s hat', head: true, x: (b) => hat(b, JESTER_HAT, 1) },
+  { id: 'straw', name: 'Straw hat', head: true, x: (b) => hat(b, STRAW_HAT, 1.3) },
+  { id: 'robin', name: 'Archer’s cap', head: true, x: (b) => hat(b, ROBIN_HAT, 1.05) },
+  { id: 'turban', name: 'Merchant’s turban', head: true, small: 1.2, x: (b, p, k) => hat(b, TURBAN, k) },
+  { id: 'beret', name: 'Bard’s beret', head: true, x: (b) => hat(b, BERET, 1) },
+  { id: 'mitre', name: 'Cleric’s mitre', head: true, small: 1.2, x: (b, p, k) => hat(b, MITRE, k) },
+  { id: 'cap', name: 'Squire’s cap', head: true, x: (b) => hat(b, STEEL_CAP, 1.05) },
+  { id: 'kettle', name: 'Guard’s helmet', head: true, x: (b) => hat(b, KETTLE_HAT, 1.12) },
   { id: 'mask', name: 'Rogue’s mask', x: (b) => ({ inside: eyeMask(b) }) },
   { id: 'pendulum', name: 'Hypno’s watch', x: (b, p) => ({ over: PENDULUM(b, p) }) },
   { id: 'cape', name: 'King’s cape', x: (b) => ({ behind: KING_CAPE(b) }) },
@@ -1622,7 +1680,7 @@ function avatarArt(av, crown, centered, small) {
     if (pat.art) add({ [pat.bellyClear ? 'inside' : 'under']: `<defs><clipPath id="avclip-${av.b}">${b.torso}${b.head}</clipPath></defs><g clip-path="url(#avclip-${av.b})">${pat.art(p)}</g>${belly}` });
     if (pat.x) add(pat.x(b, p));
     for (const k of Object.keys(EXTRAS)) { const acc = byId(AV_ACCS, av[k]); if (acc.x && !(crown && acc.head)) add(acc.x(b, p, small ? acc.small || 1 : 1)); }
-    if (crown) add(hat(b, CROWN, 1, 0));
+    if (crown) add(hat(b, CROWN, 1));
     const [cx, cy] = centered ? bodyCenter(av.b) : [50, 50];
     artCache.set(key, `<svg class="fsvg" viewBox="${(cx - 50).toFixed(1)} ${(cy - 50).toFixed(1)} 100 100" aria-hidden="true">${defs}${compose(b, p, x)}</svg>`);
   }
