@@ -125,12 +125,15 @@ function view(room, me, have) {
   return {
     v: room.v, build: currentPage().build, code: room.code, set: E.setOf(room), round: room.round, phase: room.phase, seat: i, winner: room.winner, game: room.game, ranked: !!room.ranked,
     me: { name: me.name, avatar: me.avatar || cleanAvatar(), hearts: me.hearts, trophies: me.trophies, gold: me.gold, team: me.team, shop: me.shop, ready: me.ready, fx: me.fx || [], ...rankView(room, me) },
-    opp: opp ? { name: opp.name, avatar: opp.avatar || cleanAvatar(), bot: !!opp.bot, ...(opp.uid ? { pid: pidOf(opp.uid) } : {}), hearts: opp.hearts, trophies: opp.trophies, ready: opp.ready, online: online(room, opp), ...(room.ranked ? { rank: R.rankOf(opp.uid, profiles) } : {}) } : null,
+    opp: opp ? { name: opp.name, avatar: opp.avatar || cleanAvatar(), bot: !!opp.bot, ...(opp.uid ? { pid: pidOf(opp.uid) } : {}), hearts: opp.hearts, trophies: opp.trophies, ready: opp.ready, online: online(room, opp), ...(room.ranked ? { rank: R.rankOf(opp.uid, profiles) } : {}), ...(opp.react ? { react: opp.react } : {}) } : null,
     ...(room.lastBattle && have && room.lastBattle.id === have ? {} : { lastBattle: room.lastBattle }), lastBattleId: room.lastBattle ? room.lastBattle.id : null,
     // The ready clock: whether it's you on it, and how long is left (the page counts down from here)
     clock: room.clock ? { mine: room.clock.seat === i, left: Math.max(0, room.clock.until - Date.now()), total: READY_CLOCK_MS } : null,
   };
 }
+// The emoji a player can send (the page shows the same list); the Pond Bot picks from the friendly ones
+const REACTIONS = ['😂', '😍', '😮', '😢', '😡', '👍', '🔥', '🐸'];
+const BOT_REACTIONS = ['😂', '😮', '👍', '🔥', '🐸'];
 function broadcast(room) {
   for (const s of subs.get(room.code) || []) { s.res.write(`data: ${JSON.stringify(view(room, s.p, s.have))}\n\n`); s.have = room.lastBattle && room.lastBattle.id; }
 }
@@ -514,6 +517,21 @@ http.createServer(async (req, res) => {
       if (b.hearts != null) p.hearts = b.hearts;
       changed(room);
       return json(res, 200, view(room, p));
+    }
+    // Emoji reactions while shopping: each player's latest one, numbered so each phone plays it once. It isn't a
+    // move: nothing is saved, no "your move" nudge, and the Pond Bot isn't asked to shop
+    if (url.pathname === '/api/react') {
+      const { room, p } = find(b);
+      if (!p) return json(res, 404, { error: 'not found' });
+      const emoji = String(b.emoji || ''), now = Date.now();
+      if (!REACTIONS.includes(emoji) || room.phase !== 'shop') return json(res, 400, { error: 'not now' });
+      if (now - (p.reactAt || 0) < 1000) return json(res, 429, { error: 'slow down' });
+      const react = (x, e) => { x.reactAt = Date.now(); x.react = { e, n: ((x.react && x.react.n) || 0) + 1 }; room.v++; broadcast(room); };
+      react(p, emoji);
+      // the Pond Bot answers about half the time, a moment later
+      const bot = room.players.find((x) => x.bot);
+      if (bot && Math.random() < .5) setTimeout(() => { if (rooms[room.code] === room && room.phase === 'shop') react(bot, BOT_REACTIONS[Math.floor(Math.random() * BOT_REACTIONS.length)]); }, 700 + Math.random() * 900);
+      return json(res, 200, { ok: true });
     }
     if (url.pathname === '/api/action') {
       const { room, p } = find(b);
