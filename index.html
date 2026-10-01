@@ -90,8 +90,10 @@ input:focus { border-color: var(--firefly); outline: none; }
 .btn.blossom:active:not(:disabled) { box-shadow: 0 2px 0 #bd7389; }
 .btn.buy { background-color: #ffd77a; box-shadow: 0 5px 0 #c39437; }
 .btn.buy:active:not(:disabled) { box-shadow: 0 2px 0 #c39437; }
-.btn.ready-wait { background-color: rgba(245, 237, 214, .1); box-shadow: inset 0 0 0 2px rgba(245, 237, 214, .14); color: #f5edd6; }
-.btn.ready-wait:active:not(:disabled) { transform: translateY(1px); box-shadow: inset 0 0 0 2px rgba(245, 237, 214, .14); }
+/* Waiting…: the layered ghost look, the same whether it can be tapped (to un-ready) or is held (while Ready is on its
+   way, or the battle is coming) */
+.btn.ready-wait, .btn.ready-wait:disabled { background-color: rgba(245, 237, 214, .05); box-shadow: inset 0 0 0 2px rgba(245, 237, 214, .14), 0 5px 0 rgba(0, 0, 0, .26); color: #f5edd6; }
+.btn.ready-wait:active:not(:disabled) { transform: translateY(3px); box-shadow: inset 0 0 0 2px rgba(245, 237, 214, .14), 0 2px 0 rgba(0, 0, 0, .26); }
 /* Secondary buttons: outlined, with the same raised lip as the solid ones so a stack of buttons lines up */
 .btn.ghost { background-color: rgba(245, 237, 214, .05); box-shadow: inset 0 0 0 2px rgba(245, 237, 214, .14), 0 5px 0 rgba(0, 0, 0, .26); color: #f5edd6; }
 .btn.ghost:active:not(:disabled) { transform: translateY(3px); box-shadow: inset 0 0 0 2px rgba(245, 237, 214, .14), 0 2px 0 rgba(0, 0, 0, .26); }
