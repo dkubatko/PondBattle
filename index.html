@@ -1423,7 +1423,7 @@ const eyeMask = (b) => { const [[x1, y1, r1], [x2, y2, r2]] = b.eyes, mx = (x1 +
     + `Q${mx - r * .3} ${b1 + 1} ${x1} ${b1 + 1.5}Q${L + 1} ${b1 + 1.5} ${L} ${b1 - 2}Q${L - 4} ${y1} ${L} ${t1 + 3}Z`;
   const tails = `<path d="M${L + 1} ${y1 - 1}l-8 -6l1.5 7zM${L + 1} ${y1 + 1}l-7 6l7 .5z" fill="#1f2328"/>`;
   return `${tails}<path d="${band}" fill="#1f2328"/>`; };
-const ROGUE_HOOD = ['#5a1f2e', '#76303f'], NECRO_HOOD = ['#3b2f4d', '#54456b'];
+const NECRO_HOOD = ['#3b2f4d', '#54456b'];
 // The king's ermine collar, across the neck whatever its width
 const ERMINE = (b) => { const [nx, , w] = b.neck, y = neckY(b) - 1, hw = w * .75, on = (u) => [nx - hw + 2 * hw * u, y + 20 * u * (1 - u)];
   return `<path d="M${nx - hw} ${y}Q${nx} ${y + 10} ${nx + hw} ${y}" stroke="#fbf7ee" stroke-width="6" fill="none" stroke-linecap="round"/>`
@@ -1539,8 +1539,8 @@ Object.assign(ART, {
     return compose(b, p, { ...hat(b, BERET, 1), over: at([87.5, 56], 1, LUTE) + HAND(87.5, 56, p) });
   },
   jester: () => { const p = pal('#c9d64f'), b = BODY.classic(p); return compose(b, p, { ...hat(b, JESTER_HAT, 1), mouth: 'open' }); },
-  // Rogue: charcoal, hooded, with a mask across its eyes
-  rogue: () => { const p = pal('#56646c'), b = BODY.slim(p); const h = hood(b, ...ROGUE_HOOD); return compose(b, p, { behind: h.behind, inside: h.inside + eyeMask(b), mouth: 'flat' }); },
+  // Rogue: charcoal, with a bandit mask across its eyes
+  rogue: () => { const p = pal('#56646c'), b = BODY.slim(p); return compose(b, p, { inside: eyeMask(b), mouth: 'flat' }); },
   // Squire: young and sandy, a plain steel cap and a small round shield
   squire: () => {
     const p = pal('#e2bd74'), b = BODY.tall(p);
