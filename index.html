@@ -2752,7 +2752,9 @@ function showHome(msg, page) {
     try {
       const l = await api('/api/lobby');
       const sig = JSON.stringify(l); if (sig === last) return; last = sig;
-      lobby = lobbyCache = l; render(quiet); easeCount($('#friendsCount'), l.requests, quiet); quiet = false; // the catch-up after opening just appears; later changes animate
+      // the lists' catch-up after opening just appears (later changes animate); the Friends count always eases in or
+      // out when it changes (it's drawn at once from the last value known, when there is one)
+      lobby = lobbyCache = l; render(quiet); easeCount($('#friendsCount'), l.requests); quiet = false;
     } catch {}
   };
   // Home: Play (it opens the ways to play: Ranked, Lobby, Practice), Friends, and your games in progress under them (How
