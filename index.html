@@ -542,7 +542,7 @@ h1 { margin: 0; text-align: center; font-size: 40px; font-weight: 900; line-heig
 .lb-gap { text-align: center; color: var(--moon-dim); line-height: 1; padding: 2px 0 6px; }
 .hist-row.tap { cursor: pointer; }
 .card-rank { border: 0; background: none; color: inherit; padding: 0; }
-.corner { position: absolute; top: calc(env(safe-area-inset-top) + 10px); right: 14px; z-index: 2; display: flex; gap: 8px; }
+.corner { position: fixed; top: calc(env(safe-area-inset-top) + 10px); right: max(14px, calc(50vw - 240px + 14px)); z-index: 5; display: flex; gap: 8px; } /* at the screens' right edge (they're 480px at most) */
 .corner .ib { color: var(--moon-dim); }
 /* Friends: a card per person: frog (a dot for what they're up to), rank badge and name, what they're up to below, round
    buttons on the right */
@@ -2508,20 +2508,26 @@ function keepPut(page, input) {
     pinPage = pin; pin(); setTimeout(pin, 60); setTimeout(pin, 300);
   });
 }
-// Sound and the menu sit in the top-right corner of every screen (the game and the battle have their own header)
-function corner(node) {
-  const c = el(`<div class="corner"><button class="ib" data-c="sound" aria-label="Sound"></button><button class="ib" data-c="menu" aria-label="Menu">${ICON.menu}</button></div>`);
-  const sb = $('[data-c=sound]', c), draw = () => { sb.innerHTML = ICON.music(soundOn()); sb.classList.toggle('off', !soundOn()); };
-  draw();
-  // the same switch as in a game: music and sound effects together
-  sb.onclick = () => { const on = !soundOn(); if (!on) Snd.tap(); Snd.setMusic(on); Snd.setSfx(on); if (on) Snd.tap(); draw(); };
-  longPress(sb, soundInfo);
-  $('[data-c=menu]', c).onclick = () => { Snd.tap(); openMenu({ home: true, done: draw }); };
-  node.appendChild(c);
+// Sound and the menu sit in the top-right corner of every screen (the game and the battle have their own header).
+// One corner for all of them, outside the screens, so it stays put while screens fade in and out.
+let cornerEl = null;
+function corner(show) {
+  if (!cornerEl) {
+    const c = cornerEl = el(`<div class="corner"><button class="ib" data-c="sound" aria-label="Sound"></button><button class="ib" data-c="menu" aria-label="Menu">${ICON.menu}</button></div>`);
+    const sb = $('[data-c=sound]', c);
+    c.draw = () => { sb.innerHTML = ICON.music(soundOn()); sb.classList.toggle('off', !soundOn()); };
+    // the same switch as in a game: music and sound effects together
+    sb.onclick = () => { const on = !soundOn(); if (!on) Snd.tap(); Snd.setMusic(on); Snd.setSfx(on); if (on) Snd.tap(); c.draw(); };
+    longPress(sb, soundInfo);
+    $('[data-c=menu]', c).onclick = () => { Snd.tap(); openMenu({ home: true, done: c.draw }); };
+    document.body.appendChild(c);
+  }
+  cornerEl.hidden = !show;
+  if (show) cornerEl.draw(); // (sound may have been switched in a game)
 }
 function mount(name, node) {
   closeReactions();
-  if (name !== 'game' && name !== 'battle') corner(node);
+  corner(name !== 'game' && name !== 'battle');
   const root = $('#root'); root.innerHTML = ''; root.appendChild(node); screen = name; syncBack();
   const b = $('#bubble'); if (b) b.classList.remove('show');
 }
