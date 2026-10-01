@@ -1001,9 +1001,9 @@ function mouthSVG(kind, [x, y, w], line) {
   if (kind === 'flat') return `<path d="M${x - w / 2} ${y}q${w / 2} ${w * .14} ${w} 0" ${stroke}/>`;
   if (kind === 'o') return E(x, y + w * .12, w * .17, w * .21, '#6b2a2e'); // surprised
   if (kind === 'cat') return `<path d="M${x - w / 2} ${y}q${w / 4} ${w * .34} ${w / 2} 0q${w / 4} ${w * .34} ${w / 2} 0" ${stroke}/>`; // :3
-  if (kind === 'smirk') return `<path d="M${x - w * .4} ${y + w * .1}q${w * .5} ${w * .2} ${w * .85} ${-w * .18}" ${stroke}/>`;
-  if (kind === 'tongue') return `<path d="M${x - w * .02} ${y + w * .17}v${w * .2}a${w * .19} ${w * .19} 0 0 0 ${w * .38} 0v${-w * .26}z" fill="#ff8da1" stroke="${line}" stroke-width="1.8" stroke-linejoin="round"/>`
-    + `<path d="M${x + w * .17} ${y + w * .2}v${w * .16}" stroke="#e0607a" stroke-width="1.4" stroke-linecap="round"/>`
+  if (kind === 'smirk') return `<path d="M${x - w * .42} ${y + w * .05}q${w * .5} ${w * .17} ${w * .86} ${-w * .07}" ${stroke}/>`;
+  if (kind === 'tongue') return `<path d="M${x + w * .04} ${y + w * .16}v${w * .2}a${w * .19} ${w * .19} 0 0 0 ${w * .38} 0v${-w * .26}z" fill="#ff8da1" stroke="${line}" stroke-width="1.8" stroke-linejoin="round"/>`
+    + `<path d="M${x + w * .23} ${y + w * .19}v${w * .16}" stroke="#e0607a" stroke-width="1.4" stroke-linecap="round"/>`
     + `<path d="M${x - w / 2} ${y}q${w / 2} ${w * .39} ${w} 0" ${stroke}/>`;
   return `<path d="M${x - w / 2} ${y}q${w / 2} ${w * .39} ${w} 0" ${stroke}/>`;
 }
