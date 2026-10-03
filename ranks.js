@@ -60,7 +60,7 @@ const EXTRAS = {
   h: ['crown', 'tiara', 'helmet', 'wizard', 'leaf', 'lily', 'horns', 'kingcrown', 'halo', 'jester', 'straw', 'robin', 'turban', 'beret', 'mitre', 'cap', 'kettle'],
   f: ['glasses', 'mask', 'bandaid'],
   n: ['pearls', 'bowtie', 'coin', 'ermine'],
-  hd: ['umbrella', 'pendulum', 'bow', 'lute', 'shield', 'purse', 'hammer', 'spear'],
+  hd: ['umbrella', 'pendulum', 'bow', 'lute', 'shield', 'purse', 'hammer', 'spear', 'axe'],
   bk: ['cape', 'wings'],
 };
 // Avatar options earned with rank; anything not listed is open to everyone. Keys are the avatar fields: b body,
@@ -70,7 +70,7 @@ const EXTRAS = {
 const RANK_IDS = [...TIERS.map((t) => t.id), LEGEND.id];
 const UNLOCKS = {
   froglet: { b: ['tadpole'], c: [13], m: ['open', 'o'], e: ['lashes', 'brows'], t: ['freckles'], h: ['horns', 'robin', 'turban'], n: ['coin', 'pearls'], hd: ['umbrella', 'purse', 'hammer'], l: ['clover'], lc: [5, 6] },
-  frog: { b: ['tall'], c: [15], m: ['cat'], e: ['violet'], t: ['bands'], h: ['tiara', 'helmet', 'wizard', 'jester', 'mitre', 'kettle'], f: ['mask'], hd: ['spear'], l: ['dew'], lc: [7, 8] },
+  frog: { b: ['tall'], c: [15], m: ['cat'], e: ['violet'], t: ['bands'], h: ['tiara', 'helmet', 'wizard', 'jester', 'mitre', 'kettle'], f: ['mask'], hd: ['spear', 'axe'], l: ['dew'], lc: [7, 8] },
   master: { b: ['flat'], c: [14, 16], m: ['smirk'], e: ['red'], t: ['stripes'], h: ['crown'], n: ['ermine'], hd: ['pendulum'], bk: ['wings'], l: ['heart'], lc: [11] },
   legend: { b: ['bull'], c: [17], m: ['tongue'], e: ['spiral'], t: ['glass'], h: ['kingcrown', 'halo'], bk: ['cape'], l: ['lotus'], lc: [9] },
 };
