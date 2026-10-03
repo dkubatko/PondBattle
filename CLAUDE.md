@@ -85,10 +85,13 @@ Home infrastructure (Tower, Docker, Nginx Proxy Manager, Cloudflare) is describe
   Each kind keeps its own turn; all start with the round's first pond: the first seat in odd rounds, the
   second in even ones (the first seat is the pond's creator; in matchmaking, whoever waited longer). No
   seat may be favoured anywhere else either: anything both ponds do at once follows the round's order.
-- What an effect sets off resolves one moment at a time (`settle()`): hurt reactions; knocked-out Bouncy
-  Frogs bounce; every knocked-out frog's own faint ability (it stays, faded at 0 health); reactions to the
-  knockouts (Bullfrog, Hungry Frog, Necromancer); then everyone knocked out leaves together. Whatever a
-  moment hurts or knocks out belongs to the next one; babies and raised frogs arrive when nothing is left.
+- What an effect sets off resolves one moment at a time (`settle()`): hurt reactions; every knocked-out
+  frog's own faint ability (it stays, faded at 0 health); reactions to the knockouts (Bullfrog, Hungry Frog,
+  Necromancer); then everyone knocked out leaves together. Whatever a moment hurts or knocks out belongs to the
+  next one; babies, raised frogs and hatched Egg Frogs arrive when nothing is left.
+- `damage(s, u, n, src)` records who did it with each hurt (`hurts` holds `{ u, by }`), so a Berserker strikes back
+  at its attacker; pass the attacking frog as `src` for anything a frog does (arrows, spits, fire). A strike back is
+  made with `reply = false`, so it is never struck back at.
   Within a pond, front to back. Start of battle settles after each frog. Every start-of-battle ability
   always plays, and says so when there's nothing to affect.
 - Babies and raised frogs arrive once the frogs knocked out in the same moment have left. A pond never

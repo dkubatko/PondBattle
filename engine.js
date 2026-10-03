@@ -115,15 +115,16 @@ function runBattle(teamA, teamB, opts = {}) {
   // src: the frog whose attack this is (null for abilities). Only an attack can hurt a Rogue, and only
   // while it's the front frog (the one being fought). checked: the Frog King's guard was already looked at
   // (hits on many frogs at once are sorted out first, so a King knocked out by the same splash still guards)
-  const damage = (s, u, n, src = null, checked = false) => {
+  // src: the frog doing it (null for none); reply: false for a Berserker's strike back, which isn't struck back at
+  const damage = (s, u, n, src = null, checked = false, reply = true) => {
     if (n <= 0 || u.hp <= 0) return;
-    if ((u.type === 'rogue' && !(src && T[s][0] === u)) || (!checked && guarded(s, u))) { if (snap) immune.push(u.bid); return; }
+    if ((u.type === 'rogue' && !(src && T[s][0] === u && src === T[1 - s][0])) || (!checked && guarded(s, u))) { if (snap) immune.push(u.bid); return; }
     if (u.gear === 'bubble' && !u.blocked) { u.blocked = true; return; } // the next frame shows the bubble as popped
     // Golden Frog: its first L hits that land turn the frog to gold (knocked out, whatever shell it has)
     if (src && src.type === 'golden' && src.uses < src.lvl) { src.uses++; n = Math.max(n, u.hp); if (snap) gold.push(u.bid); }
     else if (u.type === 'turtle') { const m = Math.max(1, n - u.lvl); if (snap && m < n) shell.push([u.bid, n - m]); n = m; }
     u.hp -= n;
-    if (u.hp > 0) hurts[s].push(u);
+    if (u.hp > 0) hurts[s].push({ u, by: reply ? src : null });
   };
   // Fixed stats (Frog King, Pebble Toad's attack) ignore buffs
   const buff = (u, a, h) => {
@@ -137,7 +138,7 @@ function runBattle(teamA, teamB, opts = {}) {
     if (hits && snap) immune.push(e.bid);
     return false;
   });
-  const blast = (s, n) => unguarded(s, alive(s), true).forEach((e) => damage(s, e, n, null, true));
+  const blast = (s, n, src = null) => unguarded(s, alive(s), true).forEach((e) => damage(s, e, n, src, true));
   // A frog joins the pond mid-battle (hatched or raised); every Mama Frog there gives it +L/+L. The hug comes as its
   // own step right after the hatching is shown (hugs()), so you can see who gave what.
   const newborn = [];
@@ -157,8 +158,15 @@ function runBattle(teamA, teamB, opts = {}) {
     }
   };
 
-  function onHurt(s, u) {
-    if (u.type === 'toad') { buff(u, u.lvl, 0); snap?.('ability', { actor: u.bid, text: `${nm(u)} shows its claws` }); }
+  function onHurt(s, u, by) {
+    // Berserker (id 'knight'): strikes back at the frog that hurt it, if that frog is still standing
+    if (u.type === 'knight' && by && by !== u && by.hp > 0 && T[1 - s].includes(by)) {
+      const was = by.hp;
+      damage(1 - s, by, 2 * u.lvl, u, false, false);
+      if (by.hp <= 0) by.koBy = u;
+      snap?.('ability', { actor: u.bid, target: by.bid, counter: true, text: was > by.hp ? `${nm(u)} strikes back at ${nm(by)} for ${was - Math.max(0, by.hp)}` : `${nm(u)} strikes back at ${nm(by)}` });
+    }
+    if (u.type === 'toad') { buff(u, 2 * u.lvl, 0); snap?.('ability', { actor: u.bid, text: `${nm(u)} shows its claws` }); }
     if (u.type === 'midwife') arrive(s, T[s][T[s].indexOf(u) + 1], () => unit('froglet', u.lvl, u.lvl, 1, null, ++bid), false, () => `A baby hatches from ${nm(u)}`);
     if (u.type === 'rain') {
       const t = T[s][T[s].indexOf(u) + 1];
@@ -173,6 +181,8 @@ function runBattle(teamA, teamB, opts = {}) {
     const L = u.lvl;
     // Frogspawn (id 'tadpole'): retired from the shop (tier 0); kept only so ponds saved before still play out
     if (u.type === 'tadpole') arrive(s, nextOf(s, u), () => unit('froglet', L, L, 1, null, ++bid), false, () => `${nm(u)} hatches into a Froglet`);
+    // Egg Frog (id 'bouncy'): hatches back in its place as an L/L baby, once
+    if (u.type === 'bouncy' && !u.bounced) arrive(s, nextOf(s, u), () => Object.assign(unit('bouncy', L, L, L, null, ++bid), { bounced: 1 }), false, () => `${nm(u)} hatches again`);
     if (u.type === 'surinam') {
       // Lays as many L/L Froglets as there's room for in the pond
       arrive(s, nextOf(s, u), () => unit('froglet', L, L, 1, null, ++bid), true, () => `${nm(u)}’s babies hatch`);
@@ -182,7 +192,7 @@ function runBattle(teamA, teamB, opts = {}) {
       if (f.length) { const t = pick(f); buff(t, 2 * L, L); snap?.('ability', { target: t.bid, text: `${nm(u)} cheers on ${nm(t)}` }); }
     }
     if (u.type === 'goliath') {
-      blast(1 - s, 2 * L);
+      blast(1 - s, 2 * L, u);
       snap?.('splash', { side: 1 - s, text: `${nm(u)} makes a huge splash` });
     }
   }
@@ -216,22 +226,16 @@ function runBattle(teamA, teamB, opts = {}) {
     });
   };
   // Everything an effect sets off, resolved one moment at a time (as in other auto battlers, with fair turns instead of
-  // attack order): 1. hurt reactions; 2. knocked-out Bouncy Frogs bounce; 3. every knocked-out frog's own faint
-  // ability; 4. the reactions to the knockouts; 5. everyone knocked out leaves together. Whatever a moment hurts or
-  // knocks out belongs to the next one. When nothing is left, babies and raised frogs come in (6).
+  // attack order): 1. hurt reactions; 2. every knocked-out frog's own faint ability; 3. the reactions to the
+  // knockouts; 4. everyone knocked out leaves together. Whatever a moment hurts or knocks out belongs to the next one.
+  // When nothing is left, babies, raised frogs and hatched Egg Frogs come in (5).
   // In each step the ponds take fair turns, and each pond's frogs go front to back.
   const inTurns = (kind, lists) => { const out = []; lists = lists.map((l) => [...l]); for (let x; (x = take(kind, lists.map((l) => l.length > 0))) >= 0;) out.push([x, lists[x].shift()]); return out; };
   function settle() {
     for (let guard = 0; guard < 200; guard++) {
       const hs = take('hurt', hurts.map((q) => q.length > 0));
-      if (hs >= 0) { const u = hurts[hs].shift(); if (u.hp > 0 && T[hs].includes(u)) onHurt(hs, u); continue; }
+      if (hs >= 0) { const { u, by } = hurts[hs].shift(); if (u.hp > 0 && T[hs].includes(u)) onHurt(hs, u, by); continue; }
       const out = () => [0, 1].map((x) => T[x].filter((u) => u.hp <= 0));
-      for (const [x, u] of inTurns('faint', out().map((l) => l.filter((u) => u.type === 'bouncy' && !u.bounced)))) {
-        T[x].splice(T[x].indexOf(u), 1);
-        u.bounced = 1; u.hp = 2 * u.lvl; T[x].push(u);
-        auras();
-        snap?.('ability', { actor: u.bid, text: `${nm(u)} bounces to the back` });
-      }
       const moment = inTurns('faint', out());
       if (!moment.length) {
         if (arrivals.length) { letIn(); continue; } // everyone knocked out has left: babies and raised frogs come in
@@ -290,9 +294,10 @@ function runBattle(teamA, teamB, opts = {}) {
         }
       }
       if (u.type === 'wizard') {
-        // Shrinks the L strongest enemies to 1/1 (skipping ones that already are); they keep their abilities
-        const foes = alive(1 - s).filter((e) => e.atk + e.hp > 2 && !fixed(e)).sort((x, y) => y.atk + y.hp - (x.atk + x.hp)).slice(0, L);
-        for (const e of foes) { e.atk = 1; e.hp = 1; }
+        // Shrinks the L strongest enemies to 1/1 (skipping ones that already are); they keep their abilities, and an
+        // always-on bonus (a Paladin's, a Guard's) stays on top of the 1/1
+        const foes = alive(1 - s).filter((e) => e.atk + e.hp > 2 + 2 * e.aura && !fixed(e)).sort((x, y) => y.atk + y.hp - (x.atk + x.hp)).slice(0, L);
+        for (const e of foes) { e.atk = 1 + e.aura; e.hp = 1 + e.aura; }
         // (it always casts, so it's clear it acted even when there was no one to shrink)
         snap?.('spell', { actor: u.bid, targets: foes.map((e) => e.bid), text: foes.length ? `${nm(u)} shrinks the enemy` : `${nm(u)}’s spell finds no one to shrink` });
       }
@@ -312,14 +317,14 @@ function runBattle(teamA, teamB, opts = {}) {
       }
       if (u.type === 'spitter') {
         const e = alive(1 - s);
-        for (let k = 0; k < L && e.length; k++) { const t = e.splice(rand(e.length), 1)[0]; damage(1 - s, t, 2); snap?.('spit', { actor: u.bid, target: t.bid, text: `${nm(u)} spits at ${nm(t)}` }); }
+        for (let k = 0; k < L && e.length; k++) { const t = e.splice(rand(e.length), 1)[0]; damage(1 - s, t, 2, u); snap?.('spit', { actor: u.bid, target: t.bid, text: `${nm(u)} spits at ${nm(t)}` }); }
       }
       if (u.type === 'archer') {
         // Shoots the enemy's last L frogs, 2 damage each
-        for (const t of alive(1 - s).slice(-L).reverse()) { damage(1 - s, t, 2); snap?.('spit', { actor: u.bid, target: t.bid, arrow: true, text: `${nm(u)} shoots at ${nm(t)}` }); }
+        for (const t of alive(1 - s).slice(-L).reverse()) { damage(1 - s, t, 2, u); snap?.('spit', { actor: u.bid, target: t.bid, arrow: true, text: `${nm(u)} shoots at ${nm(t)}` }); }
       }
       if (u.type === 'dragon') {
-        blast(1 - s, L);
+        blast(1 - s, L, u);
         snap?.('splash', { side: 1 - s, actor: u.bid, fire: true, text: `${nm(u)} breathes fire` });
       }
       if (u.type === 'budgett') {
@@ -352,15 +357,14 @@ function runBattle(teamA, teamB, opts = {}) {
   let turns = 0;
   while (T[0].length && T[1].length && turns++ < 60) {
     const a = T[0][0], b = T[1][0];
-    for (const u of [a, b]) if (u.type === 'knight') { buff(u, u.lvl, 0); snap?.('ability', { actor: u.bid, text: `${nm(u)} raises its sword` }); }
-    // Who each front frog hits: the enemy ahead; a Leapfrog the enemy's last L frogs; a Pebble Toad all of them
+    // Who each front frog hits: the enemy ahead; a Leapfrog the enemy's last frog; a Pebble Toad all of them
     // (frogs guarded by a Frog King are left out; the front frog never is)
-    const targets = (u, s) => unguarded(1 - s, u.type === 'leapfrog' ? T[1 - s].slice(-u.lvl) : u.type === 'pebble' ? [...T[1 - s]] : [T[1 - s][0]], true);
+    const targets = (u, s) => unguarded(1 - s, u.type === 'leapfrog' ? T[1 - s].slice(-1) : u.type === 'pebble' ? [...T[1 - s]] : [T[1 - s][0]], true);
     const ta = targets(a, 0), tb = targets(b, 1), da = a.atk, db = b.atk;
     for (const t of ta) { damage(1, t, da, a, true); if (t.hp <= 0 && da > 0) t.koBy = a; }
     for (const t of tb) { damage(0, t, db, b, true); if (t.hp <= 0 && db > 0) t.koBy = b; }
-    const leaps = [[a, ta], [b, tb]].filter(([u]) => u.type === 'leapfrog').map(([u, ts]) => [u.bid, ts.map((t) => t.bid)]);
-    const wide = [[a, ta], [b, tb]].filter(([u]) => u.type === 'pebble').map(([u, ts]) => [u.bid, ts.map((t) => t.bid)]);
+    const list = (type) => [[a, ta], [b, tb]].filter(([u]) => u.type === type).map(([u, ts]) => [u.bid, ts.map((t) => t.bid)]);
+    const leaps = list('leapfrog'), wide = list('pebble');
     snap?.('hit', { ids: [a.bid, b.bid], ...(leaps.length ? { leaps } : {}), ...(wide.length ? { wide } : {}) });
     settle();
   }
