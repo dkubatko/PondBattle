@@ -1252,11 +1252,12 @@ const ART = {
   // axe in a floating hand
   knight: () => {
     const p = pal('#b5574c'), b = BODY.bull(p), y = 66, x = handX(b, y);
-    // a double-headed battle axe: two mirrored crescent blades either side of the haft, a cap on top
-    const blade = 'M2-30C8-34 13-34 15-39C17-31 17-22 15-15C13-20 8-20 2-24z';
-    const axe = `<g transform="translate(${x} ${y}) rotate(10)"><path d="M0 9V-36" stroke="#7a5534" stroke-width="3" stroke-linecap="round"/>`
+    // a double-headed battle axe on a long haft: each blade joins the haft along a tall neck and flares to a curved
+    // edge (mirrored on the other side), a steel collar where they meet
+    const blade = 'M1.5-38C4-38 7-39.5 9.5-41.5C12.3-36 12.3-28 9.5-22.5C7-24.5 4-26 1.5-26z';
+    const axe = `<g transform="translate(${x} ${y}) rotate(10)"><path d="M0 14V-44" stroke="#7a5534" stroke-width="3" stroke-linecap="round"/>`
       + `<path d="${blade}" fill="#cfd6e0" stroke="#98a2b4" stroke-width="1.1" stroke-linejoin="round"/><path d="${blade}" transform="scale(-1 1)" fill="#cfd6e0" stroke="#98a2b4" stroke-width="1.1" stroke-linejoin="round"/>`
-      + '<rect x="-2.6" y="-31" width="5.2" height="9" rx="1.5" fill="#8e98ab"/></g>';
+      + '<rect x="-2.3" y="-39" width="4.6" height="14" rx="1.4" fill="#8e98ab"/></g>';
     return compose(b, p, { ...hat(b, FUR_HELM, 1.6), brows: true, noCheeks: true, over: axe + HAND(x, y, p) });
   },
   // Prince: crown and a royal blue sash with a gold medal
