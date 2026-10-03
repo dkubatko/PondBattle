@@ -800,7 +800,7 @@ const DESC = {
   peeper:   (L) => ['Buy', `a random friend gets ${statText(L, 0)}`],
   lily:     (L) => ['End of round', `the friend ahead gets ${statText(0, L)}`],
   tree:     (L) => ['Faint', `a random friend gets ${statText(2 * L, L)} this battle`],
-  toad:     (L) => ['Hurt', `gain ${statText(2 * L, 0)} this battle`],
+  toad:     (L) => ['Hurt', `gain ${statText(L + 1, 0)} this battle`],
   spitter:  (L) => ['Start of battle', `2 damage to ${L === 1 ? 'a random enemy' : `${L} random enemies`}`],
   bullfrog: (L) => ['Friend ahead faints', `gain ${statText(L, L)} this battle`],
   knight:   (L) => ['Hurt', `strike back at the frog that hurt it for ${2 * L}`],

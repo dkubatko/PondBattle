@@ -166,7 +166,7 @@ function runBattle(teamA, teamB, opts = {}) {
       if (by.hp <= 0) by.koBy = u;
       snap?.('ability', { actor: u.bid, target: by.bid, counter: true, text: was > by.hp ? `${nm(u)} strikes back at ${nm(by)} for ${was - Math.max(0, by.hp)}` : `${nm(u)} strikes back at ${nm(by)}` });
     }
-    if (u.type === 'toad') { buff(u, 2 * u.lvl, 0); snap?.('ability', { actor: u.bid, text: `${nm(u)} shows its claws` }); }
+    if (u.type === 'toad') { buff(u, u.lvl + 1, 0); snap?.('ability', { actor: u.bid, text: `${nm(u)} shows its claws` }); }
     if (u.type === 'midwife') arrive(s, T[s][T[s].indexOf(u) + 1], () => unit('froglet', u.lvl, u.lvl, 1, null, ++bid), false, () => `A baby hatches from ${nm(u)}`);
     if (u.type === 'rain') {
       const t = T[s][T[s].indexOf(u) + 1];
