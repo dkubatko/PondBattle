@@ -619,7 +619,8 @@ http.createServer(async (req, res) => {
       const { room, p } = find(b);
       if (!p) return json(res, 404, { error: 'not found' });
       const emoji = String(b.emoji || ''), now = Date.now();
-      if (!REACTIONS.includes(emoji) || room.phase !== 'shop') return json(res, 400, { error: 'not now' });
+      // (while shopping, and while a battle plays: the state is already the next round's, or 'over' after the last one)
+      if (!REACTIONS.includes(emoji) || room.phase === 'waiting' || room.players.length < 2) return json(res, 400, { error: 'not now' });
       if (now - (p.reactAt || 0) < 1000) return json(res, 429, { error: 'slow down' });
       const react = (x, e) => { x.reactAt = Date.now(); x.react = { e, n: ((x.react && x.react.n) || 0) + 1 }; room.v++; broadcast(room); };
       react(p, emoji);

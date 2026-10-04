@@ -2480,7 +2480,9 @@ function onState(v) {
   if (prev && prev.opp && v.opp && !v.opp.bot && !prev.opp.ready && v.opp.ready && v.phase === 'shop' && !v.me.ready && prev.round === v.round) { toast(`${v.opp.name} is ready`); Snd.ribbit(1.15); }
   // your partner's reaction (the first state after opening only catches up, it doesn't replay the last one)
   const r = v.opp && v.opp.react;
-  if (prev && r && !(prev.opp && prev.opp.react && prev.opp.react.n === r.n) && screen === 'game' && !playing && !reactsMuted()) { floatReact($('#oppCard'), r.e); Snd.sparkle(); }
+  // (on whichever screen is up: the shop, its pre-battle moment, or the battle itself)
+  const oppPlate = screen === 'game' ? $('#oppCard') : screen === 'battle' ? $('#bso') : null;
+  if (prev && r && !(prev.opp && prev.opp.react && prev.opp.react.n === r.n) && oppPlate && !reactsMuted()) { floatReact(oppPlate, r.e); Snd.sparkle(); }
   route();
 }
 // The server sends a battle once and after that only names it (lastBattleId): keep the one we hold
@@ -3097,7 +3099,8 @@ function buildGame() {
   // Tap a plate for that player's profile (the log button shows the last battle)
   $('#oppCard').onclick = () => { if (S && S.opp && S.opp.pid) { Snd.tap(); openCard({ of: S.opp.pid }); } };
   // your own plaque: emoji reactions while shopping (your profile is in the menu)
-  $('#meCard').onclick = () => { if (S && S.phase === 'shop' && S.opp && !playing) openReactions(); else { Snd.tap(); openCard(); } };
+  // (emoji while shopping and through the battle moment too; your profile once there's no one to send them to)
+  $('#meCard').onclick = () => { if (S && S.phase === 'shop' && S.opp) openReactions(); else { Snd.tap(); openCard(); } };
   $('#logBtn').onclick = () => { if (S && S.lastBattle) { Snd.tap(); openBattleSheet(S.lastBattle); } };
   $('#mainBtn').onclick = mainAction;
   $('#readyBtn').onclick = toggleReady;
@@ -3184,11 +3187,13 @@ const soundOn = () => Snd.music() || Snd.sfxOn();
 // "Mute reactions" (menu): your partner's emoji don't show on your phone
 const reactsMuted = () => localStorage.frogMuteReactions === '1';
 function closeReactions() { $$('.react-pick').forEach((n) => n.remove()); document.removeEventListener('pointerdown', reactOutside, true); }
-function reactOutside(e) { if (!e.target.closest('.react-pick, #meCard')) closeReactions(); }
-function openReactions() {
+function reactOutside(e) { if (!e.target.closest('.react-pick, #meCard, #bsm')) closeReactions(); }
+// Your plate (in the shop, or on the battle screen: card) opens the emoji under it
+function openReactions(card = $('#meCard')) {
   if ($('.react-pick')) { closeReactions(); return; }
+  if (!card) return;
   Snd.tap();
-  const card = $('#meCard'), r = card.getBoundingClientRect(), av = $('.portrait', card).getBoundingClientRect();
+  const r = card.getBoundingClientRect(), av = $('.portrait', card).getBoundingClientRect();
   const pick = el(`<div class="react-pick" role="menu">${REACTIONS.map((e) => `<button class="react-btn" data-e="${e}" aria-label="${e}">${e}</button>`).join('')}</div>`);
   document.body.appendChild(pick);
   const vw = document.documentElement.clientWidth, cx = av.left + av.width / 2;
@@ -4736,6 +4741,8 @@ async function playBattle(lb) {
     <div class="b-ctrl"><button class="btn ghost" id="spd"></button><button class="btn ghost" id="skip">Skip</button></div>
   </div>`);
   mount('battle', node);
+  // your plate sends emoji here too (your partner's float up from theirs: see the state handler)
+  $('#bsm').onclick = () => { if (S && S.opp) openReactions($('#bsm')); };
   Snd.duck(true);
   const arena = $('#arena'), cap = $('#cap');
   let speed = +(localStorage.frogSpeed || 1), skipping = false, wake = null;
