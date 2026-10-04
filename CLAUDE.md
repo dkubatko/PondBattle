@@ -102,9 +102,10 @@ Home infrastructure (Tower, Docker, Nginx Proxy Manager, Cloudflare) is describe
 
 ## Ranked play and profiles
 
-- `ranks.js` owns ranks and the avatar unlock table (`UNLOCKS`). The server enforces it (`fitAvatar` on
-  profile save and on `/api/me` reverts anything above the player's rank); the page gets the same table
-  injected as `__UNLOCKS__`.
+- `ranks.js` owns ranks and the avatar unlock table (`UNLOCKS`). The server enforces it on profile save (`fitAvatar`
+  reverts anything above the player's rank that the frog doesn't already wear: dropping a rank or the Frog Legend title
+  never takes an item off, it only can't be put on again); the page gets the same table injected as `__UNLOCKS__`.
+- Rank points: losses stop at 0 in a tier; a loss at 0 drops to the tier below with 4 points (`R.apply`).
 - Every customization setting (body, color, eyes, pattern, extras, pad style, pad color) has at least one
   option at every rank, and each option list runs in unlock order (`byRank`). Locked options can be tried
   on in the editor; Save stays greyed out, with no extra text.

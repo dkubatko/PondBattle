@@ -24,9 +24,14 @@ function points(mine, theirs, won) {
   if (won) return d >= GAP ? 2 : 1;
   return d >= GAP ? 0 : d <= -GAP ? -2 : -1;
 }
-// A tier once reached is kept: losses stop at its first point
+// Losses stop at a tier's first point (0 points in it); a loss there drops you to the tier below, one point short of
+// coming back (Tadpole is the bottom). So you always stop at 0 before dropping a rank.
 const floor = (lvl) => Math.min(TOP, Math.floor(lvl / PIPS) * PIPS);
-const apply = (lvl, pts) => Math.max(floor(lvl), lvl + pts);
+const apply = (lvl, pts) => {
+  if (pts >= 0) return lvl + pts;
+  const f = floor(lvl);
+  return lvl > f ? Math.max(f, lvl + pts) : Math.max(0, lvl - 1);
+};
 
 // Everyone who has played a ranked game, best first (more points, then whoever got there first). The first
 // LEGENDS of them with a full top tier are the Frog Legends. Cached until levels change.
@@ -77,10 +82,11 @@ const UNLOCKS = {
 const AVATAR_DEFAULTS = { b: 'classic', c: 0, m: 'smile', e: 'dark', t: 'none', h: 'none', f: 'none', n: 'none', hd: 'none', bk: 'none', l: 'classic', lc: 0 };
 // The rank an option needs, or '' if it's open
 const needs = (key, id) => Object.keys(UNLOCKS).find((tier) => (UNLOCKS[tier][key] || []).includes(id)) || '';
-// An avatar with everything the rank hasn't earned yet put back to the default
-function fitAvatar(av, rankId) {
+// An avatar with everything the rank hasn't earned put back to the default, except what the frog already wears (worn):
+// dropping a rank never takes anything off, it only means locked options can't be put on again
+function fitAvatar(av, rankId, worn = {}) {
   const have = RANK_IDS.indexOf(rankId), out = { ...av };
-  for (const k of Object.keys(AVATAR_DEFAULTS)) { const t = needs(k, out[k]); if (t && RANK_IDS.indexOf(t) > have) out[k] = AVATAR_DEFAULTS[k]; }
+  for (const k of Object.keys(AVATAR_DEFAULTS)) { const t = needs(k, out[k]); if (t && RANK_IDS.indexOf(t) > have && worn[k] !== out[k]) out[k] = AVATAR_DEFAULTS[k]; }
   return out;
 }
 

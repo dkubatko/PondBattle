@@ -443,13 +443,7 @@ http.createServer(async (req, res) => {
       else if (GUESTS) uid = `g${crypto.randomBytes(10).toString('hex')}`;
       else return json(res, 401, { error: 'Open the game from Telegram' });
       const pr = profiles[uid] || (profiles[uid] = { name: '', avatar: cleanAvatar() }); // guests pick a name first
-      // Options your rank hasn't earned go back to the default (avatars made before ranks, or a Frog Legend who
-      // dropped out of the top 10); the games you're in get the new look too
-      const fit = R.fitAvatar(cleanAvatar(pr.avatar), R.rankOf(uid, profiles).id);
-      if (JSON.stringify(fit) !== JSON.stringify(cleanAvatar(pr.avatar))) {
-        pr.avatar = fit;
-        for (const r of Object.values(rooms)) for (const p of r.players) if (p.uid === uid) { p.avatar = fit; changed(r); }
-      }
+      // (an avatar keeps what it wears even after dropping a rank or the Frog Legend title: see R.fitAvatar)
       pr.ip = clientIp(req); pr.seen = Date.now(); saveProfiles();
       return json(res, 200, { uid, key: keyFor(uid), pid: pidOf(uid), name: pr.name, avatar: pr.avatar, rank: R.rankOf(uid, profiles), telegram: !!tg, bot: TG.botUsername(), start: tg ? tg.startParam : '',
         dm: !!(tg && tg.user.allows_write_to_pm), muteFriends: !!pr.muteFriends });
@@ -461,7 +455,8 @@ http.createServer(async (req, res) => {
     if (url.pathname === '/api/profile') {
       // Name and frog avatar follow you into every game you're in
       const pr = profiles[uid] || (profiles[uid] = {});
-      pr.name = cleanName(b.name); pr.avatar = R.fitAvatar(cleanAvatar(b.avatar), R.rankOf(uid, profiles).id); saveProfiles(); // only options your rank has earned
+      // only options your rank has earned, or ones the frog already wears (kept after dropping a rank)
+      pr.name = cleanName(b.name); pr.avatar = R.fitAvatar(cleanAvatar(b.avatar), R.rankOf(uid, profiles).id, cleanAvatar(pr.avatar)); saveProfiles();
       for (const r of Object.values(rooms)) for (const p of r.players) if (p.uid === uid) { p.name = pr.name; p.avatar = pr.avatar; changed(r); }
       return json(res, 200, { name: pr.name, avatar: pr.avatar });
     }

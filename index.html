@@ -278,10 +278,10 @@ h1 { margin: 0; text-align: center; font-size: 40px; font-weight: 900; line-heig
 .pl.opp { flex-direction: row-reverse; text-align: right; }
 .pl.is-ready { background: rgba(155, 224, 122, .09); box-shadow: inset 0 0 0 2px rgba(155, 224, 122, .38); }
 .portrait { position: relative; flex: none; width: 50px; height: 50px; border-radius: 50%; background: rgba(245, 237, 214, .07); display: grid; place-items: center; }
-.portrait .avatar { transition: opacity .25s, filter .25s; }
+.portrait .avatar { position: relative; z-index: 1; transition: opacity .25s, filter .25s; } /* over the ready-clock ring (an umbrella or a hat may reach past it) */
 .pav, .pbadge, .phearts { display: contents; }
 .pl.is-away .portrait .avatar { opacity: .45; filter: grayscale(.6); }
-.badge { position: absolute; z-index: 1; bottom: -3px; right: -4px; width: 21px; height: 21px; border-radius: 50%; display: grid; place-items: center; box-shadow: 0 0 0 2.5px #15292f; animation: badgeIn .3s cubic-bezier(.3, 1.6, .5, 1); }
+.badge { position: absolute; z-index: 2; bottom: -3px; right: -4px; width: 21px; height: 21px; border-radius: 50%; display: grid; place-items: center; box-shadow: 0 0 0 2.5px #15292f; animation: badgeIn .3s cubic-bezier(.3, 1.6, .5, 1); }
 .pl.opp .badge { right: auto; left: -4px; }
 .badge svg { width: 13px; height: 13px; }
 .badge.ready { background: #9be07a; color: #173b1f; }
@@ -3865,7 +3865,8 @@ function openProfile(done) {
   const pv = $('#pv', s.el), inp = $('#pname', s.el), save = $('#psave', s.el), track = $('#wt', s.el), label = $('#wn', s.el);
   // The highest rank needed by anything the frog is trying on (or '' when all of it is earned); until then Save
   // is greyed out
-  const tryingOn = () => Object.keys(av).filter((k) => !unlocked(k, av[k])).map((k) => needs(k, av[k]))
+  // (something locked that the frog already wears is fine: dropping a rank doesn't take anything off)
+  const tryingOn = () => Object.keys(av).filter((k) => !unlocked(k, av[k]) && myAvatar()[k] !== av[k]).map((k) => needs(k, av[k]))
     .reduce((top, t) => (RANK_ORDER.indexOf(t) > RANK_ORDER.indexOf(top || 'tadpole') ? t : top), '');
   const syncSave = () => { const need = tryingOn(); save.disabled = !inp.value.trim() || !!need; };
   // Your frog standing on your lily pad
@@ -4029,7 +4030,7 @@ function openRanks(rk) {
       <li><b>Play</b> finds a ranked game against someone near your rank.</li>
       <li>Win: <b>+1</b> point, or <b>+2</b> against someone 3 or more points above you.</li>
       <li>Lose: <b>−1</b>. Nothing against someone 3+ points above you, <b>−2</b> against someone 3+ below.</li>
-      <li><b>5 points</b> fill the ring and move you up a rank. You never drop back a rank.</li>
+      <li><b>5 points</b> fill the ring and move you up a rank. Losses stop at 0; one more drops you a rank.</li>
       <li>The top 10 Master Frogs are <b>Frog Legends</b>.</li>
     </ul>
     <div class="btns"><button class="btn ghost" data-a="board">Leaderboard</button></div>`);
