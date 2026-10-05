@@ -263,8 +263,9 @@ function forfeit(room, p) {
 // ---------- Friends ----------
 // On each profile: friends, asked (requests you sent) and askedBy (requests sent to you), each { uid: when }; both
 // sides are always changed together. muteFriends: no "your friend is looking for a game" notes.
-// Notes on Telegram: a friend request, a challenge, and a ranked search (each friend at most once an hour).
-const FRIENDS_MAX = 100, PING_GAP = 3600e3;
+// Notes on Telegram: a friend request, a challenge, and a ranked search that found no one within 5 s (each friend at
+// most once an hour).
+const FRIENDS_MAX = 100, PING_GAP = 3600e3, SEARCH_TELL = 5000;
 const seenAt = new Map(); // uid -> when they last asked the server anything (who is online)
 // When each note last went ("kind:from>to" -> ms), saved in pings.json so the hourly limits survive restarts and
 // deploys; kept for a day, which also leaves a record of recent notes to look at when debugging
@@ -482,8 +483,10 @@ http.createServer(async (req, res) => {
       // Looking for a game: { room, token } once matched, else { waiting: true } (ask again in a moment)
       const found = matched.get(uid);
       if (found) { matched.delete(uid); return json(res, 200, found); }
-      const fresh = !searching(uid), m = findMatch(uid, b.set === 'any' ? 'any' : cleanSet(b.set));
-      if (!m && fresh) pingFriends(uid);
+      const m = findMatch(uid, b.set === 'any' ? 'any' : cleanSet(b.set));
+      // friends hear about it only once a search has gone SEARCH_TELL ms without a match (once per search)
+      const q = !m && queue.get(uid);
+      if (q && !q.told && Date.now() - q.since >= SEARCH_TELL) { q.told = true; pingFriends(uid); }
       // others: how many other players are looking for a game right now (any set), shown while you wait
       return json(res, 200, m || { waiting: true, others: [...queue.keys()].filter((u) => u !== uid).length });
     }
