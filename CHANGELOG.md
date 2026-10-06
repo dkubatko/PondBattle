@@ -8,6 +8,11 @@ group (`tools/post-notes.js`): a short intro line if you like, then `### New`, `
 
 ## Unreleased
 
+## 1.1.1 (2026-10-06)
+
+### Changes
+- Behind the scenes: game records now note the version each game was played on, to help with balancing
+
 ## 1.1.0 (2026-10-06)
 
 A new frog joins Might & Magic.
