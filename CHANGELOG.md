@@ -8,6 +8,9 @@ group (`tools/post-notes.js`): a short intro line if you like, then `### New`, `
 
 ## Unreleased
 
+### Balance
+- **Vampire Frog** 2/2 → 1/1
+
 ## 1.2.0 (2026-10-06)
 
 A balance update: the Necromancer, Frog King and Wizard are toned down, and the Vampire Frog gets a new bite.
