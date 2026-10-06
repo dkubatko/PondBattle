@@ -52,7 +52,7 @@ Home infrastructure (Tower, Docker, Nginx Proxy Manager, Cloudflare) is describe
    engine at every frame), and a few `tools/screen.py game` runs (whole games in the page, no errors reported).
 4. UI touched: `tools/screen.py <scene> --sizes all --both` for the affected screens, with no errors reported.
 5. Chain checks, commit and push with `&&`, never `;` (a `;` chain once pushed despite a failed test).
-6. After pushing, confirm prod with a read-only request: `GET https://pondbattle.3rdplacelounge.com/api/health`
+6. After pushing, confirm prod with a read-only request: `GET https://pondbrawl.3rdplacelounge.com/api/health`
    returns ok and `commit` equals your pushed `git rev-parse HEAD`. Poll it in the background and keep
    talking to the user; report when it's live. Not live within about 10 minutes: CI probably failed (the
    image starts and the battle audit must pass before anything is published), so look at GitHub Actions.

@@ -17,7 +17,7 @@ services:
       # Unraid's Docker page: part of the Pond Brawl stack in Compose Manager, with the app icon
       - net.unraid.docker.managed=composeman
       - net.unraid.docker.icon=/mnt/cache/appdata/pondbattle/icon.svg
-      - net.unraid.docker.webui=https://pondbattle.3rdplacelounge.com/
+      - net.unraid.docker.webui=https://pondbrawl.3rdplacelounge.com/
     restart: unless-stopped
 
   # Checks GitHub's registry every minute and restarts Pond Brawl on a new image.
