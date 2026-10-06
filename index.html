@@ -467,6 +467,7 @@ h1 { margin: 0; text-align: center; font-size: 40px; font-weight: 900; line-heig
 .row-item { width: 100%; display: flex; align-items: center; justify-content: space-between; gap: 12px; padding: 14px 4px; border: 0; background: none; border-bottom: 1px solid rgba(245, 237, 214, .08); font-size: 17px; font-weight: 800; text-align: left; }
 .row-item:last-child { border-bottom: 0; }
 .row-item.danger { color: #ffadc0; }
+.menu-version { margin-top: 16px; text-align: center; font-size: 13px; font-weight: 700; color: rgba(245, 237, 214, .4); }
 .switch { width: 50px; height: 30px; border-radius: 15px; background: rgba(245, 237, 214, .2); position: relative; transition: background .2s; flex: none; }
 .switch::after { content: ''; position: absolute; top: 3px; left: 3px; width: 24px; height: 24px; border-radius: 50%; background: #fff; transition: transform .2s; }
 .switch.on { background: #7cc467; }
@@ -2382,6 +2383,7 @@ function ask(title, text, yes, no = 'Cancel', danger = false) {
 // Network
 // =====================================================================
 const BUILD = '__BUILD__';
+const VERSION = '__VERSION__'; // the release, from CHANGELOG.md (shown at the bottom of the menu)
 let staleBuild = null;
 function reloadIfStale() {
   // A reload keeps you in your game, so do it at a calm moment: not mid-battle, mid-drag or mid-move
@@ -4173,7 +4175,8 @@ function openMenu(o = {}) {
     <button class="row-item" data-m="guide">How to play ${ICON.chev}</button>
     <button class="row-item" data-m="name">Profile ${ICON.chev}</button>
     ${o.home ? '' : `<button class="row-item" data-m="lobby">Main menu ${ICON.chev}</button>
-    <button class="row-item danger" data-m="end">End game</button>`}`);
+    <button class="row-item danger" data-m="end">End game</button>`}
+    <div class="menu-version">Pond Brawl v${VERSION}</div>`);
   s.el.addEventListener('click', (e) => {
     const b = e.target.closest('[data-m]'); if (!b) return;
     const m = b.dataset.m;

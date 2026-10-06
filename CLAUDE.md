@@ -10,9 +10,10 @@ Home infrastructure (Tower, Docker, Nginx Proxy Manager, Cloudflare) is describe
   (`git worktree add ../PondBattle-<name> -b <branch>`), never in another agent's checkout or worktree.
 - Before committing: `git fetch`, rebase onto `origin/main`, and check that `git diff` holds only your
   own changes. Stage only your files or hunks.
-- Deploying is `git push origin HEAD:main`: GitHub Actions builds the image, Watchtower on Tower picks it
-  up in 1–2 minutes. Put changes on the test app first and push when the user says to ship or deploy.
-  Small fixes can go straight out once the checks below pass. If unsure, ask.
+- Pushing to `main` (`git push origin HEAD:main`) merges your change; it does not go live. GitHub Actions only
+  builds and checks the image. Players get it with the next release, which happens only when the user says
+  "release" (see Releases). Put changes on the test app first and push when the user says to ship. Small fixes
+  can be pushed once the checks below pass. If unsure, ask.
 
 ## Testing
 
@@ -51,13 +52,40 @@ Home infrastructure (Tower, Docker, Nginx Proxy Manager, Cloudflare) is describe
    `tools/screen.py battle --frames all --check` on a range of rounds and both sets (the battlefield must match the
    engine at every frame), and a few `tools/screen.py game` runs (whole games in the page, no errors reported).
 4. UI touched: `tools/screen.py <scene> --sizes all --both` for the affected screens, with no errors reported.
-5. Chain checks, commit and push with `&&`, never `;` (a `;` chain once pushed despite a failed test).
-6. After pushing, confirm prod with a read-only request: `GET https://pondbrawl.3rdplacelounge.com/api/health`
-   returns ok and `commit` equals your pushed `git rev-parse HEAD`. Poll it in the background and keep
-   talking to the user; report when it's live. Not live within about 10 minutes: CI probably failed (the
-   image starts and the battle audit must pass before anything is published), so look at GitHub Actions.
-   Never POST to prod to check it: even `/api/me` creates a guest profile in the live data. If prod is
-   down, look at the container on Tower and fix it directly rather than waiting.
+5. Players will notice the change: add a line under `## Unreleased` in `CHANGELOG.md`, in their words, under
+   `### New`, `### Changes`, `### Balance` or `### Fixes` (balance changes with numbers: `Knight 3/4 → 3/5`).
+   Internal changes (refactors, tools, docs) get no line.
+6. Chain checks, commit and push with `&&`, never `;` (a `;` chain once pushed despite a failed test).
+   Pushing doesn't change prod, so there's nothing to confirm there; tell the user it's merged and waits for the
+   next release.
+
+## Releases
+
+Only releases go live, and only when the user says "release". The version is the newest numbered heading in
+`CHANGELOG.md` (`## 1.2.0 (2026-10-06)`); the server reads it, and the menu and `/api/health` show it.
+
+1. Pick the number from what's under Unreleased: **patch** (1.2.**1**) balance, fixes, polish; **minor**
+   (1.**3**.0) new content or features (frogs, sets, avatar options, screens); **major** (**2**.0.0) something
+   that resets or reshapes play (a ranked season reset, a rules overhaul). Tell the user the number; they can
+   overrule it.
+2. In a worktree on `origin/main`: rename `## Unreleased` to `## <version> (<date>)`, add a new empty
+   `## Unreleased` above it, tidy the wording (it becomes the patch notes), commit and push to `main`.
+3. Tag that commit and push the tag: `git tag v<version> && git push origin v<version>`. GitHub Actions builds
+   it, checks it (the tag must match the changelog's newest version), and publishes `:<version>` and `:latest`;
+   Watchtower deploys `:latest` within a few minutes. Never move or reuse a pushed tag: a broken release is
+   fixed by the next patch release.
+4. Confirm prod read-only: `GET https://pondbrawl.3rdplacelounge.com/api/health` returns ok and `"version"`
+   equals the release. Poll it in the background and keep talking to the user. Not live within about 10 minutes:
+   CI probably failed, so look at GitHub Actions. Never POST to prod to check it: even `/api/me` creates a guest
+   profile in the live data. If prod is down, look at the container on Tower and fix it directly.
+5. Patch notes: `node tools/post-notes.js` prints the post for the newest release. Show it to the user; once
+   they approve, send it with the bot token from `~/claude/workspace/.env`:
+   `TELEGRAM_BOT_TOKEN=$POND_BATTLE_TELEGRAM_BOT_TOKEN node tools/post-notes.js --send` (after sourcing that
+   file). It goes to the Patch Notes topic of t.me/PondBrawl. Small patch releases may skip the post if the user
+   says so.
+
+Rollback: on Tower, point `compose.yaml` at an earlier `ghcr.io/dkubatko/pondbattle:<version>` and
+`docker compose up -d`, tell the user, and put it back to `:latest` once a fixed release is out.
 
 ## Balance
 
@@ -120,7 +148,7 @@ Home infrastructure (Tower, Docker, Nginx Proxy Manager, Cloudflare) is describe
   response.
 - Friends live on the profile (`friends`, `asked`, `askedBy`: `{ uid: when }`). Change both sides together
   (`befriend`, the `/api/friends/act` actions), read with `seen()` so a lookup never writes to a profile. Telegram
-  notes go through `ping()`: one per sender, kind and hour; a search tells friends only after 5 s with no match (times saved in `DATA_DIR/pings.json`, kept a day, flushed on
+  notes go through `ping()`: one per sender, kind and hour (a challenge: once per pond); a search tells friends only after 5 s with no match (times saved in `DATA_DIR/pings.json`, kept a day, flushed on
   shutdown with rooms and profiles), and a friend's search alert respects `muteFriends`. With no
   bot token (test servers), `TG.notify` logs `telegram (off) to <id>: ...` to the server log instead, so check notes
   there.

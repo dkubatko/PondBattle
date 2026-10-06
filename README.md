@@ -17,6 +17,8 @@
 | `tools/simulate.js` | Balance report: plays full games (about 1M battles in ~20 s) on the working tree and reports how every frog and item does; A/B against a git ref (`--base`) or candidate stats (`--try`). Changes nothing |
 | `tools/screen.py` | Screenshots of any screen (home, sheets, shop in round N, any frame of a battle, game over) in Chromium and WebKit at phone sizes, with page errors, console errors, failed requests and sideways scrolling. A background helper keeps a throwaway server (working tree) and the browsers warm, so a capture takes well under a second |
 | `tools/audit.js` | Battle audit: 20,000 random battles per set, checking the rules every battle frame must follow; exits 1 on any broken rule. CI runs it on every image |
+| `tools/post-notes.js` | Patch notes: a release's `CHANGELOG.md` section as a post for the Pond Brawl group (prints it; `--send` posts it) |
+| `CHANGELOG.md` | What changed for players, per release; its newest numbered heading is the game's version |
 | `deploy/compose.yaml` | How it runs on Tower |
 
 No dependencies: plain Node (20+). `tools/screen.py` needs Playwright for Python (on the NUC: the shared venv, which it finds on its own).
@@ -56,11 +58,15 @@ game, a leaderboard row or a recent game) show rank, games played/won and recent
 `games.jsonl` (practice games aren't listed). Other players are addressed by a public id, never their
 Telegram id. The trophy button opens the global leaderboard (top 50).
 
-## Deploy
+## Versions and deploy
 
-Pushing to `main` builds `ghcr.io/dkubatko/pondbattle:latest` (GitHub Actions). Before publishing, the workflow
-starts the built image (it must answer `/api/health` with the pushed commit) and runs `tools/audit.js` in it;
-if either fails, nothing is published and prod keeps its build. On Tower,
+Only releases go live. `CHANGELOG.md` lists what players notice, newest first; its newest numbered heading is
+the game's version (shown at the bottom of the menu and in `/api/health`), and changes waiting for a release
+sit under `## Unreleased`. Pushing to `main` only builds and checks the image (GitHub Actions: it must start and
+answer `/api/health` with the pushed commit, and `tools/audit.js` must pass in it). A release is a tag like
+`v1.2.0` on the commit that numbered the changelog: it builds and checks the same way and publishes
+`ghcr.io/dkubatko/pondbattle:1.2.0` and `:latest`. `tools/post-notes.js` turns a release's section into its
+patch notes for the Pond Brawl group. The release steps are in `CLAUDE.md`. On Tower,
 `/mnt/cache/appdata/pondbattle` holds `compose.yaml` (from `deploy/`), `.env` and `data/`.
 Watchtower pulls new images within a minute. Nginx Proxy Manager forwards the public hostname to
-port 18420. `GET /api/health` says which commit is serving (`commit`; `dev` outside the image).
+port 18420. `GET /api/health` says which release and commit are serving (`version`, `commit`; `dev` outside the image).

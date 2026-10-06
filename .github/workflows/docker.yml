@@ -1,11 +1,14 @@
-# Every push to main builds the image, checks it, and publishes it to GitHub's registry;
-# Watchtower on Tower pulls the new :latest within a few minutes.
-# The checks run on the built image itself: it must start and answer /api/health with this commit, and the
-# battle audit (tools/audit.js) must pass. If either fails, nothing is published and prod keeps its build.
+# Only releases go live. Every push to main builds the image and checks it, and publishes nothing.
+# A release is a version tag (v1.2.0) on a commit whose CHANGELOG.md has 1.2.0 as its newest heading: the tag builds
+# the same way, runs the same checks, and publishes the image as :1.2.0 and :latest. Watchtower on Tower pulls the
+# new :latest within a few minutes.
+# The checks run on the built image itself: it must start and answer /api/health with this commit (and, for a tag,
+# the tag's version), and the battle audit (tools/audit.js) must pass. If any fails, nothing is published.
 name: Docker image
 on:
   push:
     branches: [main]
+    tags: ['v*']
   workflow_dispatch:
 permissions:
   contents: read
@@ -32,17 +35,25 @@ jobs:
           for i in $(seq 1 30); do curl -fsS http://127.0.0.1:8420/api/health > health.json 2>/dev/null && break; sleep 0.5; done
           cat health.json || { docker logs pb; exit 1; }
           grep -q '"commit":"${{ github.sha }}"' health.json || { echo "wrong commit"; docker logs pb; exit 1; }
+      - name: Check the tag matches the changelog
+        id: version
+        if: startsWith(github.ref, 'refs/tags/v')
+        run: |
+          grep -q "\"version\":\"${GITHUB_REF_NAME#v}\"" health.json || { echo "tag $GITHUB_REF_NAME is not the newest version in CHANGELOG.md"; exit 1; }
+          echo "number=${GITHUB_REF_NAME#v}" >> "$GITHUB_OUTPUT"
       - name: Battle audit
         run: docker exec pb node tools/audit.js
       - name: Stop the check container
         if: always()
         run: docker rm -f pb || true
       - uses: docker/login-action@v3
+        if: startsWith(github.ref, 'refs/tags/v')
         with:
           registry: ghcr.io
           username: ${{ github.actor }}
           password: ${{ secrets.GITHUB_TOKEN }}
-      - name: Publish (same build, from the cache)
+      - name: Publish the release (same build, from the cache)
+        if: startsWith(github.ref, 'refs/tags/v')
         uses: docker/build-push-action@v6
         with:
           context: .
@@ -51,5 +62,5 @@ jobs:
           build-args: COMMIT=${{ github.sha }}
           tags: |
             ghcr.io/dkubatko/pondbattle:latest
-            ghcr.io/dkubatko/pondbattle:${{ github.sha }}
+            ghcr.io/dkubatko/pondbattle:${{ steps.version.outputs.number }}
           cache-from: type=gha

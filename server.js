@@ -97,6 +97,10 @@ function code() {
   return c;
 }
 
+// The game's version: the newest released heading in CHANGELOG.md ("## 1.2.0 (2026-10-06)"). Releases are tagged
+// v1.2.0 and only those images go live; the menu and /api/health show it.
+const VERSION = (/^## (\d+\.\d+\.\d+)/m.exec(fs.readFileSync(path.join(__dirname, 'CHANGELOG.md'), 'utf8')) || [])[1] || '0.0.0';
+
 // The page carries a build id; clients reload themselves when it changes
 const INDEX = path.join(__dirname, 'index.html');
 let page = { mtime: -1, build: '', html: '' };
@@ -106,8 +110,8 @@ function currentPage() {
     const raw = fs.readFileSync(INDEX, 'utf8');
     const catalog = JSON.stringify(Object.fromEntries(Object.entries(FROGS).map(([k, f]) => [k, { name: f.name, tier: f.tier, atk: f.atk, hp: f.hp, cost: frogCost(k), ...(f.fixed ? { fixed: f.fixed } : {}) }])));
     const items = JSON.stringify(FOODS), sets = JSON.stringify(SETS), unlocks = JSON.stringify({ unlocks: R.UNLOCKS, extras: R.EXTRAS });
-    const build = crypto.createHash('sha1').update(raw + catalog + items + sets + unlocks).digest('hex').slice(0, 10);
-    page = { mtime: st.mtimeMs, build, html: raw.replace('__BUILD__', build).replace('__CATALOG__', catalog.replace(/</g, '\\u003c')).replace('__ITEMS__', items.replace(/</g, '\\u003c')).replace('__SETS__', sets.replace(/</g, '\\u003c')).replace('__UNLOCKS__', unlocks) };
+    const build = crypto.createHash('sha1').update(raw + catalog + items + sets + unlocks + VERSION).digest('hex').slice(0, 10);
+    page = { mtime: st.mtimeMs, build, html: raw.replace('__BUILD__', build).replace('__VERSION__', VERSION).replace('__CATALOG__', catalog.replace(/</g, '\\u003c')).replace('__ITEMS__', items.replace(/</g, '\\u003c')).replace('__SETS__', sets.replace(/</g, '\\u003c')).replace('__UNLOCKS__', unlocks) };
   }
   return page;
 }
@@ -381,8 +385,9 @@ http.createServer(async (req, res) => {
     if (req.method === 'GET' && url.pathname.startsWith('/static/')) {
       return sendFile(res, path.join(STATIC, path.basename(url.pathname)), 'public, max-age=86400');
     }
-    // commit: the git commit this image was built from ('dev' outside the image); page: the page build clients see
-    if (url.pathname === '/api/health') return json(res, 200, { ok: true, commit: process.env.COMMIT || 'dev', page: currentPage().build });
+    // version: the release (CHANGELOG.md); commit: the git commit this image was built from ('dev' outside the image);
+    // page: the page build clients see
+    if (url.pathname === '/api/health') return json(res, 200, { ok: true, version: VERSION, commit: process.env.COMMIT || 'dev', page: currentPage().build });
     if (url.pathname === '/api/lobby') {
       // Your own games, then ponds waiting on the same network as you ("nearby"). Ponds from other networks are
       // not listed; those are joined by invite, and strangers meet through Play (matchmaking)

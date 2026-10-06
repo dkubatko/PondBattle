@@ -1,7 +1,8 @@
 # Pond Brawl on Tower. Lives in /mnt/cache/appdata/pondbattle with a .env and icon.svg (static/icon.svg) next to it.
 # It's registered as the "Pond Brawl" stack in Unraid's Compose Manager (projects/pondbattle points here).
 #   docker compose up -d        start / apply changes to this file
-# New images come from GitHub Actions (public package on ghcr.io); Watchtower pulls them automatically.
+# Releases come from GitHub Actions (public package on ghcr.io): :latest is the newest release (v1.2.0 tag ->
+# :1.2.0 and :latest), and Watchtower pulls it automatically. To roll back, pin an earlier :<version> here.
 name: pondbattle
 services:
   pondbattle:
