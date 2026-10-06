@@ -61,7 +61,9 @@ Home infrastructure (Tower, Docker, Nginx Proxy Manager, Cloudflare) is describe
 
 ## Releases
 
-Only releases go live, and only when the user says "release". The version is the newest numbered heading in
+Only releases go live, and only when the user says "release" for that release, after trying it on a test app (above
+all animations and UI). A request to make changes "as a release" or "with patch notes" describes the release to come;
+it is not the go-ahead to tag it. The version is the newest numbered heading in
 `CHANGELOG.md` (`## 1.2.0 (2026-10-06)`); the server reads it, and the menu and `/api/health` show it.
 
 1. Pick the number from what's under Unreleased: **patch** (1.2.**1**) balance, fixes, polish; **minor**
