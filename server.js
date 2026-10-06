@@ -263,9 +263,9 @@ function forfeit(room, p) {
 // ---------- Friends ----------
 // On each profile: friends, asked (requests you sent) and askedBy (requests sent to you), each { uid: when }; both
 // sides are always changed together. muteFriends: no "your friend is looking for a game" notes.
-// Notes on Telegram: a friend request, a challenge, and a ranked search that found no one within 5 s (each friend at
-// most once an hour).
-const FRIENDS_MAX = 100, PING_GAP = 3600e3, SEARCH_TELL = 5000;
+// Notes on Telegram: a friend request and a ranked search that found no one within 5 s (each friend at most once an
+// hour), and a challenge (each friend at most once in 10 minutes, so tapping Challenge again doesn't send it again).
+const FRIENDS_MAX = 100, PING_GAP = 3600e3, CHALLENGE_GAP = 600e3, SEARCH_TELL = 5000;
 const seenAt = new Map(); // uid -> when they last asked the server anything (who is online)
 // When each note last went ("kind:from>to" -> ms), saved in pings.json so the hourly limits survive restarts and
 // deploys; kept for a day, which also leaves a record of recent notes to look at when debugging
@@ -547,7 +547,7 @@ http.createServer(async (req, res) => {
       if (room) { if (E.setOf(room) !== set) { room.set = set; resetGame(room); } }
       else { const c = code(); room = rooms[c] = { code: c, created: Date.now(), v: 1, set, ip: clientIp(req), players: [newPlayer(uid)] }; resetGame(room); }
       room.invited = other; changed(room);
-      const sent = ping(uid, other, `challenge-${room.code}`, `${profiles[uid].name || 'A friend'} challenged you to a pond battle! 🐸`, `?join=${room.code}`, 'Join the pond', 0);
+      const sent = ping(uid, other, 'challenge', `${profiles[uid].name || 'A friend'} challenged you to a pond battle! 🐸`, `?join=${room.code}`, 'Join the pond', CHALLENGE_GAP);
       return json(res, 200, { room: room.code, token: room.players[0].token, notified: sent });
     }
     if (url.pathname === '/api/create') {
