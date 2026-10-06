@@ -26,7 +26,8 @@ Options:
   --pvp              game scenes: a custom pond against a second player ("Rival") instead of practice vs the bot
   --setup JSON       game scenes: set your pond, shop, bug, gold or hearts first, e.g.
                      '{"team": [{"type": "peeper"}], "shop": [{"type": "peeper"}], "food": "fly", "gold": 10}'
-                     (team slot 0 is the front, the rightmost pad); --bot-setup the same for the Pond Bot / Rival
+                     (team slot 0 is the front, the rightmost pad); --bot-setup the same for the Pond Bot / Rival.
+                     battle: the ponds are set up for the battle you watch (played as set, without shopping)
   --touches          draw a finger where the pointer presses and drags (for recordings)
   --opp-ready        --pvp: Rival presses Ready (you're on the ready clock)
   --me-ready         --pvp: you press Ready (Rival is on the clock)
@@ -247,10 +248,13 @@ class Api:
             if slot is not None and st['me']['gold'] >= cost: st = self.act(room, {'type': 'buy', 'shopIdx': i, 'slot': slot})
         return st
 
-    def play_round(self, room, rival=None):
-        """Shop and press Ready (and the same for the rival, in a two-player game); wait for the battle."""
-        rnd = self.shop(room)['round']
-        if rival: rival[0].shop(rival[1]); rival[0].act(rival[1], {'type': 'ready'})
+    def play_round(self, room, rival=None, shop=True):
+        """Shop and press Ready (and the same for the rival, in a two-player game); wait for the battle.
+        shop=False: just Ready, with the ponds as they are (a battle set up with --setup / --bot-setup)."""
+        rnd = (self.shop(room) if shop else self.state(room))['round']
+        if rival:
+            if shop: rival[0].shop(rival[1])
+            rival[0].act(rival[1], {'type': 'ready'})
         self.act(room, {'type': 'ready'})
         for _ in range(300):
             st = self.state(room)
@@ -291,12 +295,18 @@ def setup(o, api):
     # over: play to the end; battle: this round's battle is the one to watch; log: needs a finished battle
     rounds = {'over': 99, 'battle': o.round, 'log': max(o.round - 1, 1)}.get(o.scene, o.round - 1)
     st, seen = None, None
-    for _ in range(max(rounds, 0)):
+    # battle with --setup / --bot-setup: the ponds are set up for the battle you watch (played without shopping)
+    staged = o.scene == 'battle' and bool(o.setup or o.bot_setup)
+    def stage():
+        if o.setup: api.post('/api/dev/state', {**room, **json.loads(o.setup)})
+        if o.bot_setup and rival: rival[0].post('/api/dev/state', {**rival[1], **json.loads(o.bot_setup)})
+    for k in range(max(rounds, 0)):
         seen = st and st.get('lastBattle')
-        st = api.play_round(room, rival)
+        last = staged and k == rounds - 1
+        if last: stage()
+        st = api.play_round(room, rival, shop=not last)
         if st['phase'] == 'over': break
-    if o.setup: api.post('/api/dev/state', {**room, **json.loads(o.setup)})
-    if o.bot_setup and rival: rival[0].post('/api/dev/state', {**rival[1], **json.loads(o.bot_setup)})
+    if not staged: stage()
     if rival and o.opp_ready: rival[0].act(rival[1], {'type': 'ready'})
     if rival and o.me_ready: api.act(room, {'type': 'ready'})
     if o.scene == 'battle':

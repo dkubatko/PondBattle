@@ -717,6 +717,7 @@ h1 { margin: 0; text-align: center; font-size: 40px; font-weight: 900; line-heig
 .fx-ring { position: absolute; border-radius: 50%; border: 3px solid rgba(255, 205, 102, .9); pointer-events: none; z-index: 25; }
 .fx-ring.magic { border-color: rgba(190, 160, 255, .95); box-shadow: 0 0 14px rgba(190, 160, 255, .6); }
 .fx-ring.charm { border-color: rgba(255, 160, 196, .95); box-shadow: 0 0 14px rgba(255, 160, 196, .6); }
+.fx-ring.bite { border-color: rgba(214, 52, 72, .95); }
 .float .charm .ic { width: 22px; height: 20px; }
 .fx-wave { position: absolute; border-radius: 50%; border: 4px solid rgba(160, 220, 255, .8); pointer-events: none; z-index: 25; }
 .fx-wave.fire { border-color: rgba(255, 150, 70, .95); background: radial-gradient(closest-side, rgba(255, 170, 80, .35), transparent); }
@@ -830,6 +831,7 @@ const DESC = {
   blacksmith: (L) => ['End of round', `the friend ahead gets ${statText(L, 0)}`],
   bard:     (L) => ['Buy', `2 random friends get ${statText(0, L)}`],
   jester:   (L) => ['Start of battle', `swap attack and health of ${L === 1 ? 'a random enemy' : `${L} random enemies`}`],
+  vampire:  (L) => ['Start of battle', `steal ${L}/${L} from a random enemy (min 1)`],
   rogue:    () => ['', 'Only the enemy it’s fighting can hurt it'],
   squire:   (L) => ['Start of battle', `the friend ahead gets ${statText(L, L)} this battle`],
   cleric:   (L) => ['Start of battle', `${L === 1 ? 'the friend ahead gets' : `the ${L} friends ahead get`} a Bubble`],
@@ -1566,7 +1568,7 @@ const smoothPath = (pts) => {
   }
   return d;
 };
-const KING_CAPE = (b) => {
+const KING_CAPE = (b, col = { fill: '#c0392b', fold: '#9e2b22', light: '#d65446', rim: '#e2b13c' }) => {
   const top = Math.max(...b.eyes.map(([, y, r]) => y + r)) + 1, bb = bodyBox(b), tb = probe(b.torso).bb, n = 40, f = (v) => v.toFixed(1);
   const bot = Math.min(tb.y + tb.height, bb.y + bb.h - 7) - 3; // ends behind the bottom of the body, above the feet
   let widest = 0;
@@ -1579,10 +1581,10 @@ const KING_CAPE = (b) => {
   const rim = smoothPath([...side, ...hem, ...side.map(([x, y]) => [100 - x, y]).reverse()]);
   // wavy folds down each side, just inside the outer edge, where the cape shows beside the body
   const fold = (k, w) => [1, -1].map((d) => smoothPath(edge.slice(9).filter((_, i) => i % 2 === 0).map(([x, y]) => [50 + d * (x - 50 - k - w * Math.sin(y * .4)), y]))).join('');
-  return `<path d="${rim}Z" fill="#c0392b"/>`
-    + `<path d="${fold(2.4, 1) + fold(6, 1.2)}" stroke="#9e2b22" stroke-width="1.3" fill="none" stroke-linecap="round"/>`
-    + `<path d="${fold(4.2, 1.1)}" stroke="#d65446" stroke-width="1" fill="none" stroke-linecap="round" opacity=".8"/>`
-    + `<path d="${rim}" stroke="#e2b13c" stroke-width="1.5" fill="none" stroke-linecap="round"/>`;
+  return `<path d="${rim}Z" fill="${col.fill}"/>`
+    + `<path d="${fold(2.4, 1) + fold(6, 1.2)}" stroke="${col.fold}" stroke-width="1.3" fill="none" stroke-linecap="round"/>`
+    + `<path d="${fold(4.2, 1.1)}" stroke="${col.light}" stroke-width="1" fill="none" stroke-linecap="round" opacity=".8"/>`
+    + `<path d="${rim}" stroke="${col.rim}" stroke-width="1.5" fill="none" stroke-linecap="round"/>`;
 };
 // A gold pocket watch hanging on its chain from the frog's right hand (the art's right, where no stats sit); the
 // hand floats just off the body's side
@@ -1618,6 +1620,16 @@ Object.assign(ART, {
     return compose(b, p, { ...hat(b, BERET, 1), over: at([87.5, 56], 1, LUTE) + HAND(87.5, 56, p) });
   },
   jester: () => { const p = pal('#c9d64f'), b = BODY.classic(p); return compose(b, p, { ...hat(b, JESTER_HAT, 1), mouth: 'open' }); },
+  // Vampire Frog: pale icy blue, a black cape with a tall red-lined collar standing up behind its head, red eyes and
+  // two little fangs
+  vampire: () => {
+    const p = pal('#aebfd6'), b = BODY.classic(p);
+    const collar = [1, -1].map((d) => { const x = (v) => (50 + d * (v - 50)).toFixed(1);
+      return `<path d="M${x(27)} 50L${x(2)} 14Q${x(3)} 36 ${x(13)} 59z" fill="#2b2236"/><path d="M${x(26)} 50L${x(6)} 21Q${x(7)} 37 ${x(15.5)} 56z" fill="#b02a40"/>`; }).join('');
+    const fangs = '<path d="M43.6 61.1l2.9.6-1.2 3.6z" fill="#fffdf6" stroke="#4a3f52" stroke-width=".7" stroke-linejoin="round"/>'
+      + '<path d="M56.4 61.1l-2.9.6 1.2 3.6z" fill="#fffdf6" stroke="#4a3f52" stroke-width=".7" stroke-linejoin="round"/>';
+    return compose(b, p, { behind: collar + KING_CAPE(b, { fill: '#2b2236', fold: '#1a1422', light: '#463a56', rim: '#a3263a' }), eyes: 'iris:#c0283a', noCheeks: true, face: fangs });
+  },
   // Rogue: charcoal, with a bandit mask across its eyes
   rogue: () => { const p = pal('#56646c'), b = BODY.slim(p); return compose(b, p, { inside: eyeMask(b), mouth: 'flat', noCheeks: true }); },
   // Squire: young and sandy, a plain steel cap and a small round shield
@@ -1670,7 +1682,7 @@ BUG_ART.cricket = '<path d="M44 30C40 18 32 10 21 7M56 30C60 18 68 10 79 7" stro
 const ART_SIZE = {
   bouncy: .97, bullfrog: .94, chameleon: .98, froglet: .86, glass: .98, goliath: .93, hungry: .98, knight: .95, leapfrog: 1.12, lucky: 1.05, mama: .98, peeper: 1.11,
   prince: .98, rain: .94, spitter: 1.13, tadpole: 1.10, toad: 1.03, tree: .97, wizard: .97, midwife: .99, turtle: 1.12, pebble: 1.24, budgett: 1.05, golden: .98,
-  archer: 1.06, bard: 1.08, blacksmith: .94, cleric: .94, dragon: .90, guard: .99, jester: .97, king: .88, merchant: .95, necro: .96, paladin: .92, peasant: .97, rogue: 1.11, squire: .94,
+  archer: 1.06, bard: 1.08, blacksmith: .94, cleric: .94, dragon: .90, guard: .99, jester: .97, vampire: .97, king: .88, merchant: .95, necro: .96, paladin: .92, peasant: .97, rogue: 1.11, squire: .94,
 };
 
 const artCache = new Map();
@@ -5013,6 +5025,16 @@ async function playBattle(lb) {
         ball.remove(); Snd.hit();
       }
       apply(fr, true); await wait(560);
+    } else if (fr.kind === 'ability' && fr.bite) {
+      // Vampire Frog: lunges at the enemy it bites; the enemy loses what the Vampire gains
+      caption(fr.text);
+      const a = byId(fr.actor), t = byId(fr.target);
+      if (a && t) {
+        const dx = (t.x - a.x) * .4, dy = (t.y - a.y) * .4;
+        anim(a.move, [{ transform: 'none' }, { transform: `translate(${dx}px, ${dy - 8 * s}px) scale(1.08)`, offset: .45 }, { transform: 'none' }], { duration: dur(420), easing: 'ease-in-out' });
+        setTimeout(() => { ring(t, 'fx-ring bite'); Snd.hit(); }, dur(190));
+      }
+      await wait(220); apply(fr, true); await wait(620);
     } else if (fr.kind === 'ability' && fr.counter) {
       // Berserker: lunges at the frog that hurt it (a swing toward it and back), which takes the hit
       caption(fr.text);

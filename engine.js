@@ -60,7 +60,7 @@ function refillShop(p, round, set) {
 // what just happened, so the client can animate each step.
 // Battle copies of frogs all have the same fields (keeps the engine fast; abilities keep their per-battle counters here)
 // Frogs with a start-of-battle ability (they take turns, see runBattle)
-const START_OF_BATTLE = new Set(['wizard', 'jester', 'princess', 'spitter', 'archer', 'dragon', 'budgett', 'prince', 'squire', 'cleric', 'hypno']);
+const START_OF_BATTLE = new Set(['wizard', 'jester', 'princess', 'spitter', 'archer', 'dragon', 'budgett', 'prince', 'squire', 'cleric', 'hypno', 'vampire']);
 const unit = (type, atk, hp, lvl, gear, bid) => ({ id: 0, type, atk, hp, xp: 0, lvl, gear: gear || null, bid, blocked: false, bounced: 0, uses: 0, koBy: null, aura: 0 });
 function runBattle(teamA, teamB, opts = {}) {
   let bid = 0;
@@ -306,6 +306,18 @@ function runBattle(teamA, teamB, opts = {}) {
         const foes = some(alive(1 - s).filter((e) => e.atk !== e.hp && !fixed(e)), L);
         for (const e of foes) { const a = e.atk; e.atk = e.hp; e.hp = a; }
         snap?.('spell', { actor: u.bid, targets: foes.map((e) => e.bid), text: foes.length ? `${nm(u)} turns the enemy upside down` : `${nm(u)}’s trick changes nothing` });
+      }
+      if (u.type === 'vampire') {
+        // Bites a random enemy and steals up to L attack and L health from it. It isn't damage (a Bubble, a shell, a
+        // Rogue or a Frog King's guard don't stop it), so like other stat changes it never takes a stat below 1, and a
+        // stat that's always fixed (Frog King, Pebble Toad's attack) can't be taken
+        const e = some(alive(1 - s), 1)[0];
+        if (!e) snap?.('ability', { actor: u.bid, text: `${nm(u)} has no one to bite` });
+        else {
+          const n = L, fx = fixed(e), da = fx ? 0 : Math.max(0, Math.min(n, e.atk - 1)), dh = fx === 'both' ? 0 : Math.max(0, Math.min(n, e.hp - 1));
+          e.atk -= da; e.hp -= dh; buff(u, da, dh);
+          snap?.('ability', { actor: u.bid, target: e.bid, bite: true, text: da || dh ? `${nm(u)} bites ${nm(e)}` : `${nm(u)} bites ${nm(e)}, but there’s nothing to take` });
+        }
       }
       if (u.type === 'princess') {
         // Charmed by her beauty, the strongest enemies hit themselves
