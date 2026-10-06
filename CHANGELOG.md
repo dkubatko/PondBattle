@@ -8,6 +8,10 @@ group (`tools/post-notes.js`): a short intro line if you like, then `### New`, `
 
 ## Unreleased
 
+## 1.2.0 (2026-10-06)
+
+A balance update: the Necromancer, Frog King and Wizard are toned down, and the Vampire Frog gets a new bite.
+
 ### Changes
 - **Vampire Frog** reworked. Start of battle: bites a random enemy and steals 1 health (2 at level 2, 3 at level 3) to keep for good. A bite never knocks a frog out
 - New animations: the Vampire's bite, and the Berserker now throws its axe
