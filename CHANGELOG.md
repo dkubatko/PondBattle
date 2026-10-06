@@ -8,6 +8,8 @@ group (`tools/post-notes.js`): a short intro line if you like, then `### New`, `
 
 ## Unreleased
 
+## 1.2.1 (2026-10-06)
+
 ### Balance
 - **Vampire Frog** 2/2 → 1/1
 
