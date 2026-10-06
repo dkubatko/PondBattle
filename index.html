@@ -725,6 +725,10 @@ h1 { margin: 0; text-align: center; font-size: 40px; font-weight: 900; line-heig
 .fx-ring.fire { border-color: rgba(255, 150, 70, .95); box-shadow: 0 0 14px rgba(255, 130, 60, .6); }
 .fx-fire { position: absolute; left: 0; top: 0; width: 20px; height: 20px; border-radius: 50%; z-index: 30; background: radial-gradient(circle at 40% 40%, #fff3c4, #ffb347 40%, #e8522d 75%, rgba(232, 82, 45, 0)); box-shadow: 0 0 10px 3px rgba(255, 120, 50, .45); }
 .fx-note { position: fixed; left: 0; top: 0; z-index: 60; pointer-events: none; filter: drop-shadow(0 1px 1px rgba(0, 0, 0, .35)); }
+.fx-bite { position: absolute; left: 0; top: 0; width: 60px; height: 60px; margin: -30px 0 0 -30px; z-index: 30; pointer-events: none; }
+.fx-bite svg { position: absolute; inset: 0; width: 100%; height: 100%; overflow: visible; }
+.fx-axe { position: absolute; left: 0; top: 0; width: 34px; height: 52px; margin: -26px 0 0 -17px; z-index: 30; pointer-events: none; }
+.fx-axe svg { width: 100%; height: 100%; overflow: visible; }
 .fx-arrow { position: absolute; left: 0; top: 0; width: 24px; height: 4px; margin-top: 5px; border-radius: 2px; background: #c89a62; z-index: 30; transform-origin: 50% 50%; }
 .fx-arrow::after { content: ''; position: absolute; right: -5px; top: -4px; border: 6px solid transparent; border-left: 8px solid #e7eef5; border-right: 0; }
 .fx-arrow::before { content: ''; position: absolute; left: -2px; top: -3px; width: 7px; height: 10px; background: #f0869f; clip-path: polygon(0 0, 100% 30%, 100% 70%, 0 100%); }
@@ -790,10 +794,12 @@ const BASE = Object.fromEntries(Object.entries(CATALOG).map(([k, f]) => [k, [f.a
 const SETS = JSON.parse(document.getElementById('sets').textContent);
 const SET_IDS = Object.keys(SETS);
 const setId = (id) => (SETS[id] ? id : SET_IDS[0]);
-// Stats that only follow the level (Frog King both, Pebble Toad's attack): base stats times the level
+// Stats that only follow the level (Frog King both, Pebble Toad's attack): base stats times the level, or that
+// level's own [atk, hp] ("levels")
+const fixedStats = (type, lvl) => CATALOG[type].levels ? CATALOG[type].levels[lvl - 1] : [BASE[type][0] * lvl, BASE[type][1] * lvl];
 function fixStats(f) {
   const x = CATALOG[f.type] && CATALOG[f.type].fixed;
-  if (x) { f.atk = BASE[f.type][0] * f.lvl; if (x === 'both') f.hp = BASE[f.type][1] * f.lvl; }
+  if (x) { const [a, h] = fixedStats(f.type, f.lvl); f.atk = a; if (x === 'both') f.hp = h; }
 }
 // Ability words: Buy, Sell, Start of round, End of round, Start of battle, Before attack, Attack,
 // Hurt, Faint, Friend ahead faints, Enemy ahead faints.
@@ -816,12 +822,12 @@ const DESC = {
   rain:     (L) => ['Hurt', `the friend behind gets ${statText(L, L)} this battle`],
   lucky:    (L) => ['Start of round', `+${L + 1} gold`],
   mama:     (L) => ['Friend hatches', `it gets ${statText(L, L)}`],
-  wizard:   (L) => ['Start of battle', `shrink the ${L === 1 ? 'strongest enemy' : `${L} strongest enemies`} to 1/1`],
+  wizard:   (L) => ['Start of battle', `shrink the strongest enemy to ${7 - 2 * L}/${7 - 2 * L}`],
   bouncy:   (L) => ['Faint', `hatch again in its place as a ${L}/${L}, once`],
   surinam:  (L) => ['Faint', `fill the pond with ${L}/${L} Froglets`],
   midwife:  (L) => ['Hurt', `a ${L}/${L} Froglet hatches behind it`],
   turtle:   (L) => ['', `Takes ${L} less damage per hit (min 1)`],
-  pebble:   (L) => ['Attack', `hits all enemies. Attack is always ${BASE.pebble[0] * L}`],
+  pebble:   (L) => ['Attack', `hits all enemies. Attack is always ${fixedStats('pebble', L)[0]}`],
   golden:   (L) => ['Attack', L === 1 ? 'its first hit knocks the enemy out' : `its first ${L} hits knock enemies out`],
   budgett:  (L) => ['Start of battle', `all enemies get −${L} attack this battle (min 1)`],
   peasant:  () => ['', 'No ability'],
@@ -831,12 +837,12 @@ const DESC = {
   blacksmith: (L) => ['End of round', `the friend ahead gets ${statText(L, 0)}`],
   bard:     (L) => ['Buy', `2 random friends get ${statText(0, L)}`],
   jester:   (L) => ['Start of battle', `swap attack and health of ${L === 1 ? 'a random enemy' : `${L} random enemies`}`],
-  vampire:  (L) => ['Start of battle', `steal ${L}/${L} from a random enemy (doesn’t kill)`],
+  vampire:  (L) => ['Start of battle', `steal ${L} health from a random enemy for good (doesn’t kill)`],
   rogue:    () => ['', 'Only the enemy it’s fighting can hurt it'],
   squire:   (L) => ['Start of battle', `the friend ahead gets ${statText(L, L)} this battle`],
   cleric:   (L) => ['Start of battle', `${L === 1 ? 'the friend ahead gets' : `the ${L} friends ahead get`} a Bubble`],
-  necro:    (L) => ['Friend faints', `it comes back as 1/1 (${times(L)} per battle)`],
-  king:     (L) => ['', `Friends behind it take no damage. Stats always ${BASE.king[0] * L}/${BASE.king[1] * L}`],
+  necro:    (L) => ['Friend faints', `it comes back as ${2 * L - 1}/${2 * L - 1} (once per battle)`],
+  king:     (L) => ['', `Friends behind it take no damage. Stats always ${fixedStats('king', L).join('/')}`],
   paladin:  (L) => ['', `${statText(L, L)} for each living enemy`],
   dragon:   (L) => ['Start of battle', `${L} damage to all enemies`],
   hypno:    (L) => ['Start of battle', `send the enemy’s front ${L === 1 ? 'frog' : `${L} frogs`} to the back`],
@@ -1259,7 +1265,7 @@ const ART = {
   knight: () => {
     const p = pal('#b5574c'), b = BODY.bull(p), y = 66, x = handX(b, y);
     const axe = at([x, y], 1, AXE);
-    return compose(b, p, { ...hat(b, FUR_HELM, 1.6), brows: true, noCheeks: true, over: axe + HAND(x, y, p) });
+    return compose(b, p, { ...hat(b, FUR_HELM, 1.6), brows: true, noCheeks: true, over: `<g class="kn-axe">${axe}</g>` + HAND(x, y, p) });
   },
   // Prince: crown and a royal blue sash with a gold medal
   // Prince: crown and gold epaulettes on the shoulders (the body's outer edges beside the eyes), each pad lying
@@ -5026,25 +5032,39 @@ async function playBattle(lb) {
       }
       apply(fr, true); await wait(560);
     } else if (fr.kind === 'ability' && fr.bite) {
-      // Vampire Frog: lunges at the enemy it bites; the enemy loses what the Vampire gains
+      // Vampire Frog: hops in place while a pair of fanged jaws snaps shut on the enemy it bites; the enemy loses the
+      // health the Vampire gains
       caption(fr.text);
       const a = byId(fr.actor), t = byId(fr.target);
-      if (a && t) {
-        const dx = (t.x - a.x) * .4, dy = (t.y - a.y) * .4;
-        anim(a.move, [{ transform: 'none' }, { transform: `translate(${dx}px, ${dy - 8 * s}px) scale(1.08)`, offset: .45 }, { transform: 'none' }], { duration: dur(420), easing: 'ease-in-out' });
-        setTimeout(() => { ring(t, 'fx-ring bite'); Snd.hit(); }, dur(190));
+      if (a) anim(a.move, [{ transform: 'none' }, { transform: `translateY(${-14 * s}px) scale(.94, 1.08)`, offset: .35 }, { transform: 'translateY(0) scale(1.06, .94)', offset: .7 }, { transform: 'none' }], { duration: dur(460), easing: 'ease-out' });
+      if (t && !skipping) {
+        const jaw = (d) => `<path d="M-19 0Q0 ${-15 * d} 19 0Q0 ${-6 * d} -19 0z" fill="#c8303f" stroke="#fffdf6" stroke-width="1.2" stroke-opacity=".5"/>`
+          + `<path d="M-9 ${-4.2 * d}l2.6 ${6 * d} 2.6 ${-6.4 * d}zM4 ${-4.4 * d}l2.6 ${6.4 * d} 2.6 ${-6 * d}z" fill="#fffdf6"/>`;
+        const bite = el(`<div class="fx-bite"><svg viewBox="-22 -22 44 44"><g class="up">${jaw(1)}</g><g class="down">${jaw(-1)}</g></svg></div>`);
+        bite.style.transform = `translate(${t.x}px, ${t.y + U * .05}px) scale(${s.toFixed(3)})`; // over the frog's body
+        arena.appendChild(bite);
+        const snap = (g, from, to) => anim($(g, bite), [{ transform: `translateY(${from}px)`, opacity: 0 }, { transform: `translateY(${from}px)`, opacity: 1, offset: .3 }, { transform: `translateY(${to}px)`, opacity: 1, offset: .55 }, { transform: `translateY(${to}px)`, opacity: 1, offset: .8 }, { transform: `translateY(${to}px)`, opacity: 0 }], { duration: dur(620), easing: 'ease-in' });
+        snap('.up', -14, -1); snap('.down', 14, 1).then(() => bite.remove());
+        setTimeout(() => { if (!skipping) { Snd.hit(); anim(t.move, [{ transform: 'none' }, { transform: 'scale(.9, 1.06)', offset: .4 }, { transform: 'none' }], { duration: dur(300) }); } }, dur(340));
       }
-      await wait(220); apply(fr, true); await wait(620);
+      await wait(360); apply(fr, true); await wait(620);
     } else if (fr.kind === 'ability' && fr.counter) {
-      // Berserker: lunges at the frog that hurt it (a swing toward it and back), which takes the hit
+      // Berserker: spins in place and throws its axe at the frog that hurt it (the axe in its hand is gone while the
+      // thrown one flies, and comes back once it lands)
       caption(fr.text);
       const a = byId(fr.actor), t = byId(fr.target);
-      if (a && t) {
-        const dx = (t.x - a.x) * .35, dy = (t.y - a.y) * .35;
-        anim(a.move, [{ transform: 'none' }, { transform: `translate(${dx}px, ${dy - 10 * s}px) rotate(${dx > 0 ? 8 : -8}deg)`, offset: .45 }, { transform: 'none' }], { duration: dur(420), easing: 'ease-in-out' });
-        setTimeout(() => { ring(t); Snd.hit(); }, dur(190));
-      }
-      await wait(200); apply(fr, true); await wait(560);
+      if (a && t && !skipping) {
+        await anim(a.move, [{ transform: 'rotateY(0)' }, { transform: 'rotateY(360deg)' }], { duration: dur(380), easing: 'ease-in-out' }); // a twirl in place
+        const held = $('.kn-axe', a.el); if (held) held.style.opacity = 0;
+        Snd.spit();
+        const axe = el(`<div class="fx-axe"><svg viewBox="-16 -50 32 70">${AXE}</svg></div>`); arena.appendChild(axe);
+        const y0 = a.y - U * .3, y1 = t.y - U * .25, mx = (a.x + t.x) / 2, my = Math.min(y0, y1) - 46 * s, turn = a.x < t.x ? 1 : -1, sc = `scale(${s.toFixed(3)})`;
+        await anim(axe, [{ transform: `translate(${a.x}px,${y0}px) rotate(0deg) ${sc}` }, { transform: `translate(${mx}px,${my}px) rotate(${turn * 360}deg) ${sc}` }, { transform: `translate(${t.x}px,${y1}px) rotate(${turn * 720}deg) ${sc}` }], { duration: dur(460), easing: 'ease-in' });
+        axe.remove(); ring(t); Snd.hit();
+        apply(fr, true);
+        if (held) anim(held, [{ opacity: 0 }, { opacity: 1 }], { duration: dur(260), fill: 'forwards' }).then(() => { held.style.opacity = ''; });
+        await wait(560);
+      } else { apply(fr, true); await wait(560); }
     } else if (fr.kind === 'ability') {
       caption(fr.text);
       const r = byId(fr.actor) || byId(fr.target);

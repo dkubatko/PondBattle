@@ -108,7 +108,7 @@ function currentPage() {
   const st = fs.statSync(INDEX);
   if (st.mtimeMs !== page.mtime) {
     const raw = fs.readFileSync(INDEX, 'utf8');
-    const catalog = JSON.stringify(Object.fromEntries(Object.entries(FROGS).map(([k, f]) => [k, { name: f.name, tier: f.tier, atk: f.atk, hp: f.hp, cost: frogCost(k), ...(f.fixed ? { fixed: f.fixed } : {}) }])));
+    const catalog = JSON.stringify(Object.fromEntries(Object.entries(FROGS).map(([k, f]) => [k, { name: f.name, tier: f.tier, atk: f.atk, hp: f.hp, cost: frogCost(k), ...(f.fixed ? { fixed: f.fixed } : {}), ...(f.levels ? { levels: f.levels } : {}) }])));
     const items = JSON.stringify(FOODS), sets = JSON.stringify(SETS), unlocks = JSON.stringify({ unlocks: R.UNLOCKS, extras: R.EXTRAS });
     const build = crypto.createHash('sha1').update(raw + catalog + items + sets + unlocks + VERSION).digest('hex').slice(0, 10);
     page = { mtime: st.mtimeMs, build, html: raw.replace('__BUILD__', build).replace('__VERSION__', VERSION).replace('__CATALOG__', catalog.replace(/</g, '\\u003c')).replace('__ITEMS__', items.replace(/</g, '\\u003c')).replace('__SETS__', sets.replace(/</g, '\\u003c')).replace('__UNLOCKS__', unlocks) };

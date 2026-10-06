@@ -8,6 +8,8 @@
 //   node tools/simulate.js --try "king.hp=7 cricket.cost=3"
 //                                                  A/B: the working tree (A) against itself with these changes (B);
 //                                                  with --base, the changes apply to the working tree side
+//   node tools/simulate.js --pair king+necro       also: how boards with both frogs (any levels) do; several
+//                                                  pairs space-separated ("king+necro prince+squire")
 //   options: --games N (full games per set and side, default 60000), --seed N, --json, --workers N
 //
 // How games are played: two identical simulated players buy frogs without looking at which frog it is (so every
@@ -100,8 +102,8 @@ function shopTurn(G, room, p, buys) {
 }
 
 // Games [from, to) of one set; returns counts only (the main thread adds them up)
-function play(G, { set, from, to, seed }) {
-  const frog = {}, items = {}, g = { games: 0, rounds: 0, battles: 0, draws: 0, starterWins: 0, decided: 0 };
+function play(G, { set, from, to, seed, pairs = [] }) {
+  const frog = {}, items = {}, both = {}, g = { games: 0, rounds: 0, battles: 0, draws: 0, starterWins: 0, decided: 0 };
   const add = (o, k, w) => { const c = (o[k] ??= [0, 0]); c[0] += w; c[1]++; };
   for (let n = from; n < to; n++) {
     const s = seed + n;
@@ -126,10 +128,11 @@ function play(G, { set, from, to, seed }) {
         const w = e.winner === side ? 1 : 0, best = new Map();
         for (const f of team) if (f) best.set(f.type, Math.max(best.get(f.type) || 0, f.lvl));
         for (const [type, lvl] of best) { const r = (frog[type] ??= {}); add(r, 'all', w); if (lvl === 3) add(r, 'l3', w); }
+        for (const [x, y] of pairs) if (best.has(x) && best.has(y)) add(both, `${x}+${y}`, w);
       });
     }
   }
-  return { frog, items, g };
+  return { frog, items, both, g };
 }
 
 // ===================================================================================== main: run and report
@@ -138,6 +141,7 @@ const opt = (name, dflt) => { const i = args.indexOf(`--${name}`); return i < 0 
 const GAMES = Number(opt('games', 60000)), SEED = Number(opt('seed', 1000)), JSON_OUT = !!opt('json', false);
 const WORKERS = Number(opt('workers', os.cpus().length));
 const BASE = opt('base', null), TRY = opt('try', null), ONLY = opt('set', null);
+const PAIRS = opt('pair', null);
 const CHUNK = 2000; // games per task: small enough to keep every core busy to the end
 
 // A side's rules come from a folder: the working tree, a folder given with --base, or a git ref copied out
@@ -174,17 +178,20 @@ async function main() {
     : [{ name: 'A', label: 'working tree', dir: work, changes: [] }];
   const SETS = require(path.join(work, 'engine.js')).SETS;
   const sets = ONLY ? [ONLY] : Object.keys(SETS);
+  const pairs = !PAIRS || PAIRS === true ? [] : PAIRS.trim().split(/\s+/).map((s) => s.split('+'));
+  for (const pr of pairs) if (pr.length !== 2 || pr.some((id) => !require(path.join(work, 'engine.js')).FROGS[id])) throw new Error(`--pair: can't read "${pr.join('+')}" (use frog+frog)`);
   for (const s of sets) if (!SETS[s]) throw new Error(`no set "${s}" (sets: ${Object.keys(SETS).join(', ')})`);
 
   // every (side, set) is split into chunks; a pool of workers takes chunks until none are left
   const tasks = [];
-  for (const side of sides) for (const set of sets) for (let from = 0; from < GAMES; from += CHUNK) tasks.push({ side: side.name, set, dir: side.dir, changes: side.changes, from, to: Math.min(GAMES, from + CHUNK), seed: SEED });
+  for (const side of sides) for (const set of sets) for (let from = 0; from < GAMES; from += CHUNK) tasks.push({ side: side.name, set, dir: side.dir, changes: side.changes, from, to: Math.min(GAMES, from + CHUNK), seed: SEED, pairs });
   const results = {};
   const merge = (task, r) => {
-    const acc = (results[`${task.side}:${task.set}`] ??= { frog: {}, items: {}, g: {} });
+    const acc = (results[`${task.side}:${task.set}`] ??= { frog: {}, items: {}, both: {}, g: {} });
     const sum = (a, b) => [a[0] + b[0], a[1] + b[1]];
     for (const [k, v] of Object.entries(r.frog)) { const t = (acc.frog[k] ??= {}); for (const x in v) t[x] = t[x] ? sum(t[x], v[x]) : v[x]; }
     for (const [k, v] of Object.entries(r.items)) acc.items[k] = acc.items[k] ? sum(acc.items[k], v) : v;
+    for (const [k, v] of Object.entries(r.both)) acc.both[k] = acc.both[k] ? sum(acc.both[k], v) : v;
     for (const [k, v] of Object.entries(r.g)) acc.g[k] = (acc.g[k] || 0) + v;
   };
   const pool = Array.from({ length: Math.max(1, WORKERS) }, () => new Worker(__filename));
@@ -230,8 +237,10 @@ function build(sides, sets, results) {
       for (const f of Object.values(frogs)) f.vsTier = f.win == null || tiers[f.tier] == null || tiers[f.tier].typical == null ? null : f.win - tiers[f.tier].typical;
       const items = {};
       for (const [id, c] of Object.entries(r.items)) items[id] = { name: G.FOODS[id] ? G.FOODS[id].name : id, cost: (side.changes.find(([i, f]) => i === id && f === 'cost') || [])[2] ?? (G.FOODS[id] || {}).cost, win: rate(c), margin: margin(c), bought: c[1] };
+      const pairs = {};
+      for (const [k, c] of Object.entries(r.both)) pairs[k] = { win: rate(c), margin: margin(c), seen: c[1] / boards, boards: c[1] };
       const g = r.g;
-      bySide[side.name] = { frogs, tiers, items, games: { games: g.games, battles: g.battles, roundsPerGame: g.rounds / g.games, drawRate: g.draws / g.battles, starterWinRate: g.starterWins / g.decided, starterMargin: margin([g.starterWins, g.decided]) } };
+      bySide[side.name] = { frogs, tiers, items, pairs, games: { games: g.games, battles: g.battles, roundsPerGame: g.rounds / g.games, drawRate: g.draws / g.battles, starterWinRate: g.starterWins / g.decided, starterMargin: margin([g.starterWins, g.decided]) } };
     }
     out.sets[set] = bySide;
     if (sides.length === 2) {
@@ -277,6 +286,10 @@ function print(rep) {
       }
       console.log(`${pad('item', 16)}${pad('cost', 5)}${pad('bought', 10)}wins the next 3 battles ±`);
       for (const [id, it] of Object.entries(items).sort((a, b) => b[1].win - a[1].win)) console.log(`${pad(id, 16)}${pad(it.cost ?? '-', 5)}${pad(it.bought, 10)}${pct(it.win)} ±${(it.margin * 100).toFixed(1)}`);
+      if (Object.keys(sides[name].pairs).length) {
+        console.log(`${pad('pair', 21)}${pad('win ±', 14)}on boards`);
+        for (const [id, pr] of Object.entries(sides[name].pairs)) console.log(`${pad(id, 21)}${pad(`${pct(pr.win)} ±${(pr.margin * 100).toFixed(1)}`, 14)}${pct(pr.seen)} (${pr.boards})`);
+      }
     }
     if (sides.diff) {
       console.log(`\n=== ${set} · A → B (points; "~" = within the margin, i.e. noise)`);

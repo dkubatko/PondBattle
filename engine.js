@@ -31,10 +31,11 @@ const frogCost = (type) => FROGS[type].cost ?? FROG_COST;
 const foodCost = (type) => FOODS[type].cost ?? FOOD_COST;
 const newFrog = (type) => ({ id: nextId++, type, atk: FROGS[type].atk, hp: FROGS[type].hp, xp: 0, lvl: 1, cost: frogCost(type) });
 // Some frogs have stats set by their level (frogs.json "fixed": "atk" or "both"): their base stats times their
-// level, and nothing else changes them
+// level, or that level's own [atk, hp] from "levels", and nothing else changes them
+const fixedStats = (type, lvl) => { const F = FROGS[type]; return F.levels ? F.levels[lvl - 1] : [F.atk * lvl, F.hp * lvl]; };
 function fixStats(f) {
   const x = FROGS[f.type] && FROGS[f.type].fixed;
-  if (x) { f.atk = FROGS[f.type].atk * f.lvl; if (x === 'both') f.hp = FROGS[f.type].hp * f.lvl; }
+  if (x) { const [a, h] = fixedStats(f.type, f.lvl); f.atk = a; if (x === 'both') f.hp = h; }
 }
 
 function maxTier(round) { return round >= 7 ? 4 : round >= 5 ? 3 : round >= 3 ? 2 : 1; }
@@ -61,10 +62,13 @@ function refillShop(p, round, set) {
 // Battle copies of frogs all have the same fields (keeps the engine fast; abilities keep their per-battle counters here)
 // Frogs with a start-of-battle ability (they take turns, see runBattle)
 const START_OF_BATTLE = new Set(['wizard', 'jester', 'princess', 'spitter', 'archer', 'dragon', 'budgett', 'prince', 'squire', 'cleric', 'hypno', 'vampire']);
-const unit = (type, atk, hp, lvl, gear, bid) => ({ id: 0, type, atk, hp, xp: 0, lvl, gear: gear || null, bid, blocked: false, bounced: 0, uses: 0, koBy: null, aura: 0 });
+// slot: its spot in the team it came from (-1 for frogs that arrive mid-battle), for what it keeps after the battle
+const unit = (type, atk, hp, lvl, gear, bid, slot = -1) => ({ id: 0, type, atk, hp, xp: 0, lvl, gear: gear || null, bid, blocked: false, bounced: 0, uses: 0, koBy: null, aura: 0, slot });
 function runBattle(teamA, teamB, opts = {}) {
   let bid = 0;
-  const T = [teamA, teamB].map((t) => t.filter(Boolean).map((f) => unit(f.type, f.atk, f.hp, f.lvl, f.gear, ++bid)));
+  const T = [teamA, teamB].map((t) => t.map((f, i) => f && unit(f.type, f.atk, f.hp, f.lvl, f.gear, ++bid, i)).filter(Boolean));
+  // what frogs keep for good after the battle, per pond: [team spot, health] (a Vampire's bite)
+  const kept = [[], []];
   const frames = [];
   const pub = (u) => ({ id: u.bid, type: u.type, atk: u.atk, hp: Math.max(0, u.hp), lvl: u.lvl, ...(u.gear ? { gear: u.blocked ? 'used' : u.gear } : {}) });
   // Simulations skip the animation frames for speed
@@ -83,7 +87,7 @@ function runBattle(teamA, teamB, opts = {}) {
   function letIn() {
     for (const a of arrivals.splice(0)) {
       const s = a.s, space = TEAM_SIZE - T[s].length;
-      if (a.by && !(a.by.hp > 0 && T[s].includes(a.by) && a.by.uses < a.by.lvl)) continue; // its Necromancer is gone or spent
+      if (a.by && !(a.by.hp > 0 && T[s].includes(a.by) && a.by.uses < 1)) continue; // its Necromancer is gone or spent
       const n = a.fill ? space : Math.min(1, space);
       if (n <= 0) continue;
       if (a.by) a.by.uses++;
@@ -205,12 +209,13 @@ function runBattle(teamA, teamB, opts = {}) {
     }
     const foe = u.koBy;
     if (foe && foe.type === 'hungry' && foe.hp > 0 && T[1 - s].includes(foe)) { buff(foe, foe.lvl, foe.lvl); snap?.('ability', { actor: foe.bid, text: `${nm(foe)} wants seconds` }); }
-    // Necromancer: a fainted friend rises again as a 1/1 (L times per battle), in the same spot
+    // Necromancer: the first friend to faint rises again in the same spot, once per battle, as a 1/1, 3/3 or 5/5 (by the
+    // Necromancer's level); a frog with fixed stats (Frog King) comes back with its own
     if (u.type !== 'necro') {
-      // one raise per Necromancer charge (charges already promised to frogs waiting to come back count as used)
+      // (a raise already promised to a frog waiting to come back counts as used)
       const waiting = (n) => arrivals.filter((a) => a.by === n).length;
-      const n = T[s].find((x) => x.type === 'necro' && x.hp > 0 && x.uses + waiting(x) < x.lvl);
-      if (n) arrive(s, nextOf(s, u), () => { const f = unit(u.type, 1, 1, u.lvl, null, ++bid); if (fixed(f)) fixUnit(f); return f; }, false, (f) => `${nm(n)} raises ${nm(f)}`, n);
+      const n = T[s].find((x) => x.type === 'necro' && x.hp > 0 && x.uses + waiting(x) < 1);
+      if (n) arrive(s, nextOf(s, u), () => { const k = 2 * n.lvl - 1, f = unit(u.type, k, k, u.lvl, null, ++bid); if (fixed(f)) fixUnit(f); return f; }, false, (f) => `${nm(n)} raises ${nm(f)}`, n);
     }
   }
   const fixUnit = (u) => fixStats(u);
@@ -294,10 +299,11 @@ function runBattle(teamA, teamB, opts = {}) {
         }
       }
       if (u.type === 'wizard') {
-        // Shrinks the L strongest enemies to 1/1 (skipping ones that already are); they keep their abilities, and an
-        // always-on bonus (a Paladin's, a Guard's) stays on top of the 1/1
-        const foes = alive(1 - s).filter((e) => e.atk + e.hp > 2 + 2 * e.aura && !fixed(e)).sort((x, y) => y.atk + y.hp - (x.atk + x.hp)).slice(0, L);
-        for (const e of foes) { e.atk = 1 + e.aura; e.hp = 1 + e.aura; }
+        // Shrinks the strongest enemy to 5/5, 3/3 or 1/1 (by level; a stat already below that stays as it is, and it skips
+        // enemies it can't make smaller). It keeps its ability, and an always-on bonus (a Paladin's, a Guard's) stays on top
+        const n = 7 - 2 * L;
+        const foes = alive(1 - s).filter((e) => (e.atk > n + e.aura || e.hp > n + e.aura) && !fixed(e)).sort((x, y) => y.atk + y.hp - (x.atk + x.hp)).slice(0, 1);
+        for (const e of foes) { e.atk = Math.min(e.atk, n + e.aura); e.hp = Math.min(e.hp, n + e.aura); }
         // (it always casts, so it's clear it acted even when there was no one to shrink)
         snap?.('spell', { actor: u.bid, targets: foes.map((e) => e.bid), text: foes.length ? `${nm(u)} shrinks the enemy` : `${nm(u)}’s spell finds no one to shrink` });
       }
@@ -308,15 +314,16 @@ function runBattle(teamA, teamB, opts = {}) {
         snap?.('spell', { actor: u.bid, targets: foes.map((e) => e.bid), text: foes.length ? `${nm(u)} turns the enemy upside down` : `${nm(u)}’s trick changes nothing` });
       }
       if (u.type === 'vampire') {
-        // Bites a random enemy and steals up to L attack and L health from it. It isn't damage (a Bubble, a shell, a
-        // Rogue or a Frog King's guard don't stop it), so like other stat changes it never takes a stat below 1, and a
-        // stat that's always fixed (Frog King, Pebble Toad's attack) can't be taken
+        // Bites a random enemy and steals up to L health from it. The Vampire keeps it for good (after the battle too);
+        // the enemy only loses it for this battle. It isn't damage (a Bubble, a shell, a Rogue or a Frog King's guard
+        // don't stop it), so it never takes health below 1, and fixed health (Frog King) can't be taken
         const e = some(alive(1 - s), 1)[0];
         if (!e) snap?.('ability', { actor: u.bid, text: `${nm(u)} has no one to bite` });
         else {
-          const n = L, fx = fixed(e), da = fx ? 0 : Math.max(0, Math.min(n, e.atk - 1)), dh = fx === 'both' ? 0 : Math.max(0, Math.min(n, e.hp - 1));
-          e.atk -= da; e.hp -= dh; buff(u, da, dh);
-          snap?.('ability', { actor: u.bid, target: e.bid, bite: true, text: da || dh ? `${nm(u)} bites ${nm(e)}` : `${nm(u)} bites ${nm(e)}, but there’s nothing to take` });
+          const dh = fixed(e) === 'both' ? 0 : Math.max(0, Math.min(L, e.hp - 1));
+          e.hp -= dh; buff(u, 0, dh);
+          if (dh && u.slot >= 0 && !fixed(u)) kept[s].push([u.slot, dh]);
+          snap?.('ability', { actor: u.bid, target: e.bid, bite: true, text: dh ? `${nm(u)} bites ${nm(e)}` : `${nm(u)} bites ${nm(e)}, but there’s nothing to take` });
         }
       }
       if (u.type === 'princess') {
@@ -382,7 +389,7 @@ function runBattle(teamA, teamB, opts = {}) {
   }
   const winner = T[0].length && !T[1].length ? 0 : T[1].length && !T[0].length ? 1 : -1;
   snap?.('end');
-  return { frames, winner, fightAt };
+  return { frames, winner, fightAt, kept };
 }
 
 // ---------- Players and rounds ----------
@@ -541,12 +548,20 @@ function fight(room) {
   // the ponds as they fight, for the game's log (taken now: Bubbles come off after the battle)
   const fought = [teamSummary(A.team), teamSummary(B.team)];
   // simulations skip the animation frames; the pond whose frogs act first switches every round
-  const { frames, winner, fightAt } = runBattle(A.team, B.team, { frames: !room.sim, first: room.round % 2 === 0 });
+  const { frames, winner, fightAt, kept } = runBattle(A.team, B.team, { frames: !room.sim, first: room.round % 2 === 0 });
+  // what frogs keep for good from the battle (a Vampire's stolen health), and a line for the log
+  const after = room.players.map(() => []);
+  kept.forEach((list, seat) => list.forEach(([slot, hp]) => {
+    const f = room.players[seat].team[slot];
+    if (!f) return;
+    f.hp = Math.min(50, f.hp + hp);
+    after[seat].push(`${FROGS[f.type].name} keeps +${hp} health`);
+  }));
   // Bubbles only protect for the battle right after they are given
   for (const p of room.players) for (const f of p.team) if (f && f.gear === 'bubble') delete f.gear;
   if (winner >= 0) { room.players[winner].trophies++; room.players[1 - winner].hearts--; }
   // before / after: per seat, what happened around the battle itself (for the log)
-  room.lastBattle = { id: room.sim ? '' : Math.random().toString(36).slice(2, 10), round: room.round, frames, winner, fightAt, before, after: room.players.map(() => []) };
+  room.lastBattle = { id: room.sim ? '' : Math.random().toString(36).slice(2, 10), round: room.round, frames, winner, fightAt, before, after };
   (room.log = room.log || []).push({ round: room.round, winner, teams: fought });
   const done = room.players.findIndex((p) => p.trophies >= WIN_TROPHIES || p.hearts <= 0);
   if (done >= 0) {
@@ -568,5 +583,5 @@ function fight(room) {
 
 module.exports = {
   TEAM_SIZE, ROLL_COST, LOCK_COST, FROGS, FOODS, SETS, DEFAULT_SET, setOf, canTake, hooks,
-  rand, bumpId, frogCost, newFrog, runBattle, newPlayerState, resetGame, botShop, act,
+  rand, bumpId, frogCost, newFrog, fixedStats, runBattle, newPlayerState, resetGame, botShop, act,
 };

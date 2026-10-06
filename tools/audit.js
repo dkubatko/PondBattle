@@ -30,7 +30,7 @@ for (const set of Object.keys(SETS)) {
   const pond = () => Array.from({ length: 1 + Math.floor(r() * 5) }, () => {
     const type = pool[Math.floor(r() * pool.length)], f = FROGS[type], lvl = r() < .6 ? 1 : r() < .7 ? 2 : 3;
     const u = { type, lvl, atk: f.atk + (lvl - 1) * 2 + Math.floor(r() * 3), hp: f.hp + (lvl - 1) * 2 + Math.floor(r() * 4), gear: GEAR.length && r() < .1 ? GEAR[Math.floor(r() * GEAR.length)] : null };
-    if (f.fixed) { u.atk = f.atk * lvl; if (f.fixed === 'both') u.hp = f.hp * lvl; }
+    if (f.fixed) { const [a, h] = G.fixedStats(type, lvl); u.atk = a; if (f.fixed === 'both') u.hp = h; }
     return u;
   });
   for (let g = 0; g < BATTLES; g++) {
