@@ -2,6 +2,8 @@
 // Patch notes: turns a release's section of CHANGELOG.md into a post for the Pond Brawl group's Patch Notes topic.
 //   node tools/post-notes.js            print the newest release's post (nothing is sent)
 //   node tools/post-notes.js 1.2.0      print that release's post
+//   node tools/post-notes.js 1.2.2 1.2.3  one post for several releases (titled with the newest; their changes
+//                                        merged under New / Changes / Balance / Fixes, the newest intro kept)
 //   node tools/post-notes.js --send     post it as the bot (needs TELEGRAM_BOT_TOKEN), then print its link
 // Show the user the printed post and send only once they've approved it. Only the bot and admins can post in the
 // topic (it's closed); sending needs no polling, so it doesn't clash with the live server's bot.
@@ -13,14 +15,32 @@ const ICONS = { New: '✨', Changes: '🔧', Balance: '⚖️', Fixes: '🛠' };
 
 const args = process.argv.slice(2);
 const send = args.includes('--send');
-const want = args.find((a) => /^\d+\.\d+\.\d+$/.test(a));
+const wants = args.filter((a) => /^\d+\.\d+\.\d+$/.test(a));
 
 const log = fs.readFileSync(path.join(__dirname, '..', 'CHANGELOG.md'), 'utf8');
 // Released sections: "## 1.2.0 (2026-10-06)" up to the next "## "
 const sections = [...log.matchAll(/^## (\d+\.\d+\.\d+)[^\n]*\n([\s\S]*?)(?=^## |(?![\s\S]))/gm)];
-const found = want ? sections.find((m) => m[1] === want) : sections[0];
-if (!found) { console.error(want ? `No ${want} in CHANGELOG.md` : 'No released version in CHANGELOG.md'); process.exit(1); }
-const [, version, body] = found;
+const picked = wants.length ? wants.map((v) => sections.find((m) => m[1] === v) || v) : sections.slice(0, 1);
+const missing = picked.filter((m) => typeof m === 'string');
+if (!picked.length || missing.length) { console.error(missing.length ? `No ${missing.join(', ')} in CHANGELOG.md` : 'No released version in CHANGELOG.md'); process.exit(1); }
+// newest first in the changelog: the post is titled with the newest; several releases merge their bullets by heading
+picked.sort((a, b) => sections.indexOf(a) - sections.indexOf(b));
+const version = picked[0][1];
+let body = picked[0][2];
+if (picked.length > 1) {
+  const intro = [], heads = new Map();
+  picked.forEach((m, k) => {
+    let head = null;
+    for (const l of m[2].trim().split('\n')) {
+      const h = /^### (.+)/.exec(l);
+      if (h) { head = h[1].trim(); if (!heads.has(head)) heads.set(head, []); }
+      else if (head && l.trim()) heads.get(head).push(l);
+      else if (!head && k === 0) intro.push(l);
+    }
+  });
+  const order = [...Object.keys(ICONS), ...[...heads.keys()].filter((h) => !ICONS[h])];
+  body = [intro.join('\n').trim(), ...order.filter((h) => heads.has(h)).map((h) => `### ${h}\n${heads.get(h).join('\n')}`)].filter(Boolean).join('\n\n');
+}
 
 // Telegram HTML: escape, **bold** -> <b>, "### New" -> an icon and a bold heading, "- " -> "• ", wrapped lines of a
 // paragraph joined

@@ -5,6 +5,7 @@
 //   node tools/live-stats.js                    every set, every release, practice games left out
 //   node tools/live-stats.js --set magic        one set
 //   node tools/live-stats.js --since 1.1.0      only games from that release on
+//   node tools/live-stats.js --version 1.2      only games on that release or series (1.2 = 1.2.0, 1.2.1, ...)
 //   node tools/live-stats.js --pair king+necro  also: boards with both frogs (several space-separated)
 //   options: --ranked (ranked games only), --practice (include games against Pond Bot), --file PATH (a local copy
 //            instead of Tower's), --json
@@ -28,7 +29,7 @@ const DEFAULT_SET = Object.keys(SETS)[0]; // games from before sets existed play
 
 const args = process.argv.slice(2);
 const opt = (name, dflt) => { const i = args.indexOf(`--${name}`); return i < 0 ? dflt : args[i + 1] && !args[i + 1].startsWith('--') ? args[i + 1] : true; };
-const ONLY = opt('set', null), SINCE = opt('since', null), RANKED = !!opt('ranked', false), PRACTICE = !!opt('practice', false);
+const ONLY = opt('set', null), SINCE = opt('since', null), VER = opt('version', null), RANKED = !!opt('ranked', false), PRACTICE = !!opt('practice', false);
 const FILE = opt('file', null), PAIRS = opt('pair', null), JSON_OUT = !!opt('json', false);
 const FEW = 30;
 
@@ -62,6 +63,7 @@ for (const g of games) {
   const set = g.set || DEFAULT_SET, v = versionOf(g);
   if (ONLY && set !== ONLY) continue;
   if (SINCE && vcmp(v, SINCE) < 0) continue;
+  if (VER && v !== VER && !v.startsWith(`${VER}.`)) continue;
   used++; first = first && first < g.endedAt ? first : g.endedAt; last = last && last > g.endedAt ? last : g.endedAt;
   const V = (vs[v] ??= { games: 0, unfinished: 0, battles: 0, draws: 0 });
   V.games++; if (g.unfinished) V.unfinished++;
@@ -96,7 +98,7 @@ if (JSON_OUT) { console.log(JSON.stringify(out, null, 1)); process.exit(0); }
 const pad = (s, n) => String(s).padEnd(n);
 const pct = (x) => `${(x * 100).toFixed(1)}%`;
 const row = (r) => `${pad(r.boards, 8)}${pad(`${pct(r.win)} ±${(r.margin * 100).toFixed(1)}`, 15)}${pad(r.lv2 == null ? '' : `${Math.round(r.lv2 * 100)}%`, 6)}${r.few ? 'few' : ''}`;
-console.log(`Pond Brawl live stats: ${used} games${PRACTICE ? '' : ' (practice left out)'}${RANKED ? ', ranked only' : ''}${ONLY ? `, ${ONLY}` : ''}${SINCE ? `, from ${SINCE}` : ''}, ${first ? first.slice(0, 10) : '-'} to ${last ? last.slice(0, 10) : '-'}${FILE ? '' : ' (from Tower)'}`);
+console.log(`Pond Brawl live stats: ${used} games${PRACTICE ? '' : ' (practice left out)'}${RANKED ? ', ranked only' : ''}${ONLY ? `, ${ONLY}` : ''}${SINCE ? `, from ${SINCE}` : ''}${VER ? `, ${VER}${/^\d+\.\d+$/.test(VER) ? '.x' : ''}` : ''}, ${first ? first.slice(0, 10) : '-'} to ${last ? last.slice(0, 10) : '-'}${FILE ? '' : ' (from Tower)'}`);
 console.log(`\n${pad('release', 10)}${pad('games', 7)}${pad('unfinished', 12)}${pad('battles', 9)}draws`);
 for (const v of Object.keys(vs).sort(vcmp)) console.log(`${pad(v, 10)}${pad(vs[v].games, 7)}${pad(vs[v].unfinished || '-', 12)}${pad(vs[v].battles, 9)}${vs[v].battles ? pct(vs[v].draws / vs[v].battles) : '-'}`);
 for (const [set, r] of Object.entries(out.sets)) {
