@@ -8,11 +8,15 @@ group (`tools/post-notes.js`): a short intro line if you like, then `### New`, `
 
 ## Unreleased
 
+## 1.1.0 (2026-10-06)
+
+A new frog joins Might & Magic.
+
 ### New
-- **Vampire Frog** joins Might & Magic in place of the Jester Frog: tier 2, 2/2. Start of battle: it bites a random enemy and steals 1/1 (2/2 at level 2, 3/3 at level 3). A bite never knocks a frog out
+- **Vampire Frog** (tier 2, 2/2). Start of battle: bites a random enemy and steals 1/1 (2/2 at level 2, 3/3 at level 3). A bite never knocks a frog out
 
 ### Changes
-- The Jester Frog leaves the shop. Jesters already in your pond stay and still play
+- The Vampire Frog takes the Jester Frog's place in the shop. Jesters already in your pond stay and still play
 
 ## 1.0.0 (2026-10-06)
 
