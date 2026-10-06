@@ -822,7 +822,7 @@ const DESC = {
   rain:     (L) => ['Hurt', `the friend behind gets ${statText(L, L)} this battle`],
   lucky:    (L) => ['Start of round', `+${L + 1} gold`],
   mama:     (L) => ['Friend hatches', `it gets ${statText(L, L)}`],
-  wizard:   (L) => ['Start of battle', `shrink the strongest enemy to ${7 - 2 * L}/${7 - 2 * L}`],
+  wizard:   (L) => ['Start of battle', `shrink the ${L === 1 ? 'strongest enemy' : `${L} strongest enemies`} to 2/2`],
   bouncy:   (L) => ['Faint', `hatch again in its place as a ${L}/${L}, once`],
   surinam:  (L) => ['Faint', `fill the pond with ${L}/${L} Froglets`],
   midwife:  (L) => ['Hurt', `a ${L}/${L} Froglet hatches behind it`],

@@ -299,10 +299,10 @@ function runBattle(teamA, teamB, opts = {}) {
         }
       }
       if (u.type === 'wizard') {
-        // Shrinks the strongest enemy to 5/5, 3/3 or 1/1 (by level; a stat already below that stays as it is, and it skips
-        // enemies it can't make smaller). It keeps its ability, and an always-on bonus (a Paladin's, a Guard's) stays on top
-        const n = 7 - 2 * L;
-        const foes = alive(1 - s).filter((e) => (e.atk > n + e.aura || e.hp > n + e.aura) && !fixed(e)).sort((x, y) => y.atk + y.hp - (x.atk + x.hp)).slice(0, 1);
+        // Shrinks the L strongest enemies to 2/2 (a stat already below that stays as it is, and it skips enemies it can't
+        // make smaller). They keep their abilities, and an always-on bonus (a Paladin's, a Guard's) stays on top
+        const n = 2;
+        const foes = alive(1 - s).filter((e) => (e.atk > n + e.aura || e.hp > n + e.aura) && !fixed(e)).sort((x, y) => y.atk + y.hp - (x.atk + x.hp)).slice(0, L);
         for (const e of foes) { e.atk = Math.min(e.atk, n + e.aura); e.hp = Math.min(e.hp, n + e.aura); }
         // (it always casts, so it's clear it acted even when there was no one to shrink)
         snap?.('spell', { actor: u.bid, targets: foes.map((e) => e.bid), text: foes.length ? `${nm(u)} shrinks the enemy` : `${nm(u)}’s spell finds no one to shrink` });

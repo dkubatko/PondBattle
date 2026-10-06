@@ -15,7 +15,7 @@ group (`tools/post-notes.js`): a short intro line if you like, then `### New`, `
 ### Balance
 - **Necromancer** raises one friend per battle at every level, now as a 1/1, 3/3 or 5/5 (was 1, 2 or 3 friends as 1/1)
 - **Frog King** 3/6 · 6/12 · 9/18 → 2/4 · 4/6 · 6/8
-- **Wizard** shrinks only the strongest enemy, to 5/5, 3/3 or 1/1 by level (was the 1, 2 or 3 strongest to 1/1)
+- **Wizard** shrinks the 1, 2 or 3 strongest enemies to 2/2 (was 1/1)
 
 ## 1.1.1 (2026-10-06)
 
