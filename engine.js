@@ -538,6 +538,8 @@ function fight(room) {
       }
     });
   });
+  // the ponds as they fight, for the game's log (taken now: Bubbles come off after the battle)
+  const fought = [teamSummary(A.team), teamSummary(B.team)];
   // simulations skip the animation frames; the pond whose frogs act first switches every round
   const { frames, winner, fightAt } = runBattle(A.team, B.team, { frames: !room.sim, first: room.round % 2 === 0 });
   // Bubbles only protect for the battle right after they are given
@@ -545,7 +547,7 @@ function fight(room) {
   if (winner >= 0) { room.players[winner].trophies++; room.players[1 - winner].hearts--; }
   // before / after: per seat, what happened around the battle itself (for the log)
   room.lastBattle = { id: room.sim ? '' : Math.random().toString(36).slice(2, 10), round: room.round, frames, winner, fightAt, before, after: room.players.map(() => []) };
-  (room.log = room.log || []).push({ round: room.round, winner, teams: [teamSummary(A.team), teamSummary(B.team)] });
+  (room.log = room.log || []).push({ round: room.round, winner, teams: fought });
   const done = room.players.findIndex((p) => p.trophies >= WIN_TROPHIES || p.hearts <= 0);
   if (done >= 0) {
     const p = room.players[done];

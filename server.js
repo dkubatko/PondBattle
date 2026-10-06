@@ -145,12 +145,17 @@ function broadcast(room) {
 }
 // Ending a game removes it for both players; open phones get told and go back to the lobby
 function endRoom(room, byName, extra) {
+  recordUnfinished(room);
   const msg = `data: ${JSON.stringify({ ended: true, by: byName, ...extra })}\n\n`;
   const list = [...(subs.get(room.code) || [])];
   subs.delete(room.code);
   delete rooms[room.code];
   save();
   for (const s of list) { try { s.res.write(msg); s.res.end(); } catch {} }
+}
+// A game going away before its end: record its battles so far (see recordGame)
+function recordUnfinished(room) {
+  if (room.phase !== 'over' && room.players.length === 2 && room.log && room.log.length) recordGame(room, true);
 }
 function changed(room) { setClock(room); room.v++; room.touched = Date.now(); save(); broadcast(room); scheduleBot(room); }
 
@@ -218,12 +223,16 @@ function rateGame(room) {
   });
   R.forget(); saveProfiles();
 }
-// Finished games go to the history file (one JSON line each); the profile's match history is read from it
-function recordGame(room) {
-  rateGame(room);
+// Finished games go to the history file (one JSON line each); the profile's match history is read from it. A game that
+// ends early (ended by a player, or dropped as stale) with at least one battle played is recorded too, as unfinished:
+// for balance numbers only (no rank points, not in anyone's match history). version: the release it was played on.
+function recordGame(room, unfinished = false) {
+  if (!unfinished) rateGame(room);
   if (HISTORY === 'off') return; // simulations
   const entry = {
     v: 1,
+    version: VERSION,
+    ...(unfinished ? { unfinished: true } : {}),
     id: crypto.randomBytes(6).toString('hex'),
     room: room.code,
     set: E.setOf(room),
@@ -238,14 +247,14 @@ function recordGame(room) {
       ...(p.delta != null ? { level: R.level(profiles[p.uid]), delta: p.delta } : {}) })),
     log: room.log || [],
   };
-  indexGame(entry);
+  if (!unfinished) indexGame(entry);
   fs.appendFile(HISTORY, JSON.stringify(entry) + '\n', (err) => { if (err) console.error('history write failed:', err.message); });
 }
 E.hooks.gameOver = recordGame;
 // Each player's past games, newest last: uid -> [{ at, set, ranked, won, hearts, rounds, delta, left, opp }]
 const played = new Map();
 function indexGame(e) {
-  if (e.practice) return; // practice games against Pond Bot aren't part of your record
+  if (e.practice || e.unfinished) return; // practice games against Pond Bot and unfinished games aren't part of your record
   e.players.forEach((p, i) => {
     if (!p.uid) return;
     const o = e.players[1 - i] || {};
@@ -670,7 +679,7 @@ setInterval(() => {
     if (r.ranked && r.phase === 'shop' && now - (r.touched || r.created) > 86400e3) {
       const idle = r.players.filter((p) => !p.ready), gone = idle.length === 1 ? idle[0] : null;
       endRoom(r, gone ? gone.name : '', gone ? forfeit(r, gone) : null);
-    } else if (now - r.created > 2 * 86400e3) delete rooms[c];
+    } else if (now - r.created > 2 * 86400e3) { recordUnfinished(r); delete rooms[c]; }
   }
   save();
 }, 3600e3);

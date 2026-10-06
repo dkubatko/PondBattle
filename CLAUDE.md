@@ -153,7 +153,9 @@ Rollback: on Tower, point `compose.yaml` at an earlier `ghcr.io/dkubatko/pondbat
   bot token (test servers), `TG.notify` logs `telegram (off) to <id>: ...` to the server log instead, so check notes
   there.
 - Profiles and match history read `games.jsonl` at startup. Keep history lines backward compatible: old
-  lines have no ranked or delta fields.
+  lines have no ranked, delta or version fields. Newer lines have `version` (the release the game was played on);
+  games that end early with battles played are recorded with `unfinished: true` (balance data only: not rated, not
+  in match history). Each round's ponds are as they fought (Bubbles included).
 
 ## Client (`index.html`)
 
