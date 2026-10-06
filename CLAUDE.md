@@ -214,6 +214,8 @@ Rollback: on Tower, point `compose.yaml` at an earlier `ghcr.io/dkubatko/pondbat
   game mixes with other apps' audio and respects the silent switch, so don't reintroduce "playback" or the
   silent `<audio>` trick. Long-press a music button for the sound readout (engine state, mode, recent
   events): ask the user for a screenshot of it when sound breaks on a phone.
+- iPhone WebKit's text autosizing can blow up multi-line text (it hit the frog bubble's description); `html` has
+  `text-size-adjust: 100%` against it. Keep it, and don't size text with viewport tricks that would need it off.
 - Use component-prefixed CSS class names: generic names (`.ghost`, `.top`, `.bubble`) have collided.
 - Highlight rings use borders, not box-shadow: iPhone WebKit painted pulsing box-shadows as rectangles.
 - The bot token lives outside the repo (`~/claude/workspace/.env`). Never commit it. Only one process may

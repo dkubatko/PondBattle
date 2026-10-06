@@ -8,6 +8,12 @@ group (`tools/post-notes.js`): a short intro line if you like, then `### New`, `
 
 ## Unreleased
 
+## 1.2.4 (2026-10-06)
+
+### Fixes
+- The winner's crown is as big as the crown a frog can wear
+- Frog descriptions no longer show in huge text on iPhones after a battle
+
 ## 1.2.3 (2026-10-06)
 
 ### Balance
