@@ -89,6 +89,11 @@ Rollback: on Tower, point `compose.yaml` at an earlier `ghcr.io/dkubatko/pondbat
 
 ## Balance
 
+- How balance changes are made (the user's choice): judgement first, `tools/simulate.js` only as a sanity check for
+  big mistakes, ship as a patch, then watch real games per release with `node tools/live-stats.js` (per frog: boards,
+  win rate with a Wilson margin, Lv2+ share; `--pair a+b`, `--set`, `--since`, `--ranked`). It reads Tower's
+  `games.jsonl` over ssh, read-only. With few players its numbers are coarse ("few" = under 30 boards): use them to
+  tell clearly broken from clearly fine, alongside feedback in the Pond Brawl group.
 - `tools/simulate.js` plays full games (about 1M battles in ~20 s) and only reports. There is no
   autotuner: read the report, decide changes yourself, and report numbers. Compare candidates with
   `--try "id.field=value"` (no file edits) or `--base <git ref>` (your working tree against it); both

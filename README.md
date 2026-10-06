@@ -16,6 +16,7 @@
 | `sets.json` | Frog sets: which frogs a pond's shop sells (picked when the pond is made) |
 | `tools/simulate.js` | Balance report: plays full games (about 1M battles in ~20 s) on the working tree and reports how every frog and item does; A/B against a git ref (`--base`) or candidate stats (`--try`). Changes nothing |
 | `tools/screen.py` | Screenshots of any screen (home, sheets, shop in round N, any frame of a battle, game over) in Chromium and WebKit at phone sizes, with page errors, console errors, failed requests and sideways scrolling. A background helper keeps a throwaway server (working tree) and the browsers warm, so a capture takes well under a second |
+| `tools/live-stats.js` | Live stats: how each frog does in real players' games, per release (boards, win rate, level 2+, pairs), read from Tower's game history, read-only |
 | `tools/audit.js` | Battle audit: 20,000 random battles per set, checking the rules every battle frame must follow; exits 1 on any broken rule. CI runs it on every image |
 | `tools/post-notes.js` | Patch notes: a release's `CHANGELOG.md` section as a post for the Pond Brawl group (prints it; `--send` posts it) |
 | `CHANGELOG.md` | What changed for players, per release; its newest numbered heading is the game's version |
