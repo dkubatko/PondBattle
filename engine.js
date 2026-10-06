@@ -376,9 +376,10 @@ function runBattle(teamA, teamB, opts = {}) {
   let turns = 0;
   while (T[0].length && T[1].length && turns++ < 60) {
     const a = T[0][0], b = T[1][0];
-    // Who each front frog hits: the enemy ahead; a Leapfrog the enemy's last frog; a Pebble Toad all of them
+    // Who each front frog hits: the enemy ahead; a Leapfrog the frog L spots behind it (the last one if the pond is
+    // shorter); a Pebble Toad all of them
     // (frogs guarded by a Frog King are left out; the front frog never is)
-    const targets = (u, s) => unguarded(1 - s, u.type === 'leapfrog' ? T[1 - s].slice(-1) : u.type === 'pebble' ? [...T[1 - s]] : [T[1 - s][0]], true);
+    const targets = (u, s) => unguarded(1 - s, u.type === 'leapfrog' ? [T[1 - s][Math.min(u.lvl, T[1 - s].length - 1)]] : u.type === 'pebble' ? [...T[1 - s]] : [T[1 - s][0]], true);
     const ta = targets(a, 0), tb = targets(b, 1), da = a.atk, db = b.atk;
     for (const t of ta) { damage(1, t, da, a, true); if (t.hp <= 0 && da > 0) t.koBy = a; }
     for (const t of tb) { damage(0, t, db, b, true); if (t.hp <= 0 && db > 0) t.koBy = b; }

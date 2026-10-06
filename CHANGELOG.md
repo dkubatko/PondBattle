@@ -8,6 +8,9 @@ group (`tools/post-notes.js`): a short intro line if you like, then `### New`, `
 
 ## Unreleased
 
+### Balance
+- **Leapfrog** leaps over the enemy’s front 1, 2 or 3 frogs (by level) and hits the next one (was always the last frog)
+
 ## 1.2.2 (2026-10-06)
 
 ### Changes

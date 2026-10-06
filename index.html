@@ -850,7 +850,7 @@ const DESC = {
   hypno:    (L) => ['Start of battle', `send the enemy’s front ${L === 1 ? 'frog' : `${L} frogs`} to the back`],
   princess: (L) => ['Start of battle', L === 1 ? 'the strongest enemy hits itself' : `the ${L} strongest enemies hit themselves`],
   chameleon:(L) => ['Start of battle', `copy the ability of the friend behind (at level ${L})`],
-  leapfrog: (L) => ['Attack', 'leap over and hit the enemy’s last frog'],
+  leapfrog: (L) => ['Attack', `leap over the enemy’s front ${L === 1 ? 'frog' : `${L} frogs`} and hit the next one`],
   froglet:  () => ['', 'No ability'],
 };
 // Bugs and gear (items.json): name, attack/health given, price; gear stays on the frog
