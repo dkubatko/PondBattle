@@ -8,6 +8,11 @@ group (`tools/post-notes.js`): a short intro line if you like, then `### New`, `
 
 ## Unreleased
 
+## 1.2.2 (2026-10-06)
+
+### Changes
+- How to play shows what each level does: numbers like 1 › 2 › 3 are levels 1, 2 and 3
+
 ## 1.2.1 (2026-10-06)
 
 ### Balance

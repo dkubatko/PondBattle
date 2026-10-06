@@ -496,6 +496,8 @@ h1 { margin: 0; text-align: center; font-size: 40px; font-weight: 900; line-heig
 .guide-row .gname { display: block; color: var(--moon); font-size: 16px; font-weight: 900; margin-bottom: 1px; }
 .guide-row div.txt { font-size: 14px; color: var(--moon-dim); line-height: 1.35; }
 .guide-row div.txt b { color: var(--moon); font-weight: 800; }
+.lv-steps { color: var(--moon); font-weight: 800; white-space: nowrap; }
+.lv-steps i { font-style: normal; font-weight: 700; color: var(--moon-dim); opacity: .7; margin: 0 2px; }
 /* Sets: the cards on New pond / Practice, and the set tabs in How to play */
 .pond-btn .pt small { display: block; font-size: 13px; font-weight: 700; color: var(--moon-dim); }
 /* Set picker: an endless wheel of cards; the one in the middle is the pick (bigger, highlighted), its neighbours
@@ -1980,6 +1982,32 @@ function descHTML(type, lvl, from) {
   if (!DESC[type]) return 'A brand new frog. Reload to meet it properly.';
   const [when, what] = DESC[type](lvl);
   const text = from ? diffWords(DESC[type](from)[1], what) : what;
+  return when ? `<b>${when}:</b> ${text}.` : `${text}.`;
+}
+// A frog's ability at every level in one line (the guide): what changes with the level reads "1 › 2 › 3". When level 1
+// words it differently ("a random enemy" for "2 random enemies"), the line follows the other levels' wording, with level
+// 1's number carried on from theirs (2, 3 → 1)
+function descAllHTML(type) {
+  if (!DESC[type]) return descHTML(type, 1);
+  const [when] = DESC[type](1), w = [1, 2, 3].map((L) => DESC[type](L)[1].split(' '));
+  if (w[1].length !== w[2].length) return descHTML(type, 1);
+  // level 1 lines up with the others when it has the same words wherever levels 2 and 3 agree
+  const lined = w[0].length === w[1].length && w[1].every((x, i) => x !== w[2][i] || w[0][i] === x);
+  // one changing word: its three values, with punctuation they share ("1/1," "(at level 1)") kept outside
+  const steps = (v) => {
+    const pre = v.every((x) => x[0] === '(') ? '(' : '';
+    let post = (v[0].match(/[,.)]+$/) || [''])[0];
+    if (pre) v = v.map((x) => x.slice(1));
+    if (post && v.every((x) => x.endsWith(post))) v = v.map((x) => x.slice(0, -post.length)); else post = '';
+    return `${pre}<span class="lv-steps">${v.join('<i>›</i>')}</span>${post}`;
+  };
+  const words = w[1].map((x, i) => {
+    if (x === w[2][i]) return x;
+    if (lined) return steps([w[0][i], x, w[2][i]]);
+    return /^\d+$/.test(x) && /^\d+$/.test(w[2][i]) ? steps([String(2 * x - w[2][i]), x, w[2][i]]) : null;
+  });
+  if (words.includes(null) || !words.some((x) => x.includes('lv-steps'))) return descHTML(type, 1);
+  const text = words.join(' ');
   return when ? `<b>${when}:</b> ${text}.` : `${text}.`;
 }
 // Wrap the words of b that are not in a (longest common subsequence of words)
@@ -4211,7 +4239,7 @@ function openMenu(o = {}) {
 }
 // A set's frogs, by the round they start showing up in the shop
 function setFrogsHTML(set) {
-  const row = (t) => `<div class="guide-row"><div class="gfrog">${frogHTML({ id: 0, type: t, atk: BASE[t][0], hp: BASE[t][1], lvl: 1 }, { size: 46, idle: false })}</div><div class="txt"><span class="gname">${NAMES[t]} ${coinBadge(CATALOG[t].cost)}</span>${descHTML(t, 1)}</div></div>`;
+  const row = (t) => `<div class="guide-row"><div class="gfrog">${frogHTML({ id: 0, type: t, atk: BASE[t][0], hp: BASE[t][1], lvl: 1 }, { size: 46, idle: false })}</div><div class="txt"><span class="gname">${NAMES[t]} ${coinBadge(CATALOG[t].cost)}</span>${descAllHTML(t)}</div></div>`;
   const tiers = [[1, 'From round 1'], [3, 'From round 3'], [5, 'From round 5'], [7, 'From round 7']];
   const frogs = SETS[setId(set)].frogs;
   return tiers.map(([n, lbl]) => `<div class="guide-sec">${lbl}</div>` + frogs.filter((t) => TIER[t] === n).map(row).join('')).join('');
@@ -4541,7 +4569,7 @@ function openGuide(set, pick = false) {
     <div class="guide-sec first">In the shop</div>
     <ul class="rules">
       <li>You get <b>10 gold</b> every round. Prices are on each frog and item.</li>
-      <li>Drop a frog on a matching one to <b>level it up</b>.</li>
+      <li>Drop a frog on a matching one to <b>level it up</b>: 3 copies make level 2, 6 make level 3. Numbers like <b>1 › 2 › 3</b> are what each level does.</li>
       <li><b>Lock</b> the shop (1 gold) to keep it for the next round.</li>
       <li>The shop sells one <b>set</b> of frogs, picked when the pond starts.</li>
     </ul>
