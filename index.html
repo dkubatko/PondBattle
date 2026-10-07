@@ -2669,6 +2669,24 @@ async function shareFriendLink() {
     else { await navigator.clipboard.writeText(link); toast('Link copied'); }
   } catch {}
 }
+// "Join me" while looking for a ranked game: in Telegram a card with a button that opens the game straight into a search
+// (play_PID, like a friend's search note); elsewhere a link that does the same (?play=PID)
+async function shareSearchInvite() {
+  if (!ME.pid) return;
+  const text = `Join me in Pond Brawl! ${ME.name || 'A friend'} is looking for a game 🐸`;
+  if (TG && ME.bot) {
+    if (TG.isVersionAtLeast && TG.isVersionAtLeast('8.0')) {
+      try { const { id } = await api('/api/play/link', {}); return TG.shareMessage(id, (sent) => { if (sent) toast('Invite sent'); }); } catch {}
+    }
+    const link = `https://t.me/${ME.bot}?startapp=play_${ME.pid}`;
+    return TG.openTelegramLink(`https://t.me/share/url?url=${encodeURIComponent(link)}&text=${encodeURIComponent(text)}`);
+  }
+  const link = `${location.origin}/?play=${ME.pid}`;
+  try {
+    if (navigator.share) await navigator.share({ title: 'Pond Brawl', text, url: link });
+    else { await navigator.clipboard.writeText(link); toast('Link copied'); }
+  } catch {}
+}
 function enterRoom(r) {
   clearInterval(pondTimer);
   sess = r; localStorage.frogSess = JSON.stringify(r); S = null; overGame = null;
@@ -2679,12 +2697,13 @@ function showHome(msg, page) {
   clearInterval(pondTimer);
   // Opened from an invite (?join=ABCD or a Telegram join_ABCD link) or a bot message about a game (?room=ABCD)
   // Also from a friend's "Add me" link (friend_PID / ?friend=PID: their profile), a friend's search note (?play=PID:
-  // look for a game, paired with them if they still are) or a friend request note (?friends=1: the Friends page)
+  // look for a game, paired with them if they still are; also their "Join me" card, play_PID) or a friend request note
+  // (?friends=1: the Friends page)
   const qs = new URLSearchParams(location.search), start = (ME.start || '').match(/^join_([A-Z]{4})$/i);
   const joinCode = ((start && start[1]) || qs.get('join') || '').toUpperCase().slice(0, 4);
   const roomCode = (qs.get('room') || '').toUpperCase().slice(0, 4);
   const friendPid = ((ME.start || '').match(/^friend_([a-f0-9]{12})$/) || [])[1] || (qs.get('friend') || '').replace(/[^a-f0-9]/g, '').slice(0, 12);
-  const playWith = !!qs.get('play'), openFriends = !!qs.get('friends');
+  const playWith = !!qs.get('play') || /^play_[a-f0-9]{12}$/.test(ME.start || ''), openFriends = !!qs.get('friends');
   ME.start = ''; // only once
   if (friendPid || playWith || openFriends) history.replaceState(null, '', '/');
   const node = el(`<div class="screen home">
@@ -4122,9 +4141,10 @@ function startSearch(pref) {
     <h1 class="h-sm" id="stitle">Finding a match</h1>
     <div class="lede" id="ssub">${esc(pref === 'any' ? 'Any set' : SETS[setId(pref)].name)} · <span id="sclock">0:00</span></div>
     <div class="lede search-q" id="squeue"></div>
-    <div class="panel"><button class="btn ghost wide" id="scancel">Cancel</button></div>
+    <div class="panel"><button class="btn water wide" id="sinvite">Invite friends</button><button class="btn ghost wide" id="scancel">Cancel</button></div>
   </div>`);
   mount('search', node);
+  $('#sinvite').onclick = () => { Snd.tap(); shareSearchInvite(); };
   $('#scancel').onclick = () => { Snd.tap(); cancelSearch(); };
   const tick = setInterval(() => {
     const c = $('#sclock'); if (!c || searching !== mine) return clearInterval(tick);

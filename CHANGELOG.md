@@ -8,6 +8,11 @@ group (`tools/post-notes.js`): a short intro line if you like, then `### New`, `
 
 ## Unreleased
 
+## 1.2.5 (2026-10-07)
+
+### New
+- **Invite friends** while you look for a ranked game: send a "Join me" card to any chat; it opens the game straight into a search, so you get matched
+
 ## 1.2.4 (2026-10-06)
 
 ### Fixes

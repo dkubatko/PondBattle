@@ -95,21 +95,26 @@ async function prepareInvite(tgId, code) {
   return r.ok ? r.result.id : '';
 }
 
-// "Add me as a friend": a card for Telegram's share sheet with a button that opens the game on your profile
-// (t.me/<bot>?startapp=friend_PID). Returns the prepared message id, or '' if Telegram refused.
-async function prepareFriendLink(tgId, pid, name) {
+// A card for Telegram's share sheet (WebApp.shareMessage): a line of text and a button that opens the game with a start
+// parameter (t.me/<bot>?startapp=...). Returns the prepared message id, or '' if Telegram refused.
+async function prepareCard(tgId, { kind, title, text, button, start }) {
   if (!TOKEN || !username || !PUBLIC_URL.startsWith('https://')) return '';
   const r = await api('savePreparedInlineMessage', {
     user_id: Number(tgId), allow_user_chats: true, allow_group_chats: true,
     result: {
-      type: 'article', id: `friend-${pid}-${Date.now()}`, title: 'Add me as a friend',
-      input_message_content: { message_text: `Add ${name} as a friend in Pond Brawl! 🐸` },
-      reply_markup: { inline_keyboard: [[{ text: 'Add friend', url: `https://t.me/${username}?startapp=friend_${pid}` }]] },
+      type: 'article', id: `${kind}-${Date.now()}`, title,
+      input_message_content: { message_text: text },
+      reply_markup: { inline_keyboard: [[{ text: button, url: `https://t.me/${username}?startapp=${start}` }]] },
     },
   }).catch((e) => ({ ok: false, description: e.message }));
-  if (!r.ok) console.error('telegram friend link:', r.description);
+  if (!r.ok) console.error(`telegram ${kind} card:`, r.description);
   return r.ok ? r.result.id : '';
 }
+// "Add me as a friend": opens the game on your profile (friend_PID)
+const prepareFriendLink = (tgId, pid, name) => prepareCard(tgId, { kind: `friend-${pid}`, title: 'Add me as a friend', text: `Add ${name} as a friend in Pond Brawl! 🐸`, button: 'Add friend', start: `friend_${pid}` });
+// "Join me": sent while you look for a ranked game; opens the game straight into a search (play_PID), like a friend's
+// search note, so the two of you get matched if you're still looking
+const prepareSearchInvite = (tgId, pid, name) => prepareCard(tgId, { kind: `play-${pid}`, title: 'Join me in Pond Brawl', text: `Join me in Pond Brawl! ${name} is looking for a game 🐸`, button: 'Join the game', start: `play_${pid}` });
 
 // A short note with a button back into the game (someone joined your pond or is waiting for you, a friend request,
 // a challenge, a friend looking for a game). Without a bot (a local test copy) it's only logged.
@@ -120,4 +125,4 @@ function notify(tgId, text, query, button = 'Open the pond') {
     .catch((e) => console.error('telegram notify:', e.message));
 }
 
-module.exports = { verifyInitData, start, notify, prepareInvite, prepareFriendLink, botUsername: () => username, enabled: () => !!TOKEN };
+module.exports = { verifyInitData, start, notify, prepareInvite, prepareFriendLink, prepareSearchInvite, botUsername: () => username, enabled: () => !!TOKEN };

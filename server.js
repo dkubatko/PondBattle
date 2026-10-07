@@ -551,6 +551,12 @@ http.createServer(async (req, res) => {
       const id = await TG.prepareFriendLink(tgId({ uid }), pidOf(uid), profiles[uid].name || 'me');
       return id ? json(res, 200, { id }) : json(res, 502, { error: 'Telegram said no' });
     }
+    if (url.pathname === '/api/play/link') {
+      // "Join me" card for Telegram's share sheet, sent while you look for a ranked game
+      if (!tgId({ uid })) return json(res, 404, { error: 'No Telegram here' });
+      const id = await TG.prepareSearchInvite(tgId({ uid }), pidOf(uid), profiles[uid].name || 'A friend');
+      return id ? json(res, 200, { id }) : json(res, 502, { error: 'Telegram said no' });
+    }
     if (url.pathname === '/api/challenge') {
       // Challenge a friend: your waiting pond (made, or the one you have) is theirs to join; they get a note and see
       // it on their home page
