@@ -8,6 +8,19 @@ group (`tools/post-notes.js`): a short intro line if you like, then `### New`, `
 
 ## Unreleased
 
+## 1.3.0 (2026-10-08)
+
+A Nature update: a frog-eating Cane Toad, and a reworked Turtle Frog and Pebble Toad.
+
+### New
+- **Cane Toad** joins Nature in place of the Golden Frog: tier 4, 4/4. End of round: eats the friend ahead and gains +3/+3 (+5/+5 at level 2, +7/+7 at level 3) for good
+
+### Changes
+- **Turtle Frog** reworked: takes at most 5 damage per hit (4 at level 2, 3 at level 3)
+- **Pebble Toad** reworked: hits the enemy ahead for its attack and every other enemy for 2 (4, 6); its attack now grows like other frogs'
+- **Golden Frog** is removed from Nature
+- The Hungry Frog is now called the **Horned Frog**, its real name
+
 ## 1.2.5 (2026-10-07)
 
 ### New

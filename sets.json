@@ -1,4 +1,4 @@
 {
-  "nature": {"name": "Nature", "frogs": ["peeper", "glass", "spitter", "lily", "bouncy", "tree", "toad", "rain", "hungry", "midwife", "bullfrog", "surinam", "mama", "leapfrog", "turtle", "goliath", "chameleon", "pebble", "budgett", "golden"], "cover": ["tree", "spitter", "glass", "golden"]},
+  "nature": {"name": "Nature", "frogs": ["peeper", "glass", "spitter", "lily", "bouncy", "tree", "toad", "rain", "hungry", "midwife", "bullfrog", "surinam", "mama", "leapfrog", "turtle", "goliath", "chameleon", "pebble", "budgett", "cane"], "cover": ["tree", "spitter", "glass", "cane"]},
   "magic": {"name": "Might & Magic", "frogs": ["peasant", "archer", "merchant", "blacksmith", "bard", "vampire", "rogue", "squire", "cleric", "guard", "knight", "lucky", "hypno", "necro", "king", "prince", "princess", "wizard", "dragon", "paladin"], "cover": ["knight", "princess", "wizard", "king"]}
 }

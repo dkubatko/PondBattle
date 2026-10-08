@@ -126,7 +126,7 @@ function runBattle(teamA, teamB, opts = {}) {
     if (u.gear === 'bubble' && !u.blocked) { u.blocked = true; return; } // the next frame shows the bubble as popped
     // Golden Frog: its first L hits that land turn the frog to gold (knocked out, whatever shell it has)
     if (src && src.type === 'golden' && src.uses < src.lvl) { src.uses++; n = Math.max(n, u.hp); if (snap) gold.push(u.bid); }
-    else if (u.type === 'turtle') { const m = Math.max(1, n - u.lvl); if (snap && m < n) shell.push([u.bid, n - m]); n = m; }
+    else if (u.type === 'turtle') { const m = Math.min(n, 6 - u.lvl); if (snap && m < n) shell.push([u.bid, n - m]); n = m; } // its shell: at most 5/4/3 a hit
     u.hp -= n;
     if (u.hp > 0) hurts[s].push({ u, by: reply ? src : null });
   };
@@ -381,8 +381,10 @@ function runBattle(teamA, teamB, opts = {}) {
     // (frogs guarded by a Frog King are left out; the front frog never is)
     const targets = (u, s) => unguarded(1 - s, u.type === 'leapfrog' ? [T[1 - s][Math.min(u.lvl, T[1 - s].length - 1)]] : u.type === 'pebble' ? [...T[1 - s]] : [T[1 - s][0]], true);
     const ta = targets(a, 0), tb = targets(b, 1), da = a.atk, db = b.atk;
-    for (const t of ta) { damage(1, t, da, a, true); if (t.hp <= 0 && da > 0) t.koBy = a; }
-    for (const t of tb) { damage(0, t, db, b, true); if (t.hp <= 0 && db > 0) t.koBy = b; }
+    // a Pebble Toad hits the enemy ahead with its attack and rolls into the others for 2L
+    const dmg = (u, t, s) => (u.type === 'pebble' && t !== T[1 - s][0] ? 2 * u.lvl : u.atk);
+    for (const t of ta) { const d = dmg(a, t, 0); damage(1, t, d, a, true); if (t.hp <= 0 && d > 0) t.koBy = a; }
+    for (const t of tb) { const d = dmg(b, t, 1); damage(0, t, d, b, true); if (t.hp <= 0 && d > 0) t.koBy = b; }
     const list = (type) => [[a, ta], [b, tb]].filter(([u]) => u.type === type).map(([u, ts]) => [u.bid, ts.map((t) => t.bid)]);
     const leaps = list('leapfrog'), wide = list('pebble');
     snap?.('hit', { ids: [a.bid, b.bid], ...(leaps.length ? { leaps } : {}), ...(wide.length ? { wide } : {}) });
@@ -543,6 +545,15 @@ function fight(room) {
       }
       if (f && f.type === 'blacksmith') {
         for (let j = i - 1; j >= 0; j--) if (p.team[j]) { p.team[j].atk += f.lvl; fixStats(p.team[j]); before[seat].push({ from: f.id, to: p.team[j].id, atk: f.lvl, hp: 0, text: `${FROGS.blacksmith.name} gives ${FROGS[p.team[j].type].name} +${f.lvl} attack` }); break; }
+      }
+      // Cane Toad: swallows the friend ahead (it's gone for good) and keeps +3/+3, +5/+5 or +7/+7
+      if (f && f.type === 'cane') {
+        for (let j = i - 1; j >= 0; j--) if (p.team[j]) {
+          const eaten = p.team[j], n = 2 * f.lvl + 1;
+          p.team[j] = null; f.atk = Math.min(50, f.atk + n); f.hp = Math.min(50, f.hp + n); fixStats(f);
+          before[seat].push({ from: f.id, to: eaten.id, eat: true, atk: n, hp: n, text: `${FROGS.cane.name} eats ${FROGS[eaten.type].name} and gains +${n}/+${n}` });
+          break;
+        }
       }
     });
   });
